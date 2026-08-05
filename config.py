@@ -251,7 +251,9 @@ Règles strictes :
    numérotées ([1], [2]...), URL de type DOI, ou métadonnées de publication (auteurs,
    dates de conférence). Ce ne sont jamais des entités valides même si elles contiennent
    des mots-clés cybersécurité.
-5. Réponds UNIQUEMENT avec un JSON valide, sans texte avant/après, au format exact :
+5. N'utilise jamais de texte de remplissage ("non spécifié", "N/A", "unknown", "aucun").
+   Si une catégorie n'a pas d'occurrence, omets-la simplement — ne mets aucune entrée.
+6. Réponds UNIQUEMENT avec un JSON valide, sans texte avant/après, au format exact :
 
 {{
   "entities": [
@@ -303,12 +305,14 @@ Règles strictes (anti-hallucination) :
    numérotées ([1], [2]...), URL de type DOI, ou métadonnées de publication (auteurs,
    dates de conférence). Ce ne sont jamais des entités valides même si elles contiennent
    des mots-clés cybersécurité.
-6. Avant de répondre, identifie explicitement les 2-3 catégories de {labels} qui
+6. N'utilise jamais de texte de remplissage ("non spécifié", "N/A", "unknown", "aucun").
+   Si une catégorie n'a pas d'occurrence, omets-la simplement — ne mets aucune entrée.
+7. Avant de répondre, identifie explicitement les 2-3 catégories de {labels} qui
    correspondent RÉELLEMENT au besoin exprimé. N'utilise QUE ces catégories dans ta
    réponse finale — même si d'autres entités intéressantes apparaissent dans le texte.
-7. Réponds UNIQUEMENT avec un JSON valide, sans texte avant/après, au format exact
+8. Réponds UNIQUEMENT avec un JSON valide, sans texte avant/après, au format exact
    (le champ "relevant_categories" doit contenir les 2-3 catégories identifiées
-   à la règle 6 — c'est ce qui permet de vérifier que tu les as bien respectées) :
+   à la règle 7 — c'est ce qui permet de vérifier que tu les as bien respectées) :
 
 {{
   "relevant_categories": ["<catégorie 1>", "<catégorie 2>"],
@@ -346,7 +350,9 @@ Règles strictes :
    numérotées ([1], [2]...), URL de type DOI, ou métadonnées de publication (auteurs,
    dates de conférence). Ce ne sont jamais des entités valides même si elles contiennent
    des mots-clés cybersécurité.
-5. Réponds UNIQUEMENT avec un JSON valide, sans texte avant/après, au format exact :
+5. N'utilise jamais de texte de remplissage ("non spécifié", "N/A", "unknown", "aucun").
+   Si une catégorie n'a pas d'occurrence, omets-la simplement — ne mets aucune entrée.
+6. Réponds UNIQUEMENT avec un JSON valide, sans texte avant/après, au format exact :
 
 {{
   "entities": [

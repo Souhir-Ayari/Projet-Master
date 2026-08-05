@@ -29,9 +29,19 @@ def strip_references_section(text: str) -> str:
     bibliographie sont envoyés au LLM comme n'importe quel autre texte, qui en
     extrait alors des fragments de citations cassées ("[35] M. Giannelis..."),
     gonflant artificiellement les faux positifs.
+
+    Regex élargie par rapport à la v1 (qui ne matchait que "References" seul
+    sur sa ligne) : accepte un préfixe de numérotation de section
+    ("5. References", "VI. Bibliography"), l'accent français ("Références"),
+    et les intitulés alternatifs ("Works Cited", "Reference List", "Sources")
+    — la version stricte ratait la plupart des papiers académiques, dont le
+    titre de section de bibliographie est presque toujours numéroté.
     """
     pattern = re.compile(
-        r"\n\s*(references|bibliographie|bibliography)\s*\n", re.IGNORECASE
+        r"\n[ \t]*(?:(?:[ivxlcdm]{1,6}|\d{1,2})[.\)][ \t]*)?"
+        r"(references|références|bibliographie|bibliography|works cited|reference list|sources)"
+        r"[ \t]*:?[ \t]*\n",
+        re.IGNORECASE,
     )
     match = pattern.search(text)
     return text[: match.start()] if match else text

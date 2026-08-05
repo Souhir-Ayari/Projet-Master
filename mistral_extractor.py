@@ -354,7 +354,7 @@ class MistralExtractor:
         Pour le variant "custom" (fix #6) : restreint les entités aux catégories
         que le modèle a lui-même explicitement identifiées comme pertinentes
         pour le besoin utilisateur (champ "relevant_categories" du JSON, voir
-        règle 6 de PROMPT_CUSTOM). Rend vérifiable côté code la consigne
+        règle 7 de PROMPT_CUSTOM). Rend vérifiable côté code la consigne
         "n'utilise QUE ces catégories" plutôt que de compter uniquement sur le
         modèle pour la respecter spontanément.
         """

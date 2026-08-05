@@ -14,10 +14,16 @@ from config import CYBER_ENTITY_LABELS, GLINER_MODEL_NAME, GLINER_CONFIDENCE_THR
 
 
 class GLiNERExtractor:
-    def __init__(self, model_name: str = GLINER_MODEL_NAME):
+    def __init__(self, model_name: str = GLINER_MODEL_NAME, labels: list[str] = None):
+        """
+        `labels` permet de comparer GLiNER sur une autre taxonomie que
+        CYBER_ENTITY_LABELS (ex: SUPPLY_CHAIN_ENTITY_LABELS), pour une
+        comparaison GLiNER vs Mistral équitable une fois le prompt "topic"
+        activé côté MistralExtractor.
+        """
         print(f"[GLiNER] Chargement du modèle {model_name} ...")
         self.model = GLiNER.from_pretrained(model_name)
-        self.labels = CYBER_ENTITY_LABELS
+        self.labels = labels or CYBER_ENTITY_LABELS
 
     def extract(
         self, text: str, threshold: float = GLINER_CONFIDENCE_THRESHOLD
