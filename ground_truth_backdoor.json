@@ -1,0 +1,79 @@
+{
+  "_comment": "Ground truth construit à partir de la lecture réelle du paper 'Human-Certified Module Repositories for the AI Age' (Enyedi, IEEE AQTR 2026, arXiv:2603.02512). Toutes les entités ci-dessous sont recopiées mot pour mot depuis le texte source (Case Study 3: XZ Utils Backdoor, + les cas comparatifs SolarWinds et Log4Shell également présents dans le document). Si votre extraction PDF locale (pdfplumber) segmente le texte légèrement différemment (coupures de mots en fin de ligne, espaces), le matching flou (seuil 0.85) dans evaluator.py devrait absorber ces petites différences. Vérifiez et corrigez ce fichier après avoir vous-même relu votre PDF, en particulier si vous utilisez une autre version/édition du paper.",
+  "pdf_file": "human_certified_module_repositories.pdf",
+  "source_reference": "arXiv:2603.02512 (https://arxiv.org/abs/2603.02512)",
+  "entities": [
+    { "text": "CVE-2024-3094", "label": "identifiant CVE" },
+    {
+      "text": "XZ Utils",
+      "label": "paquet ou bibliothèque logicielle concerné"
+    },
+    {
+      "text": "liblzma",
+      "label": "paquet ou bibliothèque logicielle concerné"
+    },
+    { "text": "sshd", "label": "service ou composant ciblé" },
+    { "text": "Debian", "label": "distribution ou système affecté" },
+    { "text": "Ubuntu", "label": "distribution ou système affecté" },
+    {
+      "text": "nearly 30,000",
+      "label": "nombre de systèmes ou paquets impactés"
+    },
+    { "text": "Kaspersky", "label": "organisation ayant analysé l'incident" },
+    { "text": "2024", "label": "année ou période de l'incident" },
+    {
+      "text": "socially engineered maintainer compromise",
+      "label": "vecteur d'attaque ou méthode d'infiltration"
+    },
+
+    {
+      "text": "SolarWinds",
+      "label": "paquet ou bibliothèque logicielle concerné"
+    },
+    { "text": "Orion", "label": "paquet ou bibliothèque logicielle concerné" },
+    {
+      "text": "approximately 18,000",
+      "label": "nombre de systèmes ou paquets impactés"
+    },
+    { "text": "2019", "label": "année ou période de l'incident" },
+
+    { "text": "CVE-2021-44228", "label": "identifiant CVE" },
+    { "text": "Log4j", "label": "paquet ou bibliothèque logicielle concerné" },
+    {
+      "text": "Log4Shell",
+      "label": "paquet ou bibliothèque logicielle concerné"
+    },
+
+    { "text": "SLSA", "label": "framework ou mécanisme de mitigation" },
+    { "text": "Sigstore", "label": "framework ou mécanisme de mitigation" },
+    { "text": "Rekor", "label": "framework ou mécanisme de mitigation" },
+
+    {
+      "text": "seL4",
+      "label": "système formellement vérifié cité en comparaison"
+    },
+    {
+      "text": "CompCert",
+      "label": "système formellement vérifié cité en comparaison"
+    },
+
+    { "text": "IFTTT", "label": "écosystème de composition logicielle cité" },
+    {
+      "text": "Node-RED",
+      "label": "écosystème de composition logicielle cité"
+    },
+    {
+      "text": "Azure Verified Modules",
+      "label": "écosystème de composition logicielle cité"
+    },
+
+    {
+      "text": "Human-Certified Module Repositories",
+      "label": "nom du système ou framework proposé par les auteurs"
+    },
+    {
+      "text": "HCMRs",
+      "label": "nom du système ou framework proposé par les auteurs"
+    }
+  ]
+}

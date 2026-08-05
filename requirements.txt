@@ -1,0 +1,7 @@
+gliner>=0.2.13
+pdfplumber>=0.11.0
+requests>=2.31.0
+torch>=2.1.0
+transformers>=4.42.0
+accelerate>=0.30.0
+bitsandbytes>=0.43.0

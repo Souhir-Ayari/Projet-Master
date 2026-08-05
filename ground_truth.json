@@ -1,0 +1,13 @@
+{
+  "_comment": "Annotez manuellement les entités réellement présentes dans votre PDF de test. Chaque 'text' doit être copié EXACTEMENT (mêmes caractères) depuis le PDF pour permettre le matching automatique.",
+  "pdf_file": "C:\\Users\\MSI\\OneDrive\\Bureau\\mémoire\\cybersec_ner_experiment\\backdor.pdf",
+  "entities": [
+    { "text": "185.220.101.5", "label": "adresse IP" },
+    { "text": "CVE-2023-23397", "label": "identifiant CVE" },
+    { "text": "Emotet", "label": "backdoor" },
+    { "text": "Microsoft Outlook", "label": "logiciel" },
+    { "text": "Microsoft Exchange Server", "label": "logiciel" },
+    { "text": "Microsoft Windows", "label": "logiciel" },
+    { "text": "Microsoft Office", "label": "logiciel" }
+  ]
+}
