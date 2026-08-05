@@ -23,6 +23,7 @@ from config import (
     CYBER_ENTITY_LABELS,
     SUPPLY_CHAIN_ENTITY_LABELS,
     SUPPLY_CHAIN_ENTITY_DESCRIPTIONS,
+    TEMPLATE_LEAK_VALUES,
     MISTRAL_BACKEND,
     OLLAMA_MODEL_NAME,
     OLLAMA_URL,
@@ -196,6 +197,14 @@ class MistralExtractor:
         # "CVE-[0-9]{4}" pour un label "identifiant CVE") — applique
         # is_format_valid, jusqu'ici défini dans config.py mais jamais branché.
         entities = self._filter_by_format(entities)
+
+        # Filtre 4 : rejette les valeurs d'exemple FICTIVES recopiées depuis
+        # le prompt (ex: "CVE-0000-00000", "0.0.0.0") — remplacer les
+        # exemples réalistes par des valeurs fictives dans le prompt ne
+        # suffit pas, le modèle les recopie parfois quand même malgré la
+        # consigne. Ce filtre attrape la fuite après coup, quelle que soit
+        # la valeur d'exemple choisie (voir config.TEMPLATE_LEAK_VALUES).
+        entities = self._drop_template_leaks(entities)
 
         method_name = f"mistral_prompt_{prompt_variant}"
 
@@ -383,6 +392,29 @@ class MistralExtractor:
             print(
                 f"[⚠] {len(rejected)} entité(s) rejetée(s) — format invalide pour leur label : "
                 f"{[(e.get('text'), e.get('label')) for e in rejected]}"
+            )
+        return valid
+
+    @staticmethod
+    def _drop_template_leaks(entities: list[dict]) -> list[dict]:
+        """
+        Rejette les entités dont le texte est une valeur d'exemple FICTIVE
+        recopiée depuis le prompt (voir config.TEMPLATE_LEAK_VALUES, ex:
+        "CVE-0000-00000", "0.0.0.0"). Complète les règles anti-hallucination
+        écrites dans le prompt lui-même : un modèle recopie parfois
+        l'exemple tel quel malgré la consigne "ne jamais les recopier",
+        même quand ce n'est plus une valeur réaliste. Ce filtre attrape
+        la fuite déterministe après coup, indépendamment de la valeur
+        d'exemple choisie dans le prompt.
+        """
+        valid, rejected = [], []
+        for e in entities:
+            text = e.get("text", "").strip().lower()
+            (rejected if text in TEMPLATE_LEAK_VALUES else valid).append(e)
+        if rejected:
+            print(
+                f"[⚠] {len(rejected)} entité(s) rejetée(s) — valeur d'exemple fictive "
+                f"recopiée depuis le prompt : {[e.get('text') for e in rejected]}"
             )
         return valid
 

@@ -111,7 +111,7 @@ def main():
     parser.add_argument(
         "--variants",
         nargs="+",
-        default=["naive", "engineered"],
+        default=["naive", "engineered", "custom", "topic"],
         choices=["naive", "naive_schema", "engineered", "custom", "topic"],
         help="Variantes de prompt à tester pour le CAS 2 (Mistral). "
         "'naive_schema' isole la variable 'schéma JSON' seule (sans règles "
