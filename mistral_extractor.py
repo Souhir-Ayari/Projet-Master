@@ -249,13 +249,32 @@ class MistralExtractor:
         On extrait le premier objet JSON valide trouvé dans la réponse, et on
         renvoie l'objet COMPLET (pas seulement "entities") pour pouvoir aussi
         lire le champ "relevant_categories" (variant custom, fix #6).
+
+        Avant ce fix, un échec de parsing (aucun JSON trouvé, ou JSON malformé)
+        renvoyait silencieusement {} : impossible de distinguer "le modèle n'a
+        rien trouvé" de "le modèle a répondu mais le parsing a échoué" en
+        regardant seulement le nombre d'entités (0 dans les deux cas). C'est
+        le cas typique du prompt "naive", qui ne force aucun format JSON —
+        on log donc désormais un avertissement avec un extrait de la réponse
+        brute pour pouvoir diagnostiquer sans devoir aller lire
+        raw_model_output dans le JSON de sortie à chaque fois.
         """
         match = re.search(r"\{.*\}", raw_output, re.DOTALL)
         if not match:
+            preview = raw_output.strip().replace("\n", " ")[:200]
+            print(
+                f"[⚠] Aucun JSON trouvé dans la réponse du modèle. "
+                f"Extrait de la réponse brute : {preview!r}"
+            )
             return {}
         try:
             return json.loads(match.group(0))
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            preview = match.group(0).strip().replace("\n", " ")[:200]
+            print(
+                f"[⚠] JSON trouvé mais invalide ({e}). "
+                f"Extrait : {preview!r}"
+            )
             return {}
 
     @staticmethod
