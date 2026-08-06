@@ -278,6 +278,23 @@ class MistralExtractor:
         try:
             return json.loads(match.group(0))
         except json.JSONDecodeError as e:
+            # Repli : certains modèles ajoutent des commentaires "//" (JSON
+            # non standard) ou une virgule traînante avant "]"/"}" (JSON5-like).
+            # On retente après nettoyage — uniquement en repli, donc aucun
+            # risque de régression : si ça échoue aussi, on retombe sur le
+            # même comportement qu'avant (log + {}).
+            repaired = re.sub(r"^[ \t]*//.*$", "", match.group(0), flags=re.MULTILINE)
+            repaired = re.sub(r",(\s*[\]}])", r"\1", repaired)
+            if repaired != match.group(0):
+                try:
+                    result = json.loads(repaired)
+                    print(
+                        "[⚠] JSON invalide corrigé après suppression de "
+                        "commentaires // et/ou virgules traînantes."
+                    )
+                    return result
+                except json.JSONDecodeError:
+                    pass
             preview = match.group(0).strip().replace("\n", " ")[:200]
             print(
                 f"[⚠] JSON trouvé mais invalide ({e}). "
