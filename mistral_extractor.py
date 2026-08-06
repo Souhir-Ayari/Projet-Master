@@ -179,6 +179,14 @@ class MistralExtractor:
             raw_output = ""  # -> parsed restera {} pour ce chunk, le run continue
 
         parsed = self._parse_json_full(raw_output)
+        if parsed and not isinstance(parsed.get("entities"), list):
+            preview = raw_output.strip().replace("\n", " ")[:200]
+            print(
+                f"[⚠] JSON parsé mais sans clé \"entities\" exploitable "
+                f"(clés trouvées : {list(parsed.keys())}). Le modèle a "
+                f"peut-être utilisé un autre nom de champ. "
+                f"Extrait de la réponse brute : {preview!r}"
+            )
         entities = parsed.get("entities", [])
 
         # Filtre 1 : rejette les labels hors taxonomie (fix #2)
