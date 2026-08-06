@@ -205,25 +205,37 @@ OUTPUT_SCHEMA_EXAMPLE = {
 # comme demandé : PROMPT_NAIVE (référence basse) vs PROMPT_NAIVE_SCHEMA
 # (référence intermédiaire) vs PROMPT_ENGINEERED (optimisé).
 
-PROMPT_NAIVE = """Extrais les entités importantes de ce texte de cybersécurité
-et retourne un JSON.
+# PROMPT_NAIVE ne donnait auparavant AUCUNE indication de format ("retourne
+# un JSON", sans montrer à quoi ce JSON doit ressembler). Résultat : le
+# modèle répond souvent en prose ou avec une structure JSON de son choix
+# (autre nom de clé que "entities"), et le parsing échoue systématiquement
+# -> 0 entité extraite sur tous les chunks. Ça ne mesure alors qu'un
+# problème de format, pas la qualité d'extraction sans guidage, ce qui
+# n'est pas informatif pour la comparaison. On lui donne donc l'enveloppe
+# JSON minimale (même clé "entities" que les autres variantes), SANS pour
+# autant lui montrer la liste de catégories (naive_schema) ni les règles
+# anti-hallucination (engineered) : naive reste la référence la plus
+# faible, mais sa faiblesse mesure maintenant un manque de guidage sur le
+# CONTENU, plus un simple échec de FORMAT.
+PROMPT_NAIVE = """Extrais les entités importantes de ce texte de cybersécurité.
+
+Réponds uniquement avec un JSON valide, sans texte avant/après, au format :
+{{"entities": [{{"text": "...", "label": "..."}}]}}
 
 Texte:
 {text}
 """
 
 # PROMPT_NAIVE_SCHEMA : variante intermédiaire entre naive et engineered.
-# PROMPT_NAIVE ne précise ni catégories ni schéma JSON -> le modèle échoue
-# souvent à produire un JSON exploitable (0 entité extraite), ce qui biaise
-# la comparaison : on ne sait pas si le gain d'engineered vient du schéma
-# JSON imposé, ou des règles anti-hallucination, car les DEUX changent en
-# même temps entre naive et engineered. PROMPT_NAIVE_SCHEMA isole UNE seule
-# variable (le schéma + les catégories, mais SANS règles anti-hallucination)
-# pour permettre une comparaison à 3 points propre dans le mémoire :
-#   naive (rien) -> naive_schema (format seul) -> engineered (format + anti-hallucination)
+# Depuis le fix ci-dessus, naive et naive_schema partagent désormais la
+# MÊME enveloppe JSON minimale -> la variable isolée par naive_schema est
+# maintenant UNIQUEMENT la liste explicite des catégories ({labels}),
+# toutes choses égales par ailleurs (toujours SANS règles anti-hallucination).
+# Comparaison à 3 points propre pour le mémoire :
+#   naive (JSON minimal, sans catégories) -> naive_schema (+ catégories) -> engineered (+ catégories + anti-hallucination)
 # Si naive_schema améliore déjà beaucoup le F1 par rapport à naive, le gain
-# vient surtout du format. Si le vrai saut se voit entre naive_schema et
-# engineered, le gain vient surtout des règles anti-hallucination.
+# vient surtout de la liste de catégories. Si le vrai saut se voit entre
+# naive_schema et engineered, le gain vient surtout des règles anti-hallucination.
 PROMPT_NAIVE_SCHEMA = """Extrais les entités importantes de ce texte de cybersécurité.
 
 Catégories possibles :
