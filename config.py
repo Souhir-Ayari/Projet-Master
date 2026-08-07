@@ -263,9 +263,14 @@ Règles strictes :
    numérotées ([1], [2]...), URL de type DOI, ou métadonnées de publication (auteurs,
    dates de conférence). Ce ne sont jamais des entités valides même si elles contiennent
    des mots-clés cybersécurité.
-5. N'utilise jamais de texte de remplissage ("non spécifié", "N/A", "unknown", "aucun").
+5. N'extrais rien depuis les métadonnées du document (titre, auteurs, affiliations,
+   notice de preprint/copyright) ni depuis des passages de discussion générale sans
+   rapport avec un incident concret (comparaisons d'outils/langages, remarques
+   générales sur l'IA, etc.). Une phrase qui décrit un concept ou une opinion
+   générale n'est jamais une entité, même si elle contient un mot-clé de la liste.
+6. N'utilise jamais de texte de remplissage ("non spécifié", "N/A", "unknown", "aucun").
    Si une catégorie n'a pas d'occurrence, omets-la simplement — ne mets aucune entrée.
-6. Réponds UNIQUEMENT avec un JSON valide, sans texte avant/après, au format exact :
+7. Réponds UNIQUEMENT avec un JSON valide, sans texte avant/après, au format exact :
 
 {{
   "entities": [
@@ -283,9 +288,15 @@ Sortie :
   ]
 }}
 
-RÈGLE SUPPLÉMENTAIRE : l'exemple ci-dessus illustre uniquement le FORMAT JSON attendu.
-Ses valeurs (0.0.0.0, CVE-0000-00000) sont fictives : ne les inclus JAMAIS dans ta réponse,
-même si elles semblent plausibles.
+Exemple de SUR-extraction à éviter (valeurs FICTIVES, illustration uniquement) :
+Texte : "Les systèmes fortement typés permettent de détecter certaines erreurs dès la compilation."
+Incorrect : {{"text": "Les systèmes fortement typés permettent de détecter certaines erreurs", "label": "mesure de mitigation"}}
+Correct : ne rien extraire ici — c'est une affirmation générale sur un concept, pas une
+mesure ou un fait précis rattaché à un incident cité dans le document.
+
+RÈGLE SUPPLÉMENTAIRE : les exemples ci-dessus illustrent uniquement le FORMAT JSON attendu.
+Leurs valeurs (0.0.0.0, CVE-0000-00000, systèmes fortement typés) sont fictives : ne les
+inclus JAMAIS dans ta réponse, même si elles semblent plausibles.
 
 Texte à analyser :
 \"\"\"
@@ -362,9 +373,14 @@ Règles strictes :
    numérotées ([1], [2]...), URL de type DOI, ou métadonnées de publication (auteurs,
    dates de conférence). Ce ne sont jamais des entités valides même si elles contiennent
    des mots-clés cybersécurité.
-5. N'utilise jamais de texte de remplissage ("non spécifié", "N/A", "unknown", "aucun").
+5. N'extrais rien depuis les métadonnées du papier (titre, auteurs, affiliations,
+   notice de preprint/copyright) ni depuis les sections de discussion générale non
+   liées à un incident concret (comparaisons de langages/outils, remarques générales
+   sur l'IA, etc.). Concentre-toi UNIQUEMENT sur les faits rattachés aux cas concrets
+   de compromission de chaîne d'approvisionnement décrits dans le document.
+6. N'utilise jamais de texte de remplissage ("non spécifié", "N/A", "unknown", "aucun").
    Si une catégorie n'a pas d'occurrence, omets-la simplement — ne mets aucune entrée.
-6. Réponds UNIQUEMENT avec un JSON valide, sans texte avant/après, au format exact :
+7. Réponds UNIQUEMENT avec un JSON valide, sans texte avant/après, au format exact :
 
 {{
   "entities": [
@@ -382,9 +398,15 @@ Sortie :
   ]
 }}
 
-RÈGLE SUPPLÉMENTAIRE : l'exemple ci-dessus illustre uniquement le FORMAT JSON attendu.
-Ses valeurs (libexemple-fictif, CVE-0000-000043) sont fictives : ne les inclus JAMAIS
-dans ta réponse, même si elles semblent plausibles.
+Exemple de SUR-extraction à éviter (valeurs FICTIVES, illustration uniquement) :
+Texte : "Les systèmes fortement typés permettent de détecter certaines erreurs dès la compilation."
+Incorrect : {{"text": "Les systèmes fortement typés permettent de détecter certaines erreurs", "label": "framework ou mécanisme de mitigation"}}
+Correct : ne rien extraire ici — c'est une affirmation générale sur un concept, pas un
+framework nommé cité dans un cas de compromission concret.
+
+RÈGLE SUPPLÉMENTAIRE : les exemples ci-dessus illustrent uniquement le FORMAT JSON attendu.
+Leurs valeurs (libexemple-fictif, CVE-0000-000043, systèmes fortement typés) sont fictives :
+ne les inclus JAMAIS dans ta réponse, même si elles semblent plausibles.
 
 Texte à analyser :
 \"\"\"

@@ -226,6 +226,24 @@ class MistralExtractor:
         # réellement observé dans ground_truth_backdoor.json.
         entities = self._filter_by_length(entities)
 
+        # Filtre 6 : rejette les valeurs de remplissage ("non spécifié",
+        # "N/A"...). La règle anti-remplissage écrite dans le prompt (voir
+        # config.PROMPT_ENGINEERED/TOPIC règle 6) n'est pas toujours
+        # respectée par le modèle en pratique — ce filtre l'applique de
+        # façon garantie, indépendamment de l'obéissance du modèle à la
+        # consigne.
+        entities = self._filter_filler_values(entities)
+
+        # Filtre 7 : rejette le bruit bibliographique résiduel (URL, numéro
+        # de citation entre crochets, date au format bibliographique type
+        # "Sep. 2024.") qui continue de fuir malgré strip_references_section
+        # — le PDF étant en deux colonnes, pdfplumber fusionne parfois des
+        # fragments de la liste de références AVANT le titre "REFERENCES"
+        # dans le texte extrait (lignes de la colonne de droite intercalées
+        # avec le corps de la colonne de gauche), donc hors de portée d'une
+        # simple coupure en un seul point.
+        entities = self._filter_citation_noise(entities)
+
         method_name = f"mistral_prompt_{prompt_variant}"
 
         return {
@@ -495,6 +513,87 @@ class MistralExtractor:
                 f"[⚠] {len(rejected)} entité(s) rejetée(s) — texte trop long "
                 f"(> {max_words} mots), probable clause descriptive plutôt "
                 f"qu'entité nommée : {[e.get('text') for e in rejected]}"
+            )
+        return valid
+
+    # Valeurs de remplissage que le modèle invente parfois pour "remplir"
+    # une catégorie au lieu de l'omettre, malgré la règle anti-remplissage
+    # écrite dans le prompt (voir config.PROMPT_ENGINEERED/TOPIC règle 6).
+    # Deux formes observées en conditions réelles : soit le texte ENTIER est
+    # un jeton court sans ambiguïté possible ("N/A", "Unknown", "Aucun") ->
+    # ancré (^...$) pour ne pas rejeter un vrai texte qui contiendrait
+    # accidentellement un de ces mots ; soit la locution "non spécifié(e)"
+    # sert de SUFFIXE descriptif ("année non spécifiée", "entreprise non
+    # spécifiée") -> cherchée n'importe où dans le texte, cette locution
+    # n'ayant aucun sens comme fragment d'une vraie entité nommée.
+    _FILLER_WHOLE_RE = re.compile(
+        r"^(n\/?a|unknown|aucun(?:e)?s?|tbd|none)\.?$", re.IGNORECASE
+    )
+    _FILLER_PHRASE_RE = re.compile(
+        r"non[ -]?sp[ée]cifi[ée]e?s?|non[ -]?renseign[ée]e?s?|"
+        r"not specified|not available|not provided",
+        re.IGNORECASE,
+    )
+
+    @staticmethod
+    def _filter_filler_values(entities: list[dict]) -> list[dict]:
+        """
+        Rejette les entités dont le texte est une valeur de remplissage
+        ("non spécifié", "N/A"...) plutôt qu'un fait extrait. La règle
+        anti-remplissage du prompt n'est pas toujours respectée par le
+        modèle en pratique (constaté : "année non spécifiée", "entreprise
+        non spécifiée" réapparaissent malgré la consigne) — ce filtre
+        l'applique de façon garantie, indépendamment de l'obéissance du
+        modèle.
+        """
+        valid, rejected = [], []
+        for e in entities:
+            text = e.get("text", "").strip()
+            is_filler = bool(
+                MistralExtractor._FILLER_WHOLE_RE.match(text)
+                or MistralExtractor._FILLER_PHRASE_RE.search(text)
+            )
+            (rejected if is_filler else valid).append(e)
+        if rejected:
+            print(
+                f"[⚠] {len(rejected)} entité(s) rejetée(s) — valeur de "
+                f"remplissage au lieu d'une omission : {[e.get('text') for e in rejected]}"
+            )
+        return valid
+
+    # Bruit bibliographique résiduel : URL, numéro de citation entre
+    # crochets, date au format bibliographique abrégé ("Sep. 2024.").
+    _CITATION_NOISE_RE = re.compile(
+        r"https?://|www\.|\[\d{1,3}\]|"
+        r"^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\.?\s*\d{4}\.?$",
+        re.IGNORECASE,
+    )
+
+    @staticmethod
+    def _filter_citation_noise(entities: list[dict]) -> list[dict]:
+        """
+        Rejette les fragments de bibliographie qui continuent de fuir malgré
+        strip_references_section (pdf_extractor.py) : sur un PDF en deux
+        colonnes, pdfplumber fusionne parfois des lignes de la liste de
+        références AVEC le corps du texte AVANT même le titre "REFERENCES"
+        (colonnes entrelacées ligne par ligne) — une coupure en un seul
+        point ne peut pas les atteindre. Ce filtre attrape après coup les
+        signatures typiques d'une entrée bibliographique (URL, "[12]",
+        date abrégée type "Sep. 2024.") qu'aucune catégorie de la taxonomie
+        ne devrait légitimement contenir.
+        """
+        valid, rejected = [], []
+        for e in entities:
+            text = e.get("text", "").strip()
+            (
+                rejected
+                if MistralExtractor._CITATION_NOISE_RE.search(text)
+                else valid
+            ).append(e)
+        if rejected:
+            print(
+                f"[⚠] {len(rejected)} entité(s) rejetée(s) — bruit "
+                f"bibliographique résiduel : {[e.get('text') for e in rejected]}"
             )
         return valid
 
