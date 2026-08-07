@@ -214,6 +214,18 @@ class MistralExtractor:
         # la valeur d'exemple choisie (voir config.TEMPLATE_LEAK_VALUES).
         entities = self._drop_template_leaks(entities)
 
+        # Filtre 5 : rejette les entités trop longues (phrases/clauses
+        # descriptives plutôt que des entités nommées). Constaté en conditions
+        # réelles sur le prompt "topic" : le modèle dérive de "extraire une
+        # entité" vers "extraire une affirmation descriptive" pour les
+        # catégories les plus abstraites (ex: "vecteur d'attaque"), produisant
+        # des clauses de 20+ mots qui ne matchent jamais le ground truth (qui
+        # ne dépasse jamais 6 mots) et qui gonflent les faux positifs sans
+        # être des hallucinations (le texte existe bien dans la source, il
+        # n'est juste pas une entité). max_words=6 est calé sur le maximum
+        # réellement observé dans ground_truth_backdoor.json.
+        entities = self._filter_by_length(entities)
+
         method_name = f"mistral_prompt_{prompt_variant}"
 
         return {
@@ -459,6 +471,30 @@ class MistralExtractor:
             print(
                 f"[⚠] {len(rejected)} entité(s) rejetée(s) — valeur d'exemple fictive "
                 f"recopiée depuis le prompt : {[e.get('text') for e in rejected]}"
+            )
+        return valid
+
+    @staticmethod
+    def _filter_by_length(entities: list[dict], max_words: int = 6) -> list[dict]:
+        """
+        Rejette les entités dont le texte dépasse max_words mots. Constaté en
+        conditions réelles : sur les catégories les plus abstraites (ex:
+        "vecteur d'attaque"), le modèle dérive de l'extraction d'entité vers
+        l'extraction de clause descriptive complète ("IFTTT studies showing
+        that open-ended dependency composition can lead to..."), produisant
+        des faux positifs qui ne sont pas des hallucinations (le texte existe
+        bien dans la source) mais ne sont plus des entités nommées. Le
+        ground truth ne dépasse jamais 6 mots (voir ground_truth_backdoor.json).
+        """
+        valid, rejected = [], []
+        for e in entities:
+            n_words = len(e.get("text", "").split())
+            (rejected if n_words > max_words else valid).append(e)
+        if rejected:
+            print(
+                f"[⚠] {len(rejected)} entité(s) rejetée(s) — texte trop long "
+                f"(> {max_words} mots), probable clause descriptive plutôt "
+                f"qu'entité nommée : {[e.get('text') for e in rejected]}"
             )
         return valid
 
