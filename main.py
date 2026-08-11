@@ -111,7 +111,7 @@ def main():
     parser.add_argument(
         "--variants",
         nargs="+",
-        default=["naive", "engineered"],
+        default=["naive", "engineered", "custom", "topic"],
         choices=["naive", "naive_schema", "engineered", "custom", "topic"],
         help="Variantes de prompt à tester pour le CAS 2 (Mistral). "
         "'naive_schema' isole la variable 'schéma JSON' seule (sans règles "
@@ -206,7 +206,6 @@ def main():
             ev_dict = ev.to_dict()
             print(json.dumps(ev_dict, indent=2, ensure_ascii=False))
 
-        
         comparison = compare_methods(eval_results)
         print(f"\n{'=' * 70}\nCLASSEMENT FINAL\n{'=' * 70}")
         print(json.dumps(comparison, indent=2, ensure_ascii=False))
@@ -224,6 +223,7 @@ def main():
         print(
             "    Copiez ground_truth_template.json, annotez-le pour VOTRE pdf, puis relancez avec --ground-truth."
         )
+
 
 if __name__ == "__main__":
     main()

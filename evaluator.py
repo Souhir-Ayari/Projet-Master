@@ -27,6 +27,25 @@ def _fuzzy_match(a: str, b: str, threshold: float = 0.85) -> bool:
     return SequenceMatcher(None, _normalize(a), _normalize(b)).ratio() >= threshold
 
 
+def _fuzzy_contains(needle: str, haystack: str, threshold: float) -> bool:
+    """
+    Cherche needle dans haystack de façon approximative. Comparer needle à des
+    fenêtres de haystack de longueur fixe dilue le ratio dès que la fenêtre
+    déborde un peu du contenu réel (le "padding" compte comme non-matché) :
+    on ancre donc la comparaison sur le plus long segment commun entre needle
+    et haystack (find_longest_match), puis on extrait de haystack la portion
+    de MÊME longueur que needle alignée sur cet ancrage, avant de comparer les
+    deux avec le même ratio (0.85) que celui utilisé pour le F1 dans evaluate().
+    """
+    sm = SequenceMatcher(None, needle, haystack, autojunk=False)
+    anchor = sm.find_longest_match(0, len(needle), 0, len(haystack))
+    if anchor.size == 0:
+        return False
+    start = max(anchor.b - anchor.a, 0)
+    candidate = haystack[start : start + len(needle)]
+    return _fuzzy_match(needle, candidate, threshold)
+
+
 @dataclass
 class EvalResult:
     method: str
@@ -58,12 +77,18 @@ class EvalResult:
 
 
 def compute_hallucination_rate(
-    predicted_entities: list[dict], source_text: str
+    predicted_entities: list[dict], source_text: str, fuzzy_threshold: float = 0.85
 ) -> tuple[float, list]:
     """
-    Une entité est jugée "hallucinée" si son texte n'apparaît pas (même
-    approximativement) dans le document source. C'est le signal le plus
-    direct et le plus objectif d'hallucination pour de l'extraction.
+    Une entité est jugée "hallucinée" si son texte n'apparaît pas dans le
+    document source, ni littéralement, ni approximativement pour les textes
+    longs. Le match exact reste la première vérification (rapide, sans faux
+    négatif) ; pour les entités de plus de 20 caractères (ex: citations
+    longues), on tolère en plus un fuzzy match (voir _fuzzy_contains), avec le
+    même seuil (0.85) que celui utilisé pour le F1 dans evaluate() — sans ça,
+    une citation légèrement déformée par l'extraction PDF (espaces, césures)
+    était comptée comme hallucination ici alors qu'elle aurait compté comme
+    vrai positif côté F1, ce qui est incohérent.
     """
     if not predicted_entities:
         return 0.0, []
@@ -75,8 +100,14 @@ def compute_hallucination_rate(
         text = e.get("text", "")
         if not text:
             continue
-        if _normalize(text) not in normalized_source:
-            hallucinated.append(text)
+        norm_text = _normalize(text)
+        if norm_text in normalized_source:
+            continue
+        if len(norm_text) > 20 and _fuzzy_contains(
+            norm_text, normalized_source, fuzzy_threshold
+        ):
+            continue
+        hallucinated.append(text)
 
     rate = len(hallucinated) / len(predicted_entities)
     return rate, hallucinated

@@ -1,0 +1,901 @@
+Human-Certified Module Repositories for the AI Age
+Szila´rd Enyedi
+Automation Department, Technical University of Cluj-Napoca, Romania
+Preprint notice: This is a preprint version of a paper accepted for
+a systemic truth: today, the trustworthiness of software is
+publicationintheProceedingsofIEEEAQTR2026.
+governed less by local functional correctness and more by
+© 2026 IEEE. Personal use of this material is permitted. Permission
+fromIEEEmustbeobtainedforallotheruses,inanycurrentorfuture theprovenanceandintegrityoftheentirebuildanddistribution
+media, including reprinting/republishing this material for advertising pipeline.
+orpromotionalpurposes,creatingnewcollectiveworks,forresaleor
+In parallel, engineering practice continues to shift toward
+redistributiontoserversorlists,orreuseofanycopyrightedcomponent
+ofthisworkinotherworks. modularity, compositional automation, and reuse. Trigger–
+Abstract—Human-Certified Module Repositories (HCMRs) are action platforms (e.g., IFTTT), flow-based environments (e.g.,
+introducedinthisworkasanewarchitecturalmodelforconstruct- Node-RED), and cloud-native Infrastructure-as-Code (IaC)
+ingtrustworthysoftwareintheeraofAI-assisteddevelopment.As ecosystems (e.g., Azure Verified Modules) place composition,
+largelanguagemodelsincreasinglyparticipateincodegeneration,
+rather than monolithic development, at the center of software
+configuration synthesis, and multi-component integration, the
+construction [5], [6], [7], [8], [9], [10]. As AI tools accelerate
+reliability of AI-assembled systems will depend critically on the
+trustworthiness of the building blocks they use. Today’s software thistrend,theabsenceofcurated,provenance-rich,andsecurity-
+supply-chain incidents and modular development ecosystems reviewed building blocks becomes a first-order risk.
+highlight the risks of relying on components with unclear This paper introduces Human-Certified Module Repos-
+provenance, insufficient review, or unpredictable composition
+itories (HCMRs) as a new architectural model for safe,
+behavior.
+verifiable, and auditable AI-constructed software systems. An
+WearguethatfutureAI-drivendevelopmentworkflowsrequire
+repositories of reusable modules that are curated, security- HCMR is a curated repository of reusable, parameterized, and
+reviewed, provenance-rich, and equipped with explicit interface security-reviewed components that provide strong provenance,
+contracts. To this end, we propose HCMRs, a framework that explicit interface contracts, and—where appropriate—formal
+blends human oversight with automated analysis to certify
+guarantees. By constraining both humans and AI agents to
+modules and support safe, predictable assembly by both humans
+assemble software from certified modules, HCMRs aim to
+and AI agents. We present a reference architecture for HCMRs,
+outline a certification and provenance workflow, analyze threat deliver predictable behavior, compositional safety, and end-to-
+surfacesrelevanttomodularecosystems,andextractlessonsfrom end auditability.
+recent failures. We further discuss implications for governance, Contributions. Rather than merely surveying prior work,
+scalability, and AI accountability, positioning HCMRs as a thispaperproposesHCMRsasaconcretefoundationforsecure
+foundational substrate for reliable and auditable AI-constructed
+composition:
+software systems.
+Index Terms—Software supply-chain security, Provenance and 1) Concept and motivation: We define HCMRs and
+attestation, AI-assisted software engineering, Certified module motivate their necessity at the intersection of AI-assisted
+repositories, Secure compositional architectures development and supply-chain risk, synthesizing lessons
+from recent incidents and modular ecosystems.
+I. INTRODUCTION
+2) Reference architecture: We present a design for
+Software development is undergoing a profound transition HCMRs, including certification workflow, assurance
+driven by the rapid rise of AI-assisted and AI-automated code tiers, machine-readable metadata, and contract-aware
+generation. Large language models (LLMs) now routinely composition constraints suitable for IDE and agentic
+synthesize non-trivial software components, integrate libraries, tooling.
+generate configuration files, and orchestrate multi-step work- 3) Threat model and mitigations: We articulate adversary
+flows. While this represents a breakthrough in productivity, capabilities and attack surfaces relevant to module
+it also amplifies long-standing risks in software engineering: ecosystems and show how HCMRs address them via
+opacity of generated code, silent introduction of vulnerabilities, provenance, human certification, and safe assembly rules.
+inconsistent quality, and unpredictable integration of external 4) Grounding and implications: We relate HCMRs to
+dependencies. adjacent paradigms (formal verification, SLSA-style
+Concurrently, the global software supply chain has entered provenance, identity-based signing) and discuss implica-
+a period of unprecedented fragility. High-impact incidents — tions for governance, scalability, and adoption.
+including the SolarWinds compromise, the Log4Shell vulnera- 5) Open problems: We outline research challenges in
+bility, and the XZ/liblzma backdoor — have demonstrated compositional safety, scalable certification, developer
+that attackers increasingly target build infrastructure, update usability, and AI accountability.
+channels, and dependency graphs upon which modern devel-
+The remainder of the paper develops this proposal in
+opment relies [1], [2], [3], [4]. These incidents underscore
+depth: we review background and related work to position
+6202
+yaM
+51
+]TE.sc[
+4v21520.3062:viXra
+HCMRs,formalizethethreatmodel,detailthearchitectureand kernel with performance comparable to high-performance L4
+certification pipeline, analyze representative case studies, and family kernels [16]. These results demonstrate that for small
+conclude with a discussion of limitations and open research and security-critical components, mathematical verification is
+directions. achievable — but also highly resource-intensive.
+The central insight is straightforward: future software will Similarly, the CompCert C compiler showed that verified
+be built by AI, and we must ensure that the building blocks it compilation is possible for real-world subsets of C. Leroy’s
+uses are trustworthy. HCMRs provide the human certification CACM article demonstrated a mechanized proof of semantic
+needed to make this possible. preservation from Clight to PowerPC assembly, eliminating
+entireclassesofmiscompilationbugs[17].CompCert’sguaran-
+II. BACKGROUNDANDMOTIVATION
+tees provide strong assurance for safety-critical systems where
+Modern software systems increasingly depend on deep compiler correctness is part of the trust base.
+dependency graphs, distributed build pipelines, and complex While formal verification is effective for small components,
+integration surfaces. This creates a structural problem: the it does not scale to entire application ecosystems. A comple-
+trustworthiness of software now depends less on local code mentarydirectionhasemergedthroughprovenanceandsigning
+correctnessandmoreontheintegrityoftheentiresupplychain infrastructures—particularly SLSA (Supply-chain Levels for
+that produces and distributes it. The SolarWinds compromise SoftwareArtifacts).TheSLSAprovenancespecificationdefines
+illustrated this vividly, when attackers injected malicious code structured attestation formats that bind software artifacts to
+into Orion platform updates downloaded by roughly 18000 theirbuildprocess,includingbuilderidentity,buildinstructions,
+downstream organizations, including multiple U.S. federal environment parameters, and dependency digests [18], [19].
+agencies. Academic analyses highlight that the breach was Recent SLSA guides emphasize end-to-end integrity, recom-
+enabled by weaknesses in update-signing trust paths and mending automated provenance generation and verification as
+insufficient isolation in build systems, showing how state-level core defenses against supply-chain manipulation [20], [21].
+actors can weaponize supply-chain interdependencies at scale In the signing domain, Sigstore introduced an identity-based
+[11], [12]. signing model using ephemeral keys authenticated via OIDC,
+AnothermajorturningpointwastheLog4Shellvulnerability together with a transparency log (Rekor) that provides globally
+(CVE-2021-44228), which was rapidly exploited worldwide auditable signatures. Its CCS’22 paper argues that this drasti-
+due to the ubiquity of the Log4j logging library. Long-term callyreduceskey-managementburdenswhileimprovingartifact
+telescope-based measurements show that exploitation persisted auditability across ecosystems [22], [23]. Usability research
+for years, gradually consolidating around stable attacker infras- has further shown that tool adoption is shaped by workflow
+tructures while scanning behavior evolved in sophistication [3]. integration challenges, highlighting developer experience as a
+Acomplementarynetwork-forensicstudyinIEEETransactions central factor in secure-by-default signing ecosystems [24].
+confirmed that malicious scanning continued in waves through- Finally, software production is increasingly modular [6], [7],
+out2022andbeyond,longafterinitialpatchingeffortssubsided [8], [9], [10]. Trigger-action platforms like IFTTT have grown
+[4]. The key insight is that once a widely reused component rapidly, enabling end-users to compose automation workflows
+becomes vulnerable, ecosystem-level exposure persists long from thousands of reusable components. An IMC’17 measure-
+after remediation. ment study quantified the ecosystem’s expansion, showing that
+Most recently, the 2024–2025 XZ Utils backdoor more than half of all available services relate to IoT devices,
+(CVE-2024-3094) demonstrated that supply-chain attacks can with pronounced inefficiencies in trigger latency and execution
+originate not only from compromised CI pipelines but from pathways [5], [25]. In parallel, flow-based programming tools
+social engineering campaigns targeting volunteer maintainers. such as Node-RED provide visual composition primitives
+An arXiv analysis documented the multi-stage infection path: widely used in IoT systems; empirical studies demonstrate
+subtle changes to build scripts, hidden payloads embedded their value for rapid integration but highlight weaknesses in
+in test files, and an activation mechanism targeting sshd, systematic testing and formal assurance [26].
+enabling remote code execution without authentication [13]. These trajectories — escalating supply-chain threats, ma-
+A 2025 LNCS paper further showed that xz is a dependency turing provenance frameworks, breakthroughs in verification,
+for nearly 30000 Debian and Ubuntu packages, making this and explosive growth in composable software modules —
+compromise comparable in ecosystem importance to glibc jointly motivate the emergence of Human-Certified Module
+and demonstrating the catastrophic blast radius of a single Repositories (HCMRs). The next section situates HCMRs
+compromised maintainer account [14]. within the broader landscape of related work.
+Parallel to these attacks, formal verification research has
+advancedthestateofhigh-assurancesoftware.TheseL4micro-
+III. RELATEDFOUNDATIONSANDECOSYSTEMS
+kernel remains the most prominent example: a general-purpose This section surveys prior work in five domains that
+OS kernel with a machine-checked proof of functional cor- form the intellectual foundation for Human-Certified Mod-
+rectness from C source to binary, maintained over nearly ule Repositories (HCMRs): formal verification ecosystems,
+a decade of evolution [15]. Earlier SOSP work established supply-chain attack analyses, provenance and signing infras-
+seL4 as the first feasibility demonstration of a fully verified
+tructures, trigger-action ecosystems, and cloud-native module The arXiv study provides an attack-path analysis showing how
+libraries. minor build-script modifications enabled injection of hidden
+malicious payloads [13]. The LNCS 2025 paper emphasizes
+A. Formal Verification Ecosystems
+the ecosystem-level blast radius by quantifying how xz is
+The seL4 microkernel remains the most significant achieve- embedded in tens of thousands of downstream packages
+ment in practical formal verification. The TOCS 2014 article in major Linux distributions, highlighting the fragility of
+provides a comprehensive treatment of kernel-level proofs, volunteer-maintained critical components [14].
+including binary-level correctness, information-flow noninter- Collectively, these analyses demonstrate that supply-chain
+ference, and verified access-control enforcement, all backed attacks require comprehensive mitigations across build sys-
+by machine-checked proofs in Isabelle/HOL [15]. Earlier tems, trust chains, maintainership models, and dependency
+work presented at SOSP’09 established seL4 as the first governance — all core concerns for HCMRs.
+general-purpose kernel with a full functional correctness proof
+C. Provenance and Signing Frameworks
+from C to specification, demonstrating feasibility at roughly
+10000 lines of C code [16]. These works show that formal SLSA(Supply-chainLevelsforSoftwareArtifacts)definesa
+verificationcaneliminateentireclassesofimplementationbugs maturitymodelandattestationframeworkforverifyingsoftware
+in small but highly critical components. provenance. The official specification describes provenance
+The CompCert verified C compiler provides another major predicates capturing builder identity, build instructions, param-
+pillar. Leroy’s CACM paper introduced a machine-checked eters,environmentvariables,anddependencydigests,structured
+proof of semantic preservation for a realistic subset of C using in-toto attestations and DSSE envelopes [18], [19].
+and demonstrated that verified compilation can outperform Recent practitioner guides stress automated, tamper-resistant
+mainstream compilers in predictability and correctness [17]. build services and cryptographically verifiable provenance as
+The material illustrates the methodological framework behind foundations for modern supply-chain security, motivated by
+verified compilation, showing how correctness proofs can be large-scale incidents such as SolarWinds and Log4Shell [20],
+decomposed into trace-preservation lemmas across compilation [21].
+passes. Sigstore represents a complementary approach focused
+While seL4 and CompCert show that high-assurance com- on developer-friendly artifact signing. The CCS’22 paper
+ponents are achievable, the resource cost is substantial. These introduces ephemeral key signing tied to OIDC identities
+insights motivate hybrid approaches that combine strong and verified through the Rekor transparency log, significantly
+curation (as proposed for HCMRs) with selective verification reducing key-management burdens and improving auditability
+of module contracts rather than entire applications. across open-source ecosystems [22], [23]. Usability studies
+show that developers’ adoption decisions depend strongly on
+B. Supply-Chain Attack Literature
+workflow integration and tooling ergonomics, indicating that
+Academic work on the SolarWinds breach provides an secure signing must also be easy to deploy and maintain [24].
+empirical foundation for understanding modern supply-chain These frameworks strongly influence the HCMR design:
+compromises. Willett’s analysis in Survival documents how module certification requires trustworthy provenance and
+attackers inserted malicious code into SolarWinds Orion cryptographically authenticated distribution to ensure integrity
+updatesandleveragedsigneddistributionchannelstopropagate and traceability.
+the backdoor to thousands of organizations, illustrating the
+D. Trusted Data Repositories
+systemic risk posed by trusted update infrastructures [1]. A
+complementary study in the International Journal of Safety A related but fundamentally different lineage of work
+and Security Engineering highlights architectural issues in concerns the certification of trusted repositories for digital data.
+third-party dependencies and recommends SBOMs, zero-trust Frameworks such as CoreTrustSeal [28] define organizational
+architectures, and MFA as practical mitigations [2]. and technical requirements for trustworthy data stewardship,
+Log4Shell analyses provide further context on vulnerability includinggovernancepractices,sustainabilitymodels,metadata
+propagation [27]. The 2026 arXiv longitudinal study shows quality, and long-term preservation guarantees. Similarly, the
+multi-year exploitation patterns, infrastructure consolidation, ISO 16363 standard [29] provides a formal audit methodology
+and persistent attacker activity targeting vulnerable systems, for assessing digital preservation infrastructures, emphasizing
+underscoring the difficulty of mitigating ecosystem-wide expo- durability, institutional policies, and conformance with archival
+sure once a vulnerability becomes widely weaponized [3]. The reference models.
+2024 IEEE Transactions study adds detailed scanning behavior, While these initiatives establish important foundations for
+demonstrating repeated scanning waves and dominance of repository trustworthiness, they are designed for static digital
+specific malicious actors in sustained exploitation campaigns assets rather than software modules. They do not certify code,
+[4]. behavioral interfaces, dependency graphs, or build provenance,
+The recent XZ Utils backdoor expands the literature by and they provide no mechanisms for ensuring secure or
+revealing a highly sophisticated supply-chain compromise correct composition of software components. In contrast,
+introduced through targeted social engineering of maintainers. Human-Certified Module Repositories (HCMRs) address the
+dynamic, operational, and security-sensitive nature of software TableI
+modules and are motivated by challenges such as supply-chain COMPARISONOFGOVERNANCE,PROVENANCE,ANDCERTIFICATION
+PROPERTIESACROSSMODULARECOSYSTEMS.
+compromise, AI-driven assembly, and the need for verifiable
+build processes. As such, HCMRs extend the idea of “trusted
+Ecosystem Governance Provenance Certification
+repositories”beyondarchivaldatapreservationintothedomain
+IFTTT Low None None
+of actively curated, provenance-aware, composable software
+Node-RED Medium None None
+ecosystems. AVM(Azure) High Partial Strong
+HCMR(Proposed) High Strong Strong
+E. Trigger–Action and Flow-Based Programming Ecosystems
+IFTTT has been extensively studied as a large-scale trig-
+ger–action ecosystem. An IMC’17 measurement study docu- system can propagate malicious updates to more than 18,000
+mented rapid ecosystem expansion, with IoT-related services downstream organizations, leveraging trusted digital signatures
+comprising more than half of all available channels, and and automated update pipelines to spread the attack silently
+revealed significant latency and execution-path inefficiencies and efficiently [1], [2]. Subsequent academic analyses have
+duetopolling-basedtriggersandcloudintermediation[5],[25]. emphasized the systemic nature of the breach, showing how
+These insights highlight both the promise and the limitations tampering in upstream build processes can bypass traditional
+of lightweight, end-user integrator models. endpoint security controls and undermine the security posture
+Flow-based programming environments like Node-RED of thousands of organizations simultaneously [11], [12].
+further decentralize system assembly. A 2018 ACM paper The Log4Shell vulnerability (CVE-2021-44228) further
+proposed systematic testing and UML-based modeling for revealed the long-term ecosystem exposure resulting from
+Node-RED flows, noting that the inherent flexibility of visual a widely used but insufficiently governed component. Mea-
+wiring can reduce understandability and obscure error propa- surements from an active network telescope show sustained
+gation paths in IoT applications [30]. Additional IoT-analytics exploitation activity continuing for years after disclosure, with
+papers show Node-RED’s value for rapid experimentation but attackers reusing infrastructure, evolving scanning approaches,
+reinforce the need for structured development methodologies and repeatedly probing unpatched systems across global
+in safety-critical domains [31], [26]. vantage points [3]. Additional studies in IEEE Transactions
+These ecosystem studies demonstrate that modular compo- highlight that malicious scanning waves persisted throughout
+sition frameworks succeed when modules are discoverable, 2022,longaftertheinitialdisclosureperiod,thusdemonstrating
+interoperable, and easy to integrate — but also that lack of that ungoverned dependency ecosystems cannot rely solely on
+verification and curation leads to fragility. HCMRs aim to patch release cycles for risk mitigation [4].
+preserve the composability benefits while adding structured More recently, the XZ Utils backdoor (CVE-2024-3094)
+certification. exposed the vulnerabilities inherent in volunteer-maintained
+critical infrastructure. Academic analyses show that a single
+F. Cloud-Native Module Libraries
+socially engineered contributor was able to gradually gain
+AzureVerifiedModules(AVM)exemplifyamodern,curated trust and commit rights, ultimately introducing a multi-stage
+module ecosystem. Microsoft Learn documentation describes backdoor targeting sshd on thousands of Linux systems
+AVM as a unified standard for well-architected IaC modules through subtle build-script manipulations and embedded pay-
+with strict coding guidelines, automated testing, versioning, loads[13],[32].A2025LNCSstudyquantifiedtheblastradius
+and consistent interfaces across Bicep and Terraform [6]. The by identifying nearly 30,000 Debian and Ubuntu packages that
+official AVM project site further emphasizes cross-language depend—directly or transitively—on the affected xz libraries,
+alignment, composability, and role as a trusted foundation for underscoring how fragility at the maintainer level can affect
+enterprise-grade deployments, supported directly by Microsoft entire operating-system distributions [14], [33].
+engineering teams [7], [8], [9], [10]. Despite advances in formal verification, the ecosystem
+AVM demonstrates that large-scale curated module ecosys- remainslargelyunprotected.WhilesystemsliketheseL4micro-
+tems can enforce consistent design and reliability, serving as kernel demonstrate that full verification of critical components
+an industrial precedent for the more security-focused HCMR ispossibleandmaintainableoverlongperiodsofevolution[15],
+model. such efforts are economically infeasible for the vast majority
+Table I compares governance, provenance, and certification of modules that compose modern software. Similarly, verified
+across modular ecosystems. compilers like CompCert provide correctness guarantees for
+translation from C to assembly [17], yet do not address the
+IV. PROBLEMSTATEMENTANDCOREREQUIREMENTS
+integrity of the codebases or dependencies themselves.
+Modern software systems exhibit increasing structural Provenance standards and signing infrastructures provide
+fragility due to the combination of deep dependency trees, partial mitigations. The SLSA provenance specification offers
+heterogeneous build infrastructures, and a globalized open- structured, verifiable metadata linking artifacts to builder
+sourceecosystem.High-profilesupply-chaincompromisessuch identities, build parameters, and dependency digests [18],
+as SolarWinds demonstrated that a single compromised build [19]. Sigstore further reduces the complexity of managing
+signing keys through identity-based ephemeral key signing and
+transparency logs, improving auditability across ecosystems Source Code
+[22], [23]. However, these systems remain optional, and
+adoption varies widely across open-source communities.
+In parallel, modular development ecosystems continue to
+expand rapidly. Trigger–action platforms like IFTTT now
+integrate hundredsof services and have seen significant growth
+Isolated Builder
+in IoT-focused automations, but empirical studies highlight
+performance inefficiencies and limited governance of shared
+components [5]. Flow-based programming frameworks such as
+Node-RED are widely used in IoT and automation scenarios,
+yet academic studies show weaknesses in testing, validation,
+and lifecycle assurance of flows constructed from community- Provenance Generation
+contributed nodes [30], [31], [26].
+At the same time, cloud providers demonstrate that curated,
+high-quality module ecosystems are feasible. Azure Verified
+Modules(AVM),forexample,enforcestrictdevelopmentguide-
+lines, versioning practices, and testing standards across dozens Artifact + Attestation
+of Infrastructure-as-Code modules maintained by Microsoft
+engineering teams, ensuring consistency and alignment with
+well-architected frameworks [6], [7], [8], [9], [10].
+Takentogether,thesefindingsrevealacoreproblem:themod-
+ern software ecosystem is highly modular, highly automated,
+Verifier / Consumer
+andincreasinglyAI-assisted—butlacksatrustworthysubstrate
+of vetted, provenance-rich, and security-reviewed modules
+for safe composition. Human-Certified Module Repositories
+Figure1. SLSA-inspiredprovenancegenerationandattestationpipeline.
+(HCMRs) are proposed to fill this gap by establishing a
+curated, security-reviewed, and provenance-verified ecosystem
+of reusable modules suitable for both human and AI-driven and—where possible—machine-assisted formal reasoning over
+assembly. module behavior. This approach mirrors the strict review
+and approval processes in curated ecosystems such as Azure
+V. HUMAN-CERTIFIEDMODULEREPOSITORIES:
+Verified Modules, where modules are systematically tested,
+ARCHITECTUREANDWORKFLOW
+versioned, and validated against architectural guidelines before
+Human-Certified Module Repositories (HCMRs) aim to release.
+provide a curated foundation for constructing software systems 3) Composable interfaces with explicit contracts. Each
+fromtrusted,reusablecomponents.Whereastraditionalpackage moduleexposeswell-definedinputs,outputs,andinvariants.In-
+repositories prioritize scale and openness, HCMRs emphasize terfacesmustbemachine-readable,enablingbothstaticanalysis
+correctness, provenance, operational sanity, and compositional and AI-based composition. This is particularly important given
+safety.Inspiredbydevelopmentsinformalverification,software empirical findings from Node-RED and IFTTT ecosystems
+supply-chain security, and cloud-native module ecosystems, showing that loosely specified interfaces frequently result in
+HCMRs propose a middle ground between fully verified orchestrationfailuresandunexpectedbehaviorintrigger–action
+systems and ungoverned community repositories. workflows [5].
+4) Secure-by-default assembly constraints. Composition
+A. Design Principles
+engines—whether IDE tools or AI agents—should only be
+HCMRs rest on six guiding principles: able to assemble modules that satisfy compatibility constraints,
+1) Strong provenance and auditable trust chains. Each provenance checks, and dependency integrity rules. This
+modulemustincludeverifiableprovenancemetadatadescribing requirement is informed by supply-chain incidents such as
+its origin, builder identity, build process, and dependency the SolarWinds breach, where compromised update channels
+digests. The SLSA provenance model provides a reference propagated malicious components downstream through other-
+template for such metadata, defining attestation structures that wise legitimate dependency relationships.
+capture builder IDs, build configurations, and material digests 5) Multi-tier assurance levels.InspiredbySLSAlevelsand
+throughin-totostatementsandDSSEenvelopes[18].TheSLSA thegraduatedassurancemodelsusedinAVMmodules,HCMRs
+provenance pipeline (Fig. 1) illustrates the role of isolated define multiple certification levels. Lower tiers emphasize
+builders. robust engineering practices and provenance; higher tiers
+2)Humancertification.Certificationteamsperformsecurity incorporate formal reasoning, static analysis, or semi-formal
+reviews,interfaceconsistencychecks,abuse-resistanceanalyses, specification checks [20].
+testing (e.g., Node-RED model-based validation) help detect
+Intake & Automated Vetting deviations from expected behaviors, ensuring that modules
+behave predictably under composition.
+4) Certification and release. Once validated, modules
+are assigned an assurance level and published together with
+machine-readable metadata describing their interfaces, invari-
+Security Review ants, provenance, and dependency constraints. This mirrors
+(Human Certification) AVM’s structured publishing model, which uses standardized
+repositories and automated documentation generation to ensure
+consistency across releases.
+C. Metadata Model
+Behavioral Validation (Sandbox) HCMR metadata unifies concepts from provenance systems,
+interfacedescriptionlanguages,andmodulecertificationframe-
+works. An HCMR metadata record includes:
+• Provenance attestation: A SLSA-aligned provenance
+statement capturing builder identity, build process, and
+Certification & Release dependency digests [18].
+• Interface contract: A structured definition of input
+parameters, output parameters, valid ranges, and invariant
+Figure 2. HCMR certification pipeline, showing the four stages of intake, conditions.
+securityreview,behavioralvalidation,andfinalcertification.
+• Security attributes: Information about required per-
+missions, threat-model assumptions, and relevant abuse-
+6) Ecosystem-scale maintainability. The XZ Utils incident resistant constraints derived from supply-chain case stud-
+demonstrated the risk posed by maintainers operating under ies.
+long-term social-engineering pressure, ultimately introducing • Assurance level: A tiered classification inspired by
+subtle backdoors into critical compression libraries used by industry frameworks (e.g., SLSA, AVM), indicating the
+tens of thousands of downstream packages. HCMRs incor- rigor of review, testing, and formal analysis applied to
+porate strong governance models to avoid single-maintainer the module [20].
+bottlenecks. • Dependency graph digest: A cryptographic summary of
+These principles provide a structural foundation for the transitive dependencies, essential given widespread risks
+HCMR model, integrating supply-chain security insights, demonstrated in incidents like Log4Shell, where transitive
+modern provenance practices, and curated ecosystem design. dependencies created unexpected systemic exposure [3].
+This metadata enables both human reviewers and automated
+B. Certification Pipeline
+assembly tools to reason about module integrity, compatibility,
+The certification pipeline ensures that modules entering the and safety.
+repository meet rigorous standards for quality, security, and
+D. AI-Assisted Assembly Pipeline
+composability.
+As shown in Fig. 2, it consists of four stages: Given the rapid rise of LLM-based developer assistants,
+1) Intake and vetting. Modules submitted to the repos- HCMRs integrate an AI-aware assembly pipeline designed to
+itory undergo automated checks for dependency hygiene, guide automated agents toward safe compositions.
+reproducible builds, provenance completeness, and alignment The pipeline consists of:
+with defined interface contracts. SLSA-aligned provenance 1) Constraint-based module discovery. AI agents are re-
+verification is performed at this stage, ensuring linkability strictedtomodulesintheHCMRcatalogandmustsatisfytrust-
+between source code, builder identity, and resulting artifacts chainrequirementsbeforeselectingcomponents.Thisapproach
+[18]. preventstheinadvertentingestionofunvetteddependencies—an
+2) Security review. Human auditors evaluate static analysis issue highlighted in IFTTT studies showing that open-ended
+reports, inspect sensitive code paths, examine dependency compositioncanleadtounpredictablebehaviorincross-service
+graphs, and assess potential abuse cases. Supply-chain attack automations [5].
+literature provides specific patterns to watch for, such as 2) Contract-based synthesis. Model prompts include inter-
+hiddendependencyinsertion,build-scripttampering,andstaged facecontractsandinvariantsextractedfromthemetadatamodel.
+activation logic—behaviors that were central to the XZ Utils This ensures that generated workflows satisfy type, range,
+backdoor and SolarWinds compromise. and dependency constraints. The formal verification insights
+3) Behavioral validation. Modules are executed in sand- from seL4 demonstrate the importance of clearly defined and
+boxed environments to validate runtime behavior across repre- enforced invariants in ensuring predictable system behavior
+sentative configurations. Techniques inspired by IoT workflow [15].
+A. Adversary Capabilities
+OIDC Identity Provider
+1) Compromise of build infrastructure. The SolarWinds
+incident demonstrated that adversaries with access to CI/CD
+pipelines can inject malicious code into trusted update chan-
+nels, propagating trojanized software to approximately 18,000
+downstream organizations [1], [2]. Reports show that attackers
+Fulcio (Ephemeral Certificate) infiltrated the build system as early as 2019 and embedded
+malicious code into a signed Orion software update, leveraging
+the integrity of SolarWinds’ official distribution channel [11],
+[12].
+2) Abuse of maintainership and contributor trust. The
+2024–2025 XZ Utils backdoor revealed that long-term social
+Artifact Signing
+engineering can be used to infiltrate critical open-source
+projects. Analyses document how the attacker gradually gained
+maintainer-level trust before introducing a multi-stage back-
+door targeting sshd through build-script manipulation and
+embedded payloads [13], [32]. Further research shows that the
+Rekor Transparency Log affected library was a dependency for nearly 30,000 Debian
+and Ubuntu packages, illustrating the severity of maintainer
+compromise [14], [33].
+3) Exploitation of widely deployed components. Long-
+term studies of Log4Shell show sustained exploitation between
+2021 and 2025, with attacker infrastructure evolving to include
+Verification
+obfuscation, alternative protocols, and persistent scanning
+waves [3][4]. Attackers also reused infrastructure across years,
+Figure3. Identity-basedsigningandtransparencyloggingworkflowinspired indicating the feasibility of sustained, low-cost exploitation
+bySigstore. campaigns.
+4) Manipulation of provenance and signing signals.
+Supply-chain attacks frequently leverage trusted signatures
+3)Provenance-awarebuildorchestration.Thebuildsystem
+to mask malicious artifacts. For example, SolarWinds attackers
+automatically generates and verifies SLSA-aligned provenance
+delivered a malicious update that was signed using legitimate
+for all composed artifacts. Provenance requirements ensure
+SolarWinds certificates, bypassing downstream verification
+that final outputs can be traced back to certified modules and
+mechanisms that relied solely on signature validity [22], [23].
+verifiable build paths, reflecting best practices recommended
+TheSLSAframeworkhighlightsthedangeroftrustingunsigned
+in the SLSA framework and associated guidelines [20].
+or unverifiable build metadata and emphasizes the importance
+4) Runtime monitoring and continuous attestation.
+of strong, tamper-evident provenance [18], [19], [21].
+Modules can opt into runtime verification hooks, providing
+5) Abuse of modular composition ecosystems.Ecosystems
+consumption-side attestation or telemetry. This model is
+such as IFTTT, which integrate hundreds of services, exhibit
+informed by the transparency principles used in Sigstore’s
+execution-path fragility and inefficiencies due to loosely
+Rekor log, where signatures are globally auditable and per-
+governed triggers and actions, as measured in a large-scale
+manently recorded. Sigstore’s identity-based signing model is
+empirical study [5]. Flow-based systems such as Node-RED
+summarized in Fig. 3.
+similarly demonstrate variability in quality and correctness of
+Together, these design elements enable AI-assisted devel-
+community-designed modules, increasing the attack surface for
+opment without sacrificing security or compositional trust-
+malicious or faulty component integration [30], [31], [26].
+worthiness, ensuring that generated systems remain within
+well-defined safety envelopes. B. Threat Surfaces
+Drawing on these findings, HCMRs consider the following
+VI. THREATMODELANDMITIGATIONSTRATEGIES
+primary threat surfaces:
+Human-Certified Module Repositories (HCMRs) are de-
+• Dependency Injection Attacks: Attackers insert mali-
+signed to counter a broad spectrum of threats that have repeat-
+cious libraries into dependency graphs, as documented in
+edly manifested across modern software supply chains. This
+Log4Shell’s transitive exposure and XZ Utils’ integration
+section formalizes the threat model by identifying adversary
+into thousands of upstream packages [3], [14].
+capabilities, attack surfaces, and failure modes highlighted in
+• Build-System Subversion: Malicious actors tamper with
+recent empirical studies of real-world compromises.
+build steps or inject payloads into build scripts, as
+demonstrated by the XZ backdoor’s multi-stage build
+pipeline manipulation [13], [32].
+TableII VII. CASESTUDIESANDMOTIVATINGINCIDENTS
+THREATCATEGORIESRELEVANTTOSOFTWARESUPPLY-CHAINSECURITY
+To illustrate how Human-Certified Module Repositories
+ANDTHECORRESPONDINGHCMRMITIGATIONMECHANISMS.
+(HCMRs) address real-world failure modes, this section exam-
+ThreatType HCMRMitigation ines three representative supply-chain incidents: SolarWinds,
+Log4Shell, and the XZ Utils backdoor. Each case highlights a
+DependencyInjectionAttacks ModuleCertification+Provenance
+Build-SystemSubversion VerifiedProvenance different breakdown in trust and demonstrates how HCMRs
+MaintainerAccountHijacking Multi-partyReview would mitigate similar future failures.
+KeyorCredentialAbuse EphemeralSigning
+InsecureAutomation Contract-AwareComposition
+A. Case Study 1: SolarWinds Orion Compromise
+Academic analyses show that attackers infiltrated the So-
+larWinds build environment in 2019, modifying the Orion
+• Maintainer Account Hijacking: Attackers gain contrib-
+platform’s source code to insert a covert backdoor that was
+utor roles, influence code review pathways, or coerce
+later distributed through digitally signed updates [1], [2]. The
+maintainers, mirroring the techniques used in the XZ
+compromisedupdatewasdownloadedbyapproximately18,000
+Utils compromise [33].
+customers, including U.S. federal agencies and Fortune 500
+• KeyorCredentialAbuse:Traditionalsigningapproaches
+firms, illustrating the massive blast radius of trusted update
+depend on long-lived private keys, which can be stolen or
+channels without provenance attestation [11].
+misused. Sigstore research highlights the security risks of
+Post-incident reporting indicates that attackers exploited lax
+manual key management and the benefits of ephemeral,
+access controls and insufficient monitoring of build-system
+identity-based signing [22], [24].
+integrity, enabling malware insertion during CI/CD operations
+• Insecure Automation: Automated or AI-assisted work-
+that appeared legitimate downstream because the resulting
+flowsmayintegratemoduleswithoutverifyingprovenance,
+binaries were signed using authentic SolarWinds certificates
+contract compatibility, or security posture—issues exem-
+[12].
+plified by behavioral inconsistencies observed in IFTTT
+How HCMRs mitigate this failure:HCMRsrequireSLSA-
+workflow execution [5].
+level provenance, ensuring that each artifact is accompanied by
+C. Mitigation Summary a verifiable build history, builder identity, and cryptographic
+HCMRs mitigate these risks by integrating: digests of all dependencies [18], [19], [21]. This prevents
+1) Strong provenance generation and verification. SLSA- the distribution of unsigned or opaque builds and ensures
+alignedprovenancestructuresensurethateachmoduleincludes tampering is detectable. Additional constraints such as multi-
+verifiable metadata describing builder identity, dependencies, party reviews and human certification of modules align with
+and build parameters, preventing the type of opaque build practices validated in curated module ecosystems like Azure
+manipulation seen in SolarWinds and XZ Utils [18], [19], [21]. Verified Modules [6], [7], [8], [9], [10].
+2) Curated module review and certification. Modules
+B. Case Study 2: Log4Shell (CVE-2021-44228)
+undergo human review for interface correctness, dependency
+The Log4Shell vulnerability allowed remote code execution
+hygiene, and potential abuse vectors. This approach parallels
+in the ubiquitous Log4j library. A 2026 longitudinal mea-
+well-governed ecosystems such as Azure Verified Modules,
+surement study using an active network telescope found that
+which enforce strict quality, testing, and design controls across
+exploitation persisted for years after disclosure (2021–2025),
+all released modules [6], [7], [8], [9], [10].
+with attackers reusing infrastructure, evolving payload obfusca-
+3)Identity-boundartifactsigning.ByintegratingSigstore’s
+tionstrategies,andshiftingscanningbehaviorsbasedonglobal
+OIDC-based ephemeral signing model, HCMRs eliminate
+vantage points [3]. A complementary IEEE Transactions study
+reliance on long-lived private keys and ensure that signing
+observed repeated waves of malicious scanning throughout
+events are logged in transparency logs (e.g., Rekor) for global
+2022, further demonstrating that ecosystems remain vulnerable
+auditability [22], [23].
+long after patches become available [4].
+4)Governanceagainstmaintainercompromise.Learnings
+The severity of Log4Shell stemmed from three factors: deep
+from the XZ Utils compromise motivate multi-party code
+transitivedependencychains,inconsistentpatchadoptionacross
+review, mandatory provenance checks, and automated anomaly
+industries, and the lack of centralized governance over critical
+detection for suspicious contributor behavior [33].
+building-block libraries. These structural weaknesses enabled
+5)SafecompositionconstraintsforAIsystems.AI-assisted
+thevulnerabilitytoremainexploitablelongaftervendorpatches
+assembly pipelines must satisfy metadata constraints, prevent-
+were issued.
+ing integration of unverified modules. This mitigates risks
+How HCMRs mitigate this failure: HCMRs enforce the
+observed in ecosystems such as IFTTT and Node-RED where
+publication of dependency digests, interface contracts, and
+loosely governed modules cause execution inconsistencies [5],
+assurance levels. This allows automated systems—including
+[30].
+AI assistants—to detect when modules depend on vulnerable
+The threat landscape relevant to HCMRs is summarized in
+versionsofcriticalcomponents.Provenance-awarebuildorches-
+Table II.
+tration ensures that downstream modules cannot be certified
+unless they use patched and verified dependencies, preventing between them [11], [12]. The SolarWinds compromise showed
+long-tail exposure. that infiltrating a single vendor’s build infrastructure can insert
+trojanized code into signed updates distributed to 18,000
+C. Case Study 3: XZ Utils Backdoor (CVE-2024-3094)
+organizations via trusted channels [1], [2]. Similarly, long-term
+In 2024, investigators uncovered a multi-stage backdoor in
+measurements of Log4Shell exploitation revealed sustained
+the XZ Utils compression library, introduced through socially
+attacker interest over multiple years, including infrastructure
+engineered maintainer compromise. Analyses show that the
+reuse and evolving payload obfuscation techniques [3]. The
+attacker embedded malicious code within test files, modified
+XZ Utils compromise introduced a novel attack vector: social
+build scripts to extract and link the payload, and targeted
+engineering of maintainers followed by multi-stage build-
+sshd to obtain unauthenticated remote code execution [13].
+time backdoor insertion, ultimately affecting nearly 30,000
+Subsequent ecosystem-wide dependency analysis revealed that
+downstream packages in major Linux distributions [13], [14],
+XZ Utils was used by nearly 30,000 Debian and Ubuntu
+[33], [32].
+packages, making this compromise one of the most severe
+Traditional package repositories (e.g., npm, PyPI, Maven
+supply-chain incidents in the history of Linux distributions
+Central)areoptimizedforopennessandscale.Theyrelyonthe
+[14], [33].
+good faith of maintainers and downstream users, lacking struc-
+Kaspersky’sincidentanalysisreportedthatthebackdoorwas
+turalsafeguardsagainstsophisticatedsupply-chainattackers.In
+sophisticated,multi-staged,stealthy,anddifficulttodetectusing
+contrast, curated ecosystems such as Azure Verified Modules
+traditional malware scanning techniques due to its integration
+enforce design standards, code reviews, automated testing,
+into the build pipeline rather than source-code-level artifacts
+versioning discipline, and architectural compliance, ensuring
+[32].
+consistent quality across module releases [6], [7], [8], [9],
+How HCMRs mitigate this failure: HCMRs eliminate
+[10]. However, AVM focuses on cloud infrastructure modules
+single-maintainer trust by enforcing multi-party review, prove-
+ratherthangeneral-purposesoftwarecomponents,anddoesnot
+nance verification, and automated monitoring of contributor
+include explicit mechanisms for handling social-engineering
+behavior. Modules undergo sandboxed behavioral validation,
+threats, provenance tampering, or AI-based composition.
+preventingmaliciousbuild-timeextractionorlinkinglogicfrom
+HCMRs seek to bridge this gap by providing a scalable,
+being certified. Transparency logs (as used in Sigstore) ensure
+security-centric, provenance-aware foundation for modular
+that all signing actions are publicly verifiable, making covert
+software construction. Their design is informed by lessons
+backdoor activation significantly more difficult [22], [23], [24].
+from provenance frameworks such as SLSA, which define
+D. Summary structured, tamper-evident metadata capturing builder identity,
+build configuration, and dependency digests [18], [19]. Simi-
+These case studies reveal complementary facets of the mod-
+larly, the Sigstore ecosystem demonstrated that identity-based
+ern supply-chain threat landscape: (1) build-system tampering,
+signing with ephemeral keys and transparency logs can reduce
+(2) transitive dependency risk, and (3) maintainer compromise.
+key-management overhead while improving auditability of
+HCMRsprovidestrong,systematicmitigationsbycombining
+software artifacts [22], [23], [24].
+provenance attestation, module certification, secure signing,
+The rise of AI-assisted development introduces new consid-
+curatedgovernance,andAI-awarecompositionconstraints—all
+erations. Tools like GitHub Copilot and similar LLM-powered
+informed by empirical research across SolarWinds, Log4Shell,
+agents are capable of assembling multi-component systems
+XZ Utils, SLSA, Sigstore, and formal verification ecosystems
+rapidly, but may inadvertently select vulnerable or unverified
+[15], [17].
+dependencies if left unconstrained. Studies of IFTTT’s trig-
+VIII. DISCUSSIONANDIMPLICATIONS ger–action ecosystem reveal how even simple composition
+The introduction of Human-Certified Module Repositories modelscanexhibitperformanceinconsistenciesandunintended
+(HCMRs)reflectsadeeperstructuralshiftinsoftwareengineer- interactionswhenmodulesarelooselygoverned[5].Node-RED
+ing.Historically,correctnessguaranteesandsecurityassurances researchsimilarlyshowsthatvisualflowcompositionincreases
+were achieved through extensive testing, static analysis, or flexibility but creates validation challenges that require struc-
+formal verification. Systems such as the seL4 microkernel tured testing approaches [30], [31], [26].
+demonstrated that machine-checked proofs can secure critical These findings highlight the importance of metadata-driven,
+kernel components end-to-end, maintaining verification even contract-awareassemblyconstraints—centralizedintheHCMR
+as the code evolved over a decade [15]. Verified compilation, design.
+exemplified by CompCert, similarly eliminates miscompilation Ultimately, HCMRs represent a synthesis of multiple re-
+bugs that could undermine software correctness at the binary search trajectories: formal verification for correctness, prove-
+level [17]. Yet these techniques remain too expensive to scale nance frameworks for integrity, curated module ecosystems
+across the long-tail of software modules that modern systems for consistency, and supply-chain security literature for threat
+depend on. modeling. Their goal is not to replace existing repositories
+At the same time, high-impact supply-chain incidents have but to add a security-assured layer for modules intended for
+demonstrated that the primary risk in modern software ecosys- critical systems or AI-driven composition.
+tems lies not in individual codebases but in the relationships
+A. Typed Languages as Compiler-Enforced Guardrails for AI- ensures modules are trustworthy, and strong typing ensures
+Generated Code that AI-produced glue code is structurally sound. Together,
+As AI assistants generate a growing share of application these mechanisms help constrain AI-driven composition to
+code, correctness and security defects increasingly arise from safe, predictable, and verifiably correct integration paths.
+structural inconsistencies—mismatched data contracts, silent
+B. Industry Responses and Emerging Security Architectures
+type coercions, aliasing and lifetime errors, or missing vali-
+Recent developments in AI-assisted software engineering
+dation logic—rather than from simple syntax errors. Strongly
+indicatethattheneedforsecurity-awarecompositionisincreas-
+typed languages and strict compilers provide an architectural
+ingly recognized beyond academic research. Commercial and
+countermeasure: they force AI-generated code to satisfy type
+open-source tooling has begun to embed security intelligence
+and interface constraints before execution, turning compilation
+directly into AI coding workflows, reflecting a shift toward
+into a first-class safety filter. Recent industry analysis argues
+integrating security checks at the moment code is generated
+thatas“codeyoudidnotpersonallywrite”increases,statictype
+or assembled. A prominent example is Endor Labs’ AURI
+systems act as an essential safety net that surfaces ambiguous
+platform, which introduces a lightweight security-intelligence
+logicearly;GitHubreportsthatthemajorityofLLM-generated
+layer into IDEs and agentic coding assistants, aiming to detect
+compilation failures are type-check errors and that typed
+vulnerabilities and exposed secrets as code is produced rather
+ecosystems reduce downstream fixes in AI-driven workflows
+than after deployment [41], [42].
+[34]. Independent assessments similarly emphasize that typed
+These industry directions echo empirical findings in the
+languages reduce ambiguity, making code easier for both AI
+research community regarding the gap between functional
+tools and humans to reason about by providing explicit intent
+correctness and security in AI-generated artifacts. A recent
+and predictable data structures [35].
+multi-institution study led by Carnegie Mellon University
+a) Compiler-enforced structure against silent failure: Dy-
+introduces the SUSVIBES benchmark to evaluate AI coding
+namic languages allow rapid prototyping, but their permissive-
+agents under realistic constraints. The authors report that while
+ness lets AI-generated code “look plausible, run immediately,
+leading agents achieve functional correctness on roughly 61%
+and fail silently.” Typed ecosystems mitigate this failure mode:
+of tasks, only 10.5% of these outputs satisfy both functional
+a type error blocks execution until contracts are reconciled.
+andsecurityrequirements,leavingthemajorityofAI-generated
+Developer discourse around “vibe coding” frequently identifies
+patches still vulnerable [43]. This result highlights a structural
+typed languages (e.g., TypeScript, Go, Rust) as more robust
+shortfall that stems not merely from code-level patterns
+when co-generating code with LLMs, precisely because they
+but from missing context about dependency relationships,
+convert latent runtime failures into actionable compile-time
+reachable attack surfaces, and the security properties of reused
+diagnostics [36]. Rust is often highlighted as a paradigmatic
+components.
+example: its ownership and lifetime model enforces memory-
+Taken together, these industry and academic developments
+safety invariants that an LLM must satisfy before code is
+underscore a convergent trend: as AI systems assume a greater
+accepted. As a result, compilation failures become iterative
+role in code generation and software assembly, security must
+guidance, and a successfully compiling Rust program is more
+beembeddeddirectlyintothecompositionprocess.Ratherthan
+likely to be correct [37].
+b) Empirical security motivation: Security studies con- treating security as a downstream validation step, emerging
+sistently find that AI-generated code contains impactful flaws toolsandstudiespointtowardarchitecturesthatprovidesecurity
+even when superficially functional. Industry analyses reveal constraints, provenance, and interface guarantees at generation
+widespread omission of validation, missing access controls, time. Human-Certified Module Repositories (HCMRs) align
+and unsafe patterns that reflect training-data weaknesses [38]. with this trajectory by furnishing a curated ecosystem of
+A policy study from CSET similarly reports that nearly modules whose provenance, behavioral contracts, and security
+half of evaluated LLM outputs contain bugs with security review can be leveraged both by humans and by AI coding
+implications, arguing for structured tool-assisted validation agents to reduce the likelihood of unsafe compositions.
+[39]. Furthermore, controlled experiments show that iterative
+IX. OPENRESEARCHCHALLENGES
+“refinement” with LLMs can worsen security: vulnerability
+While HCMRs present a promising direction for securing
+prevalence increases during multi-round improvement cycles
+modular, AI-constructed systems, several foundational chal-
+unless external constraints are applied [40]. Typed languages
+lenges remain open for research.
+complement static analysis and human review by eliminating
+entire classes of errors by construction. A. Scalable Certification
+c) Alignment with HCMRs: Typed languages align natu-
+The XZ Utils compromise demonstrated that even widely
+rally with HCMR contract and provenance metadata. Interface
+deployed components may be maintained by a single overbur-
+contracts can map directly onto language-level types or
+dened volunteer, creating a systemic point of failure [13], [14],
+specification stubs, while compilers provide a conformance
+[33]. Scaling human certification to thousands of modules
+oracle that AI agents must satisfy prior to module integration.
+requires advances in automated reasoning, static analysis,
+In effect, typing operationalizes HCMR guarantees at build
+formalspecificationmining,andML-assistedreviewworkflows.
+time: provenance ensures artifacts are traceable, certification
+Determining where human oversight is essential versus where X. CONCLUSION
+automated checks suffice remains an open question.
+The software ecosystem is undergoing a fundamental trans-
+formation driven by increasingly complex dependency graphs,
+B. Formal Contracts for Composability
+rapidly evolving threat actors, and the growing influence of
+Empirical analyses of ecosystems such as IFTTT show that
+AI-assisteddevelopment.Recentsupply-chainincidentssuchas
+loosely defined trigger–action interfaces frequently lead to
+SolarWinds, Log4Shell, and the XZ Utils backdoor reveal the
+unpredictable or inefficient runtime behavior due to unclear
+fragility of current trust models, demonstrating how attackers
+semantics and inconsistent execution guarantees [5]. Likewise,
+can exploit build pipelines, maintainer accounts, or ubiquitous
+studies of Node-RED highlight the difficulty of validating
+open-source libraries to achieve wide-ranging compromise. So-
+correctness in visually composed flows without explicit formal
+larWindsalonepropagatedamaliciousupdatetoapproximately
+models[30],[31],[26].Researchisneededtodesignexpressive,
+18,000 organizations through a signed distribution channel,
+machine-checkable interface contracts that support both human
+highlightingthesystemicriskofopaquebuildprocesses[1],[2],
+readability and automated enforcement.
+[11],[12].Long-termmeasurementstudiesshowthatLog4Shell
+C. Detecting Maintainer Compromise remained under active exploitation for years after disclosure,
+underscoring the persistence of ecosystem-level vulnerabilities
+The multi-year social-engineering campaign behind the XZ
+[3], [4]. The XZ Utils incident further revealed how attacker
+Utils backdoor illustrates the need for contributor-behavior
+infiltrationofmaintainertrustcanleadtobackdoorimplantation
+anomaly detection, trust-score modeling, and multi-party ap-
+acrosstensofthousandsofdependentpackages[13],[14],[32],
+proval systems that reduce reliance on single maintainers [13],
+[33].
+[32], [33]. Techniques such as reputation systems, code-review
+In parallel, curated ecosystems such as Azure Verified
+graphanalysis,andautomatedsemanticdifferencingcouldhelp
+Modules offer evidence that structured governance, testing
+detect suspicious behavioral patterns early.
+discipline, and architectural consistency can improve reliability
+D. Provenance-Enforced Build Reproducibility and user trust at scale [6], [7], [8], [9], [10]. Provenance
+While SLSA defines rigorous provenance structures, frameworks such as SLSA provide structured, tamper-evident
+widespread adoption remains a challenge. Many ecosystems metadata linking artifacts to their build systems, enabling
+lack automated tooling to generate or verify in-toto attestations systematic verification of software integrity [18], [19], [21].
+at scale. Research is needed to integrate reproducible builds, Sigstore’s identity-based signing model further lowers the
+cryptographic dependency digests, and incremental verification barrier to authenticated, transparent artifact signing, mitigating
+workflows into mainstream development pipelines, enabling key-managementburdensandimprovingauditability[22],[23],
+assurance levels equivalent to those envisioned in the SLSA [24].
+framework [18], [19], [21]. Human-Certified Module Repositories synthesize these ad-
+vances into a new secure substrate for modular software
+E. AI Accountability and Guardrails development. By combining human certification, provenance
+As AI-assisted code generation becomes standard, HCMRs verification, contract-enforced composition, and secure-by-
+must provide mechanisms for ensuring that AI systems select default assembly pipelines, HCMRs provide a foundation for
+certified modules, adhere to contract constraints, and generate both human and AI agents to build systems from trustwor-
+verifiable provenance. Studies of usability barriers in software- thy components. They enable predictable, accountable, and
+signing ecosystems such as Sigstore indicate that adoption auditable software construction in a world where automation
+hinges on developer-friendly tooling and integration pathways and interdependence are the norm.
+[22], [23], [24]. Similar work is required to design AI-facing HCMRs are not a replacement for existing package repos-
+guardrails that prevent unsafe module compositions. itories; instead, they form a complementary high-assurance
+layer designed for critical applications, safety-sensitive do-
+F. Governance and Evolution
+mains, and AI-driven code synthesis. They address the unique
+Curated ecosystems such as Azure Verified Modules show challenges posed by modern supply-chain threats and prepare
+thevalueofcentralizedqualitystandards,versioningdiscipline, the ecosystem for an era where developers—both human
+and architectural compliance [6], [7], [8], [9], [10]. However, and artificial—must assemble systems from components with
+governance models for HCMRs require additional mechanisms clearly established trust, provenance, and guarantees.
+for transparent dispute resolution, deprecation, cross-module As software ecosystems continue to scale, the principles
+dependency policy, and long-term maintainability. Research is underlying HCMRs—curation, transparency, provenance, and
+needed to define sustainable governance frameworks that can compositional assurance—will be essential in enabling secure,
+evolve with ecosystem growth. reliable, and predictable software for the next generation of
+These open problems highlight the need for interdisciplinary systems.
+work that bridges security, formal methods, programming lan-
+guages, distributed systems, and human–computer interaction
+ACKNOWLEDGMENT
+to fully realize the potential of HCMRs. The author acknowledges the use of GPT-5.3 to assist
+with grammar correction, wording refinement, and readability
+improvements throughout the manuscript. The author reviewed [17] X.Leroy,“Formalverificationofarealisticcompiler,”Communications
+and edited the AI-assisted text and assumes full responsibility oftheACM,vol.52,no.7,pp.107–115,Jul.2009.[Online].Available:
+https://dl.acm.org/doi/10.1145/1538788.1538814
+for the final content of the article.
+[18] SLSAProject,“SLSAprovenancespecification(v0.1),”2026,accessed
+REFERENCES 2026-03-02.[Online].Available:https://slsa.dev/spec/v0.1/provenance
+[19] ——,“SLSAprovenancepredicate(v0.2),”2026,accessed2026-03-02.
+[1] M.Willett,“LessonsoftheSolarWindsHack,”Survival,vol.63,no.2, [Online].Available:https://devmoran.github.io/slsa/provenance/v0.2
+pp.7–26,Mar.2021.[Online].Available:https://www.tandfonline.com/ [20] V. Kumar, “SLSA Framework: The Definitive Guide
+doi/full/10.1080/00396338.2021.1906001 for Securing Your Software Supply Chain,” Feb.
+[2] J. Mart´ınez and J. M. Dura´n, “Software Supply Chain Attacks, a 2026. [Online]. Available: https://www.practical-devsecops.com/
+ThreattoGlobalCybersecurity:SolarWinds’CaseStudy,”International slsa-framework-guide-software-supply-chain-security/
+JournalofSafetyandSecurityEngineering,vol.11,no.5,pp.537–545, [21] SLSAFramework,“Language-agnosticGitHubactionsSLSAprovenance
+Oct.2021.[Online].Available:https://www.iieta.org/journals/ijsse/paper/ generator,” 2023, accessed 2026-03-02. [Online]. Available: https:
+10.18280/ijsse.110505 //github.com/slsa-framework/slsa-github-generator
+[3] A. Singh, K. S. Yadav, V. A. Kumar, S. Ghosh, P. Baro, and B. B. [22] Z. Newman, J. S. Meyers, and S. Torres-Arias, “Sigstore: Software
+Prasanth,“ALongitudinalMeasurementStudyofLog4ShellExploitation Signing for Everybody,” in Proceedings of the 2022 ACM SIGSAC
+fromanActiveNetworkTelescope,”arXiv,2026,versionNumber:1. ConferenceonComputerandCommunicationsSecurity. LosAngeles
+[Online].Available:https://arxiv.org/abs/2601.04281 CA USA: ACM, Nov. 2022, pp. 2353–2367. [Online]. Available:
+[4] R. Hiesgen, M. Nawrocki, T. C. Schmidt, and M. Wa¨hlisch, “The https://dl.acm.org/doi/10.1145/3548606.3560596
+Log4j Incident: A Comprehensive Measurement Study of a Critical [23] SigstoreProject,“Sigstoreoverview:Identity-basedsigning,Fulcio,and
+Vulnerability,”IEEETransactionsonNetworkandServiceManagement, Rekor transparency,” 2026, accessed 2026-03-02. [Online]. Available:
+vol. 21, no. 6, pp. 5921–5934, Dec. 2024. [Online]. Available: https://docs.sigstore.dev/about/overview/
+https://ieeexplore.ieee.org/document/10628102/ [24] K.G.Kalu,S.Okorafor,T.Singla,S.Chen,S.Torres-Arias,andJ.C.
+[5] X.Mi,F.Qian,Y.Zhang,andX.Wang,“Anempiricalcharacterization Davis, “Why Johnny Signs with Next-Generation Tools: A Usability
+of IFTTT: ecosystem, usage, and performance,” in Proceedings Case Study of Sigstore,” arXiv, 2025, version Number: 5. [Online].
+of the 2017 Internet Measurement Conference. London United Available:https://arxiv.org/abs/2503.00271
+Kingdom: ACM, Nov. 2017, pp. 398–404. [Online]. Available: [25] X. Mi, “IFTTT measurement dataset and source code (IMC’17),”
+https://dl.acm.org/doi/10.1145/3131365.3131369 2017, accessed 2026-03-02. [Online]. Available: https://github.com/
+[6] C. Galanopoulos, “Azure Verified Modules,” Mar. 2025. mixianghang/IFTTT measurement
+[Online].Available:https://learn.microsoft.com/en-us/community/content/ [26] R. K. Kodali and A. Anjum, “IoT Based HOME AUTOMATION
+azure-verified-modules Using Node-RED,” in 2018 Second International Conference on
+[7] A. V. M. Team, “Azure Verified Modules,” Feb. 2026. [Online]. Green Computing and Internet of Things (ICGCIoT). Bangalore,
+Available:https://azure.github.io/Azure-Verified-Modules/ India: IEEE, Aug. 2018, pp. 386–390. [Online]. Available: https:
+[8] Azure, “Azure verified modules (AVM) — governance and index //ieeexplore.ieee.org/document/8753085/
+repository,” 2025, accessed 2026-03-02. [Online]. Available: https: [27] E.Pauley,P.Barford,andP.McDaniel,“TheCVEWaybackMachine:
+//github.com/Azure/Azure-Verified-Modules MeasuringCoordinatedDisclosurefromExploitsagainstTwoYearsof
+[9] Azure Verified Modules Team, “Solution development guidance Zero-Days,”inProceedingsofthe2023ACMonInternetMeasurement
+for AVM,” 2025, accessed 2026-03-02. [Online]. Available: https: Conference. Montreal QC Canada: ACM, Oct. 2023, pp. 236–252.
+//azure.github.io/Azure-Verified-Modules/usage/sol-dev/ [Online].Available:https://dl.acm.org/doi/10.1145/3618257.3624810
+[10] C. Sidebotham, “Azure Verified Modules - [28] ICPSR,“CoreTrustSeal–trusteddigitalrepository,”https://www.icpsr.
+Monthly Update Jan 24’,” Feb. 2024. [Online]. umich.edu/sites/icpsr/about/policies/coretrustseal,2024,accessed2026-
+Available: https://techcommunity.microsoft.com/blog/azuretoolsblog/ 03-02.
+azure-verified-modules---monthly-update-jan-24/4048910 [29] InternationalOrganizationforStandardization,“ISO16363:2025–audit
+[11] A. Coco, T. Dias, and T. Van Benthem, “Illegal: The SolarWinds andcertificationoftrustworthydigitalrepositories,”https://www.iso.org/
+Hack under International Law,” European Journal of International standard/87472.html,2025,accessed2026-03-02.
+Law, vol. 33, no. 4, pp. 1275–1286, Dec. 2022. [Online]. Available: [30] D.Clerissi,M.Leotta,G.Reggio,andF.Ricca,“Towardsanapproachfor
+https://academic.oup.com/ejil/article/33/4/1275/6881099 developingandtestingNode-REDIoTsystems,”inProceedingsofthe
+[12] H.Ghanbari,K.Koskinen,andY.Wei,“FromSolarWindstoKaseya: 1stACMSIGSOFTInternationalWorkshoponEnsemble-BasedSoftware
+The rise of supply chain attacks in a digital world,” Journal of Engineering. LakeBuenaVistaFLUSA:ACM,Nov.2018,pp.1–8.
+InformationTechnologyTeachingCases,pp.1–8,Nov.2024.[Online]. [Online].Available:https://dl.acm.org/doi/10.1145/3281022.3281023
+Available:https://journals.sagepub.com/doi/10.1177/20438869241299823 [31] I.U.Onwuegbuzie,“Node-REDandIoTAnalytics:AReal-TimeData
+[13] M. Lins, R. Mayrhofer, M. Roland, D. Hofer, and M. Schwaighofer, ProcessingandVisualizationPlatform,”Sep.2024.[Online].Available:
+“On the critical path to implant backdoors and the effectiveness https://zenodo.org/doi/10.5281/zenodo.13856860
+of potential mitigation techniques: Early learnings from XZ,” [32] Kaspersky GReAT, “Kaspersky analysis of the backdoor
+arXiv, Apr. 2024, arXiv:2404.08987 [cs]. [Online]. Available: in XZ,” Apr. 2024. [Online]. Available: https://securelist.com/
+http://arxiv.org/abs/2404.08987 xz-backdoor-story-part-1/112354/
+[14] M. Lins, R. Mayrhofer, and M. Roland, “Unveiling the Critical [33] R. Bondi, J. Thomas, G. Holthaus, and R. Barroso, “A foot in the
+Attack Path for Implanting Backdoors in Supply Chains: Practical backdoor:Applyingsystemscontroltheorytothe2024XZutilsbackdoor
+Experience from XZ,” in Cryptology and Network Security, Y. Kim, cyberattack,”2025,mITSTAMPConferencedeck;Accessed2026-03-
+A. Miyaji, and M. Tibouchi, Eds. Singapore: Springer Nature 02. [Online]. Available: https://psas.scripts.mit.edu/home/wp-content/
+Singapore,2026,vol.16351,pp.521–541,seriesTitle:LectureNotes uploads/2025/2025-03-25-1110 A Foot in the Backdoor PUB.pdf
+inComputerScience.[Online].Available:https://link.springer.com/10. [34] C.Williams,“WhyAIispushingdeveloperstowardtypedlanguages,”
+1007/978-981-95-4434-9 24 Jan. 2026. [Online]. Available: https://github.blog/ai-and-ml/llms/
+[15] G.Klein,J.Andronick,K.Elphinstone,T.Murray,T.Sewell,R.Kolanski, why-ai-is-pushing-developers-toward-typed-languages/
+andG.Heiser,“ComprehensiveformalverificationofanOSmicrokernel,” [35] M. Giannelis, “Why AI Is Forcing Developers To
+ACMTransactionsonComputerSystems,vol.32,no.1,pp.1–70,Feb. Abandon Untyped Code,” Jan. 2026, section: Blogs.
+2014.[Online].Available:https://dl.acm.org/doi/10.1145/2560537 [Online]. Available: https://www.techbusinessnews.com.au/blog/
+[16] G.Klein,K.Elphinstone,G.Heiser,J.Andronick,D.Cock,P.Derrin, why-ai-is-forcing-developers-to-abandon-untyped-code/
+D. Elkaduwe, K. Engelhardt, R. Kolanski, M. Norrish, T. Sewell, [36] Signals Editorial Team, “The great vibecoding debate: Do
+H.Tuch,andS.Winwood,“seL4:formalverificationofanOSkernel,”in typed languages really help AI programming?” Sep. 2025.
+ProceedingsoftheACMSIGOPS22ndsymposiumonOperatingsystems [Online]. Available: https://signals.aktagon.com/articles/2025/09/
+principles. Big Sky Montana USA: ACM, Oct. 2009, pp. 207–220. the-great-vibecoding-debate-do-typed-languages-really-help-ai-programming/
+[Online].Available:https://dl.acm.org/doi/10.1145/1629575.1629596
+[37] P. Jiang, “Rust: The unlikely engine of the vibe [41] M. Nun˜ez, “Endor Labs launches free tool AURI after
+coding era,” Forbes, Mar. 2026. [Online]. Avail- study finds only 10% of AI-generated code is secure,”
+able: https://www.forbes.com/councils/forbestechcouncil/2026/03/03/ Mar. 2026. [Online]. Available: https://venturebeat.com/technology/
+rust-the-unlikely-engine-of-the-vibe-coding-era/ endor-labs-launches-free-tool-auri-after-study-finds-only-10-of-ai-generated
+[38] A. Stiefel, “Understanding security risks in AI-generated code,” Jul. [42] Endor Labs, “Introducing AURI: Security intelligence for AI coding
+2025.[Online].Available:https://cloudsecurityalliance.org/blog/2025/07/ agentsanddevelopers,”2026,companyblog,March3,2026;Accessed
+09/understanding-security-risks-in-ai-generated-code 2026-03-03. [Online]. Available: https://www.endorlabs.com/learn/
+[39] J.Ji,J.Jun,M.Wu,andR.Gelles,“CybersecurityrisksofAI-generated introducing-auri-security-intelligence-for-ai-coding-agents-and-developers
+code,”2024.[Online].Available:https://cset.georgetown.edu/publication/ [43] S. Zhao, D. Wang, K. Zhang, J. Luo, Z. Li, and L. Li, “Is Vibe
+cybersecurity-risks-of-ai-generated-code/ CodingSafe?BenchmarkingVulnerabilityofAgent-GeneratedCodein
+[40] S.Shukla,H.Joshi,andR.Syed,“SecuritydegradationiniterativeAI Real-WorldTasks,”arXiv,Feb.2026,arXiv:2512.03262[cs].[Online].
+code generation: A systematic analysis of the paradox,” arXiv, May Available:http://arxiv.org/abs/2512.03262
+2025.[Online].Available:https://arxiv.org/abs/2506.11022

@@ -23,6 +23,7 @@ from config import (
     CYBER_ENTITY_LABELS,
     SUPPLY_CHAIN_ENTITY_LABELS,
     SUPPLY_CHAIN_ENTITY_DESCRIPTIONS,
+    TEMPLATE_LEAK_VALUES,
     MISTRAL_BACKEND,
     OLLAMA_MODEL_NAME,
     OLLAMA_URL,
@@ -52,7 +53,7 @@ class MistralExtractor:
     # Backend HuggingFace transformers (optionnel, nécessite un GPU)
     # ------------------------------------------------------------------ #
     def _load_transformers_model(self):
-        from transformers import AutoModelForCausalLM, AutoTokenizer 
+        from transformers import AutoModelForCausalLM, AutoTokenizer
         import torch
 
         print(f"[Mistral] Chargement de {HF_MODEL_NAME} via transformers ...")
@@ -178,6 +179,14 @@ class MistralExtractor:
             raw_output = ""  # -> parsed restera {} pour ce chunk, le run continue
 
         parsed = self._parse_json_full(raw_output)
+        if parsed and not isinstance(parsed.get("entities"), list):
+            preview = raw_output.strip().replace("\n", " ")[:200]
+            print(
+                f'[⚠] JSON parsé mais sans clé "entities" exploitable '
+                f"(clés trouvées : {list(parsed.keys())}). Le modèle a "
+                f"peut-être utilisé un autre nom de champ. "
+                f"Extrait de la réponse brute : {preview!r}"
+            )
         entities = parsed.get("entities", [])
 
         # Filtre 1 : rejette les labels hors taxonomie (fix #2)
@@ -196,6 +205,44 @@ class MistralExtractor:
         # "CVE-[0-9]{4}" pour un label "identifiant CVE") — applique
         # is_format_valid, jusqu'ici défini dans config.py mais jamais branché.
         entities = self._filter_by_format(entities)
+
+        # Filtre 4 : rejette les valeurs d'exemple FICTIVES recopiées depuis
+        # le prompt (ex: "CVE-0000-00000", "0.0.0.0") — remplacer les
+        # exemples réalistes par des valeurs fictives dans le prompt ne
+        # suffit pas, le modèle les recopie parfois quand même malgré la
+        # consigne. Ce filtre attrape la fuite après coup, quelle que soit
+        # la valeur d'exemple choisie (voir config.TEMPLATE_LEAK_VALUES).
+        entities = self._drop_template_leaks(entities)
+
+        # Filtre 5 : rejette les entités trop longues (phrases/clauses
+        # descriptives plutôt que des entités nommées). Constaté en conditions
+        # réelles sur le prompt "topic" : le modèle dérive de "extraire une
+        # entité" vers "extraire une affirmation descriptive" pour les
+        # catégories les plus abstraites (ex: "vecteur d'attaque"), produisant
+        # des clauses de 20+ mots qui ne matchent jamais le ground truth (qui
+        # ne dépasse jamais 6 mots) et qui gonflent les faux positifs sans
+        # être des hallucinations (le texte existe bien dans la source, il
+        # n'est juste pas une entité). max_words=6 est calé sur le maximum
+        # réellement observé dans ground_truth_backdoor.json.
+        entities = self._filter_by_length(entities)
+
+        # Filtre 6 : rejette les valeurs de remplissage ("non spécifié",
+        # "N/A"...). La règle anti-remplissage écrite dans le prompt (voir
+        # config.PROMPT_ENGINEERED/TOPIC règle 6) n'est pas toujours
+        # respectée par le modèle en pratique — ce filtre l'applique de
+        # façon garantie, indépendamment de l'obéissance du modèle à la
+        # consigne.
+        entities = self._filter_filler_values(entities)
+
+        # Filtre 7 : rejette le bruit bibliographique résiduel (URL, numéro
+        # de citation entre crochets, date au format bibliographique type
+        # "Sep. 2024.") qui continue de fuir malgré strip_references_section
+        # — le PDF étant en deux colonnes, pdfplumber fusionne parfois des
+        # fragments de la liste de références AVANT le titre "REFERENCES"
+        # dans le texte extrait (lignes de la colonne de droite intercalées
+        # avec le corps de la colonne de gauche), donc hors de portée d'une
+        # simple coupure en un seul point.
+        entities = self._filter_citation_noise(entities)
 
         method_name = f"mistral_prompt_{prompt_variant}"
 
@@ -240,13 +287,46 @@ class MistralExtractor:
         On extrait le premier objet JSON valide trouvé dans la réponse, et on
         renvoie l'objet COMPLET (pas seulement "entities") pour pouvoir aussi
         lire le champ "relevant_categories" (variant custom, fix #6).
+
+        Avant ce fix, un échec de parsing (aucun JSON trouvé, ou JSON malformé)
+        renvoyait silencieusement {} : impossible de distinguer "le modèle n'a
+        rien trouvé" de "le modèle a répondu mais le parsing a échoué" en
+        regardant seulement le nombre d'entités (0 dans les deux cas). C'est
+        le cas typique du prompt "naive", qui ne force aucun format JSON —
+        on log donc désormais un avertissement avec un extrait de la réponse
+        brute pour pouvoir diagnostiquer sans devoir aller lire
+        raw_model_output dans le JSON de sortie à chaque fois.
         """
         match = re.search(r"\{.*\}", raw_output, re.DOTALL)
         if not match:
+            preview = raw_output.strip().replace("\n", " ")[:200]
+            print(
+                f"[⚠] Aucun JSON trouvé dans la réponse du modèle. "
+                f"Extrait de la réponse brute : {preview!r}"
+            )
             return {}
         try:
             return json.loads(match.group(0))
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            # Repli : certains modèles ajoutent des commentaires "//" (JSON
+            # non standard) ou une virgule traînante avant "]"/"}" (JSON5-like).
+            # On retente après nettoyage — uniquement en repli, donc aucun
+            # risque de régression : si ça échoue aussi, on retombe sur le
+            # même comportement qu'avant (log + {}).
+            repaired = re.sub(r"^[ \t]*//.*$", "", match.group(0), flags=re.MULTILINE)
+            repaired = re.sub(r",(\s*[\]}])", r"\1", repaired)
+            if repaired != match.group(0):
+                try:
+                    result = json.loads(repaired)
+                    print(
+                        "[⚠] JSON invalide corrigé après suppression de "
+                        "commentaires // et/ou virgules traînantes."
+                    )
+                    return result
+                except json.JSONDecodeError:
+                    pass
+            preview = match.group(0).strip().replace("\n", " ")[:200]
+            print(f"[⚠] JSON trouvé mais invalide ({e}). " f"Extrait : {preview!r}")
             return {}
 
     @staticmethod
@@ -258,8 +338,6 @@ class MistralExtractor:
     # "de"/"ou"/"la" matcheraient quasiment n'importe quel besoin utilisateur en
     # français, ce qui viderait le filtrage de tout son sens (il sélectionnerait
     # presque toujours la totalité des 23 labels).
-    
-
 
     _STOPWORDS_LABELS: ClassVar[frozenset[str]] = frozenset(
         {
@@ -270,7 +348,7 @@ class MistralExtractor:
             "le",
             "les",
             "l'",
-            "d'",   
+            "d'",
             "un",
             "une",
             "ou",
@@ -285,6 +363,7 @@ class MistralExtractor:
             "avec",
         }
     )
+
     @staticmethod
     def _select_relevant_labels(user_need: str, all_labels: list[str]) -> list[str]:
         """
@@ -345,7 +424,7 @@ class MistralExtractor:
         Pour le variant "custom" (fix #6) : restreint les entités aux catégories
         que le modèle a lui-même explicitement identifiées comme pertinentes
         pour le besoin utilisateur (champ "relevant_categories" du JSON, voir
-        règle 6 de PROMPT_CUSTOM). Rend vérifiable côté code la consigne
+        règle 7 de PROMPT_CUSTOM). Rend vérifiable côté code la consigne
         "n'utilise QUE ces catégories" plutôt que de compter uniquement sur le
         modèle pour la respecter spontanément.
         """
@@ -383,6 +462,132 @@ class MistralExtractor:
             print(
                 f"[⚠] {len(rejected)} entité(s) rejetée(s) — format invalide pour leur label : "
                 f"{[(e.get('text'), e.get('label')) for e in rejected]}"
+            )
+        return valid
+
+    @staticmethod
+    def _drop_template_leaks(entities: list[dict]) -> list[dict]:
+        """
+        Rejette les entités dont le texte est une valeur d'exemple FICTIVE
+        recopiée depuis le prompt (voir config.TEMPLATE_LEAK_VALUES, ex:
+        "CVE-0000-00000", "0.0.0.0"). Complète les règles anti-hallucination
+        écrites dans le prompt lui-même : un modèle recopie parfois
+        l'exemple tel quel malgré la consigne "ne jamais les recopier",
+        même quand ce n'est plus une valeur réaliste. Ce filtre attrape
+        la fuite déterministe après coup, indépendamment de la valeur
+        d'exemple choisie dans le prompt.
+        """
+        valid, rejected = [], []
+        for e in entities:
+            text = e.get("text", "").strip().lower()
+            (rejected if text in TEMPLATE_LEAK_VALUES else valid).append(e)
+        if rejected:
+            print(
+                f"[⚠] {len(rejected)} entité(s) rejetée(s) — valeur d'exemple fictive "
+                f"recopiée depuis le prompt : {[e.get('text') for e in rejected]}"
+            )
+        return valid
+
+    @staticmethod
+    def _filter_by_length(entities: list[dict], max_words: int = 6) -> list[dict]:
+        """
+        Rejette les entités dont le texte dépasse max_words mots. Constaté en
+        conditions réelles : sur les catégories les plus abstraites (ex:
+        "vecteur d'attaque"), le modèle dérive de l'extraction d'entité vers
+        l'extraction de clause descriptive complète ("IFTTT studies showing
+        that open-ended dependency composition can lead to..."), produisant
+        des faux positifs qui ne sont pas des hallucinations (le texte existe
+        bien dans la source) mais ne sont plus des entités nommées. Le
+        ground truth ne dépasse jamais 6 mots (voir ground_truth_backdoor.json).
+        """
+        valid, rejected = [], []
+        for e in entities:
+            n_words = len(e.get("text", "").split())
+            (rejected if n_words > max_words else valid).append(e)
+        if rejected:
+            print(
+                f"[⚠] {len(rejected)} entité(s) rejetée(s) — texte trop long "
+                f"(> {max_words} mots), probable clause descriptive plutôt "
+                f"qu'entité nommée : {[e.get('text') for e in rejected]}"
+            )
+        return valid
+
+    # Valeurs de remplissage que le modèle invente parfois pour "remplir"
+    # une catégorie au lieu de l'omettre, malgré la règle anti-remplissage
+    # écrite dans le prompt (voir config.PROMPT_ENGINEERED/TOPIC règle 6).
+    # Deux formes observées en conditions réelles : soit le texte ENTIER est
+    # un jeton court sans ambiguïté possible ("N/A", "Unknown", "Aucun") ->
+    # ancré (^...$) pour ne pas rejeter un vrai texte qui contiendrait
+    # accidentellement un de ces mots ; soit la locution "non spécifié(e)"
+    # sert de SUFFIXE descriptif ("année non spécifiée", "entreprise non
+    # spécifiée") -> cherchée n'importe où dans le texte, cette locution
+    # n'ayant aucun sens comme fragment d'une vraie entité nommée.
+    _FILLER_WHOLE_RE = re.compile(
+        r"^(n\/?a|unknown|aucun(?:e)?s?|tbd|none)\.?$", re.IGNORECASE
+    )
+    _FILLER_PHRASE_RE = re.compile(
+        r"non[ -]?sp[ée]cifi[ée]e?s?|non[ -]?renseign[ée]e?s?|"
+        r"not specified|not available|not provided",
+        re.IGNORECASE,
+    )
+
+    @staticmethod
+    def _filter_filler_values(entities: list[dict]) -> list[dict]:
+        """
+        Rejette les entités dont le texte est une valeur de remplissage
+        ("non spécifié", "N/A"...) plutôt qu'un fait extrait. La règle
+        anti-remplissage du prompt n'est pas toujours respectée par le
+        modèle en pratique (constaté : "année non spécifiée", "entreprise
+        non spécifiée" réapparaissent malgré la consigne) — ce filtre
+        l'applique de façon garantie, indépendamment de l'obéissance du
+        modèle.
+        """
+        valid, rejected = [], []
+        for e in entities:
+            text = e.get("text", "").strip()
+            is_filler = bool(
+                MistralExtractor._FILLER_WHOLE_RE.match(text)
+                or MistralExtractor._FILLER_PHRASE_RE.search(text)
+            )
+            (rejected if is_filler else valid).append(e)
+        if rejected:
+            print(
+                f"[⚠] {len(rejected)} entité(s) rejetée(s) — valeur de "
+                f"remplissage au lieu d'une omission : {[e.get('text') for e in rejected]}"
+            )
+        return valid
+
+    # Bruit bibliographique résiduel : URL, numéro de citation entre
+    # crochets, date au format bibliographique abrégé ("Sep. 2024.").
+    _CITATION_NOISE_RE = re.compile(
+        r"https?://|www\.|\[\d{1,3}\]|"
+        r"^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\.?\s*\d{4}\.?$",
+        re.IGNORECASE,
+    )
+
+    @staticmethod
+    def _filter_citation_noise(entities: list[dict]) -> list[dict]:
+        """
+        Rejette les fragments de bibliographie qui continuent de fuir malgré
+        strip_references_section (pdf_extractor.py) : sur un PDF en deux
+        colonnes, pdfplumber fusionne parfois des lignes de la liste de
+        références AVEC le corps du texte AVANT même le titre "REFERENCES"
+        (colonnes entrelacées ligne par ligne) — une coupure en un seul
+        point ne peut pas les atteindre. Ce filtre attrape après coup les
+        signatures typiques d'une entrée bibliographique (URL, "[12]",
+        date abrégée type "Sep. 2024.") qu'aucune catégorie de la taxonomie
+        ne devrait légitimement contenir.
+        """
+        valid, rejected = [], []
+        for e in entities:
+            text = e.get("text", "").strip()
+            (
+                rejected if MistralExtractor._CITATION_NOISE_RE.search(text) else valid
+            ).append(e)
+        if rejected:
+            print(
+                f"[⚠] {len(rejected)} entité(s) rejetée(s) — bruit "
+                f"bibliographique résiduel : {[e.get('text') for e in rejected]}"
             )
         return valid
 

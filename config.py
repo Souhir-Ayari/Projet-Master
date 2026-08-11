@@ -169,7 +169,7 @@ SUPPLY_CHAIN_ENTITY_LABELS = [
 
 SUPPLY_CHAIN_ENTITY_DESCRIPTIONS = {
     "paquet ou bibliothèque logicielle concerné": "nom du logiciel/bibliothèque touché par l'attaque (aucun exemple fourni, pour éviter toute confusion avec un vrai paquet)",
-    "identifiant CVE": "format officiel CVE-AAAA-NNNNN, ex: CVE-0000-00000 (valeur FICTIVE, format uniquement)",
+    "identifiant CVE": "format officiel CVE-AAAA-NNNNN, ex: CVE-0000-000043 (valeur FICTIVE, format uniquement)",
     "service ou composant ciblé": "processus ou service visé par le code malveillant (aucun exemple fourni)",
     "distribution ou système affecté": "distribution Linux ou plateforme touchée (aucun exemple fourni)",
     "nombre de systèmes ou paquets impactés": "chiffre d'impact cité dans le texte (aucun exemple chiffré fourni, format uniquement)",
@@ -205,12 +205,15 @@ OUTPUT_SCHEMA_EXAMPLE = {
 # comme demandé : PROMPT_NAIVE (référence basse) vs PROMPT_NAIVE_SCHEMA
 # (référence intermédiaire) vs PROMPT_ENGINEERED (optimisé).
 
-PROMPT_NAIVE = """Extrais les entités importantes de ce texte de cybersécurité
-et retourne un JSON.
+PROMPT_NAIVE = """Extrais les entités importantes de ce texte de cybersécurité.
+
+Réponds uniquement avec un JSON valide, sans texte avant/après, au format :
+{{"entities": [{{"text": "...", "label": "..."}}]}}
 
 Texte:
 {text}
-"""
+json :"""
+
 
 # PROMPT_NAIVE_SCHEMA : variante intermédiaire entre naive et engineered.
 # PROMPT_NAIVE ne précise ni catégories ni schéma JSON -> le modèle échoue
@@ -234,6 +237,8 @@ Réponds uniquement avec un JSON au format :
 
 Texte:
 {text}
+
+json : 
 """
 
 PROMPT_ENGINEERED = """Tu es un analyste SOC (Security Operations Center) expert en threat intelligence.
@@ -251,7 +256,9 @@ Règles strictes :
    numérotées ([1], [2]...), URL de type DOI, ou métadonnées de publication (auteurs,
    dates de conférence). Ce ne sont jamais des entités valides même si elles contiennent
    des mots-clés cybersécurité.
-5. Réponds UNIQUEMENT avec un JSON valide, sans texte avant/après, au format exact :
+5. N'utilise jamais de texte de remplissage ("non spécifié", "N/A", "unknown", "aucun").
+   Si une catégorie n'a pas d'occurrence, omets-la simplement — ne mets aucune entrée.
+6. Réponds UNIQUEMENT avec un JSON valide, sans texte avant/après, au format exact :
 
 {{
   "entities": [
@@ -303,12 +310,14 @@ Règles strictes (anti-hallucination) :
    numérotées ([1], [2]...), URL de type DOI, ou métadonnées de publication (auteurs,
    dates de conférence). Ce ne sont jamais des entités valides même si elles contiennent
    des mots-clés cybersécurité.
-6. Avant de répondre, identifie explicitement les 2-3 catégories de {labels} qui
+6. N'utilise jamais de texte de remplissage ("non spécifié", "N/A", "unknown", "aucun").
+   Si une catégorie n'a pas d'occurrence, omets-la simplement — ne mets aucune entrée.
+7. Avant de répondre, identifie explicitement les 2-3 catégories de {labels} qui
    correspondent RÉELLEMENT au besoin exprimé. N'utilise QUE ces catégories dans ta
    réponse finale — même si d'autres entités intéressantes apparaissent dans le texte.
-7. Réponds UNIQUEMENT avec un JSON valide, sans texte avant/après, au format exact
+8. Réponds UNIQUEMENT avec un JSON valide, sans texte avant/après, au format exact
    (le champ "relevant_categories" doit contenir les 2-3 catégories identifiées
-   à la règle 6 — c'est ce qui permet de vérifier que tu les as bien respectées) :
+   à la règle 7 — c'est ce qui permet de vérifier que tu les as bien respectées) :
 
 {{
   "relevant_categories": ["<catégorie 1>", "<catégorie 2>"],
@@ -324,13 +333,93 @@ Texte à analyser :
 
 JSON :"""
 
+# PROMPT_TOPIC_SUPPLY_CHAIN : prompt "engineered" spécialisé, calé sur la
+# taxonomie étroite SUPPLY_CHAIN_ENTITY_LABELS (au lieu de CYBER_ENTITY_LABELS)
+# et sur le vocabulaire des attaques de chaîne d'approvisionnement logicielle
+# (XZ Utils, SolarWinds, Log4Shell). Utilisé par prompt_variant == "topic"
+# dans mistral_extractor.MistralExtractor.extract().
+PROMPT_TOPIC_SUPPLY_CHAIN = """Tu es un analyste SOC (Security Operations Center) expert en compromissions de
+chaîne d'approvisionnement logicielle (supply chain attacks / backdoors dans des
+dépôts open source, type XZ Utils, SolarWinds, Log4Shell).
+Ta tâche est d'extraire UNIQUEMENT les entités explicitement présentes dans le texte
+ci-dessous, sans en inventer aucune (zéro hallucination).
+
+Catégories d'entités à extraire (spécifiques aux attaques de chaîne d'approvisionnement) :
+{labels}
+
+Règles strictes :
+1. N'extrais que du texte qui apparaît mot pour mot dans le document source.
+2. Si une catégorie n'a aucune occurrence, ne l'inclus pas.
+3. Ne déduis pas, n'infère pas, ne complète pas d'information manquante.
+4. Ignore complètement toute section "References", "Bibliography", liste de citations
+   numérotées ([1], [2]...), URL de type DOI, ou métadonnées de publication (auteurs,
+   dates de conférence). Ce ne sont jamais des entités valides même si elles contiennent
+   des mots-clés cybersécurité.
+5. N'utilise jamais de texte de remplissage ("non spécifié", "N/A", "unknown", "aucun").
+   Si une catégorie n'a pas d'occurrence, omets-la simplement — ne mets aucune entrée.
+6. Réponds UNIQUEMENT avec un JSON valide, sans texte avant/après, au format exact :
+
+{{
+  "entities": [
+    {{"text": "<extrait exact du texte>", "label": "<une des catégories ci-dessus>"}}
+  ]
+}}
+
+Exemple (valeurs FICTIVES, uniquement pour illustrer le FORMAT — ne jamais les recopier) :
+Texte : "Le paquet libexemple-fictif a été compromis, ce qui correspond à CVE-0000-000043."
+Sortie :
+{{
+  "entities": [
+    {{"text": "libexemple-fictif", "label": "paquet ou bibliothèque logicielle concerné"}},
+    {{"text": "CVE-0000-000043", "label": "identifiant CVE"}}
+  ]
+}}
+
+RÈGLE SUPPLÉMENTAIRE : l'exemple ci-dessus illustre uniquement le FORMAT JSON attendu.
+Ses valeurs (libexemple-fictif, CVE-0000-000043) sont fictives : ne les inclus JAMAIS
+dans ta réponse, même si elles semblent plausibles.
+
+Texte à analyser :
+\"\"\"
+{text}
+\"\"\"
+
+JSON :"""
+
 
 PROMPTS = {
     "naive": PROMPT_NAIVE,
     "naive_schema": PROMPT_NAIVE_SCHEMA,
     "engineered": PROMPT_ENGINEERED,
     "custom": PROMPT_CUSTOM,
+    "topic": PROMPT_TOPIC_SUPPLY_CHAIN,
 }
+
+# ---------------------------------------------------------------------------
+# 3bis) VALEURS D'EXEMPLE FICTIVES UTILISÉES DANS LES PROMPTS (anti-fuite)
+# ---------------------------------------------------------------------------
+# Toutes les valeurs "ex: ..." injectées ci-dessus (ENTITY_DESCRIPTIONS,
+# SUPPLY_CHAIN_ENTITY_DESCRIPTIONS, exemples inline de PROMPT_ENGINEERED et
+# PROMPT_TOPIC_SUPPLY_CHAIN) sont FICTIVES et ne doivent jamais apparaître
+# dans une réponse du modèle. En pratique, remplacer un exemple "réaliste"
+# par une valeur fictive (ex: CVE-0000-00000 au lieu d'un vrai CVE) ne suffit
+# pas : le modèle recopie parfois l'exemple tel quel malgré la consigne.
+# mistral_extractor._drop_template_leaks() filtre donc ces valeurs après
+# coup, quelle que soit la valeur d'exemple choisie dans le prompt. Garder
+# cet ensemble synchronisé avec les exemples ci-dessus si vous en ajoutez.
+TEMPLATE_LEAK_VALUES = frozenset(
+    {
+        "0.0.0.0",
+        "exemple-fictif.test",
+        "hxxp://exemple-fictif.test",
+        "hxxp://exemple-fictif.test/page",
+        "cve-0000-00000",
+        "cve-0000-000043",
+        "cwe-000",
+        "t0000.000",
+        "libexemple-fictif",
+    }
+)
 
 # ---------------------------------------------------------------------------
 # 4) PARAMÈTRES MODÈLES
