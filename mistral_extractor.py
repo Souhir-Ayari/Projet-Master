@@ -35,6 +35,34 @@ from config import (
 )
 
 
+# Valeurs de remplissage que le modèle invente parfois pour "remplir" un champ
+# au lieu de l'omettre (entité OU champ de résumé libre — voir Step 3 du
+# pipeline méthodologie/mitigation dans methodology_extractor.py, qui réutilise
+# cette même fonction pour les "honest nulls"). Deux formes observées en
+# conditions réelles : soit le texte ENTIER est un jeton court sans ambiguïté
+# possible ("N/A", "Unknown", "Aucun") -> ancré (^...$) pour ne pas rejeter un
+# vrai texte qui contiendrait accidentellement un de ces mots ; soit la
+# locution "non spécifié(e)" sert de SUFFIXE descriptif ("année non
+# spécifiée") -> cherchée n'importe où dans le texte, cette locution n'ayant
+# aucun sens comme fragment d'un vrai fait extrait.
+_FILLER_WHOLE_RE = re.compile(
+    r"^(n\/?a|unknown|aucun(?:e)?s?|tbd|none)\.?$", re.IGNORECASE
+)
+_FILLER_PHRASE_RE = re.compile(
+    r"non[ -]?sp[ée]cifi[ée]e?s?|non[ -]?renseign[ée]e?s?|"
+    r"not specified|not available|not provided",
+    re.IGNORECASE,
+)
+
+
+def is_filler_text(text: str | None) -> bool:
+    """Vrai si `text` est une valeur de remplissage plutôt qu'un fait extrait."""
+    if not text:
+        return False
+    text = text.strip()
+    return bool(_FILLER_WHOLE_RE.match(text) or _FILLER_PHRASE_RE.search(text))
+
+
 class MistralGenerationError(Exception):
     """Levée quand Ollama échoue définitivement sur un chunk (timeout/erreur
     réseau), après épuisement des tentatives. Interceptée dans extract() pour
@@ -516,25 +544,6 @@ class MistralExtractor:
             )
         return valid
 
-    # Valeurs de remplissage que le modèle invente parfois pour "remplir"
-    # une catégorie au lieu de l'omettre, malgré la règle anti-remplissage
-    # écrite dans le prompt (voir config.PROMPT_ENGINEERED/TOPIC règle 6).
-    # Deux formes observées en conditions réelles : soit le texte ENTIER est
-    # un jeton court sans ambiguïté possible ("N/A", "Unknown", "Aucun") ->
-    # ancré (^...$) pour ne pas rejeter un vrai texte qui contiendrait
-    # accidentellement un de ces mots ; soit la locution "non spécifié(e)"
-    # sert de SUFFIXE descriptif ("année non spécifiée", "entreprise non
-    # spécifiée") -> cherchée n'importe où dans le texte, cette locution
-    # n'ayant aucun sens comme fragment d'une vraie entité nommée.
-    _FILLER_WHOLE_RE = re.compile(
-        r"^(n\/?a|unknown|aucun(?:e)?s?|tbd|none)\.?$", re.IGNORECASE
-    )
-    _FILLER_PHRASE_RE = re.compile(
-        r"non[ -]?sp[ée]cifi[ée]e?s?|non[ -]?renseign[ée]e?s?|"
-        r"not specified|not available|not provided",
-        re.IGNORECASE,
-    )
-
     @staticmethod
     def _filter_filler_values(entities: list[dict]) -> list[dict]:
         """
@@ -544,16 +553,14 @@ class MistralExtractor:
         modèle en pratique (constaté : "année non spécifiée", "entreprise
         non spécifiée" réapparaissent malgré la consigne) — ce filtre
         l'applique de façon garantie, indépendamment de l'obéissance du
-        modèle.
+        modèle. Réutilise is_filler_text (module-level), partagée avec
+        methodology_extractor.py pour les "honest nulls" du Step 3.
         """
         valid, rejected = [], []
         for e in entities:
-            text = e.get("text", "").strip()
-            is_filler = bool(
-                MistralExtractor._FILLER_WHOLE_RE.match(text)
-                or MistralExtractor._FILLER_PHRASE_RE.search(text)
-            )
-            (rejected if is_filler else valid).append(e)
+            (
+                rejected if is_filler_text(e.get("text", "")) else valid
+            ).append(e)
         if rejected:
             print(
                 f"[⚠] {len(rejected)} entité(s) rejetée(s) — valeur de "

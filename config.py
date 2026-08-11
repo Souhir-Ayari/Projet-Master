@@ -8,6 +8,7 @@ Modifier ce fichier pour ajuster les entités ciblées ou affiner les prompts
 sans toucher au reste du code.
 """
 
+import os
 import re
 
 # ---------------------------------------------------------------------------
@@ -470,3 +471,98 @@ OLLAMA_MAX_RETRIES = 1  # nombre de nouvelles tentatives avant d'abandonner
 HF_MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.3"
 
 GLINER_CONFIDENCE_THRESHOLD = 0.4  # seuil de score pour retenir une entité
+
+# ---------------------------------------------------------------------------
+# 5) LAYER 2 : EXTRACTION MÉTHODOLOGIQUE (attaque + mitigation)
+# ---------------------------------------------------------------------------
+# Contrairement à Layer 1 (extraction d'entités nommées, ci-dessus, INCHANGÉE),
+# Layer 2 résume l'attaque et sa mitigation à partir d'un chunk ET des entités
+# que Layer 1 en a déjà extraites (jamais le texte brut seul — voir
+# methodology_extractor.py). Réutilise les mêmes principes anti-hallucination
+# que PROMPT_ENGINEERED : ancrage verbatim, pas de remplissage, pas d'inférence.
+#
+# mitre_technique_id est demandé dans ce MÊME appel plutôt que dans un
+# second aller-retour Ollama séparé (le modèle PROPOSE — attack_taxonomy.py
+# VALIDE ensuite contre le vrai référentiel MITRE ATT&CK, jamais de confiance
+# aveugle, même principe que mistral_extractor._filter_valid_labels). La
+# mitigation n'est conservée par methodology_extractor.py QUE si l'attaque
+# est confirmée ET la catégorie validée (Step 3) — même si le modèle en a
+# proposé une, elle est mise à null en aval si la catégorie est invalide.
+PROMPT_METHODOLOGY = """Tu es un analyste SOC expert en compromissions de chaîne d'approvisionnement
+logicielle. Voici un extrait de document ET les entités déjà extraites de ce
+même extrait par un autre système — utilise-les comme ancrage supplémentaire,
+elles sont garanties présentes dans le texte.
+
+Entités déjà extraites de cet extrait :
+{entities}
+
+Ta tâche : UNIQUEMENT si le texte décrit une attaque concrète (pas une remarque
+générale, pas une discussion de related work), résume (a) l'attaque, (b) la
+technique MITRE ATT&CK correspondante si tu peux l'identifier avec certitude,
+et (c) sa mitigation si le texte en décrit une explicitement.
+
+Règles strictes (mêmes principes anti-hallucination que pour l'extraction d'entités) :
+1. Base-toi UNIQUEMENT sur des faits explicitement présents dans le texte ci-dessous —
+   jamais sur des connaissances générales que tu aurais par ailleurs sur ces attaques.
+2. Si le texte ne décrit aucune attaque concrète, réponds avec "attack_present": false
+   et laisse tous les autres champs à null.
+3. Si une attaque est décrite mais qu'AUCUNE mitigation n'est explicitement mentionnée
+   dans CE texte, mets "mitigation_summary": null. N'invente JAMAIS une mitigation
+   plausible — un null honnête vaut mieux qu'une réponse inventée.
+4. "mitre_technique_id" doit être au format officiel Txxxx ou Txxxx.xxx. Si tu n'es
+   pas certain de la technique exacte, mets null plutôt que de deviner.
+5. N'utilise jamais de texte de remplissage ("non spécifié", "N/A", "aucune"). Si
+   l'information n'existe pas dans le texte, mets null, jamais une chaîne vide.
+6. Chaque résumé fait 1 à 2 phrases maximum.
+7. "confidence" est un nombre entre 0.0 et 1.0 reflétant ta certitude que ce résumé
+   est fidèle au texte (pas ta certitude sur la gravité de l'attaque).
+8. Réponds UNIQUEMENT avec un JSON valide, sans texte avant/après, au format exact :
+
+{{
+  "attack_present": true,
+  "attack_summary": "<1-2 phrases ancrées sur le texte, ou null si attack_present est false>",
+  "mitre_technique_id": "<Txxxx ou Txxxx.xxx, ou null>",
+  "mitigation_summary": "<1-2 phrases ancrées sur le texte, ou null si aucune mitigation décrite>",
+  "confidence": 0.0
+}}
+
+Texte à analyser :
+\"\"\"
+{text}
+\"\"\"
+
+JSON :"""
+
+# ---------------------------------------------------------------------------
+# 6) TABLE DE CONNAISSANCE ET RETRIEVAL (Steps 5-6)
+# ---------------------------------------------------------------------------
+MITRE_STIX_URL = (
+    "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/"
+    "master/enterprise-attack/enterprise-attack.json"
+)
+MITRE_CACHE_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "data", "mitre_attack_techniques.json"
+)
+
+KNOWLEDGE_TABLE_PATH = "results/knowledge_table.jsonl"
+TIER2_LOG_PATH = "results/tier2_retrieval_log.jsonl"
+
+# Modèle d'embedding servi par Ollama (léger, ~274 Mo) : `ollama pull nomic-embed-text`.
+# Choisi pour rester cohérent avec l'infrastructure déjà en place (Ollama pour
+# Mistral) plutôt que d'ajouter une dépendance lourde (sentence-transformers + un
+# second téléchargement de modèle PyTorch) juste pour l'embedding.
+OLLAMA_EMBEDDING_MODEL = "nomic-embed-text"
+OLLAMA_EMBEDDINGS_URL = "http://localhost:11434/api/embeddings"
+
+# Step 6 - Tier 1 : en dessous de ce score de similarité, le meilleur match de
+# la table de connaissance est jugé insuffisant -> déclenche Tier 2 (recherche
+# live) si TIER2_ENABLED. Valeur de départ raisonnable pour une similarité
+# cosinus ; à recalibrer une fois la table de connaissance non triviale.
+RETRIEVAL_SIMILARITY_THRESHOLD = 0.6
+
+# Step 6 - Tier 2 : flag de config dès le départ (demandé explicitement) pour
+# que "statique vs augmenté" soit une ablation contrôlée, pas une réécriture.
+TIER2_ENABLED = False
+SEMANTIC_SCHOLAR_API_URL = "https://api.semanticscholar.org/graph/v1/paper/search"
+ARXIV_API_URL = "http://export.arxiv.org/api/query"
+TIER2_MAX_RESULTS = 5
