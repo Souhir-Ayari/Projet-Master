@@ -483,11 +483,17 @@ GLINER_CONFIDENCE_THRESHOLD = 0.4  # seuil de score pour retenir une entité
 #
 # mitre_technique_id est demandé dans ce MÊME appel plutôt que dans un
 # second aller-retour Ollama séparé (le modèle PROPOSE — attack_taxonomy.py
-# VALIDE ensuite contre le vrai référentiel MITRE ATT&CK, jamais de confiance
-# aveugle, même principe que mistral_extractor._filter_valid_labels). La
-# mitigation n'est conservée par methodology_extractor.py QUE si l'attaque
-# est confirmée ET la catégorie validée (Step 3) — même si le modèle en a
-# proposé une, elle est mise à null en aval si la catégorie est invalide.
+# VALIDE ensuite, jamais de confiance aveugle, même principe que
+# mistral_extractor._filter_valid_labels). Le prompt restreint le choix à
+# attack_taxonomy.SUPPLY_CHAIN_TECHNIQUE_IDS (une short-list d'une quinzaine
+# de techniques pertinentes) plutôt que de laisser le modèle choisir parmi
+# les ~700 techniques du référentiel complet : constaté en conditions
+# réelles, un choix libre produit des ID RÉELS mais SANS RAPPORT avec
+# l'attaque décrite (ex: "T1078.001 Default Accounts" assigné à Log4Shell),
+# qui passaient une simple vérification d'existence. La mitigation n'est
+# conservée par methodology_extractor.py QUE si l'attaque est confirmée ET
+# la catégorie dans la short-list validée (Step 3) — même si le modèle en a
+# proposé une, elle est mise à null en aval sinon.
 PROMPT_METHODOLOGY = """Tu es un analyste SOC expert en compromissions de chaîne d'approvisionnement
 logicielle. Voici un extrait de document ET les entités déjà extraites de ce
 même extrait par un autre système — utilise-les comme ancrage supplémentaire,
@@ -501,6 +507,10 @@ générale, pas une discussion de related work), résume (a) l'attaque, (b) la
 technique MITRE ATT&CK correspondante si tu peux l'identifier avec certitude,
 et (c) sa mitigation si le texte en décrit une explicitement.
 
+Techniques MITRE ATT&CK autorisées pour "mitre_technique_id" (choisis UNIQUEMENT
+dans cette liste, ou mets null si aucune ne correspond clairement) :
+{mitre_labels}
+
 Règles strictes (mêmes principes anti-hallucination que pour l'extraction d'entités) :
 1. Base-toi UNIQUEMENT sur des faits explicitement présents dans le texte ci-dessous —
    jamais sur des connaissances générales que tu aurais par ailleurs sur ces attaques.
@@ -509,8 +519,10 @@ Règles strictes (mêmes principes anti-hallucination que pour l'extraction d'en
 3. Si une attaque est décrite mais qu'AUCUNE mitigation n'est explicitement mentionnée
    dans CE texte, mets "mitigation_summary": null. N'invente JAMAIS une mitigation
    plausible — un null honnête vaut mieux qu'une réponse inventée.
-4. "mitre_technique_id" doit être au format officiel Txxxx ou Txxxx.xxx. Si tu n'es
-   pas certain de la technique exacte, mets null plutôt que de deviner.
+4. "mitre_technique_id" doit être EXACTEMENT l'un des identifiants de la liste
+   ci-dessus. N'en invente pas d'autre, même s'il existe dans MITRE ATT&CK en
+   général : si aucun des identifiants listés ne correspond clairement au texte,
+   mets null plutôt que de forcer une correspondance approximative.
 5. N'utilise jamais de texte de remplissage ("non spécifié", "N/A", "aucune"). Si
    l'information n'existe pas dans le texte, mets null, jamais une chaîne vide.
 6. Chaque résumé fait 1 à 2 phrases maximum.

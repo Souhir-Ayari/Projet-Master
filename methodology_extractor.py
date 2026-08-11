@@ -55,7 +55,10 @@ class MethodologyExtractor:
         (le modèle ne peut jamais faire valider une catégorie inventée).
         """
         entities_block = self._format_entities(layer1_entities)
-        prompt = PROMPT_METHODOLOGY.format(text=chunk_text, entities=entities_block)
+        mitre_labels = attack_taxonomy.supply_chain_labels_block(self.techniques)
+        prompt = PROMPT_METHODOLOGY.format(
+            text=chunk_text, entities=entities_block, mitre_labels=mitre_labels
+        )
 
         try:
             raw_output = self.mistral._generate(prompt)
@@ -80,16 +83,19 @@ class MethodologyExtractor:
             else None
         )
 
-        # Step 2 : le modèle PROPOSE une technique, on VALIDE contre le vrai
-        # référentiel — jamais de confiance aveugle.
+        # Step 2 : le modèle PROPOSE une technique, on VALIDE contre la
+        # short-list supply-chain (attack_taxonomy.SUPPLY_CHAIN_TECHNIQUE_IDS)
+        # — plus stricte qu'une simple vérification d'existence dans MITRE
+        # ATT&CK : un ID réel mais hors-sujet pour ce domaine est rejeté ici
+        # aussi (voir le commentaire au-dessus de SUPPLY_CHAIN_TECHNIQUE_IDS).
         proposed_technique_id = parsed.get("mitre_technique_id")
-        technique_valid = attack_taxonomy.is_valid_technique_id(
-            proposed_technique_id, self.techniques
+        technique_valid = attack_taxonomy.is_valid_supply_chain_technique_id(
+            proposed_technique_id
         )
         if attack_present and proposed_technique_id and not technique_valid:
             print(
-                f"[⚠] mitre_technique_id proposé rejeté — absent du "
-                f"référentiel MITRE ATT&CK réel : {proposed_technique_id!r}"
+                f"[⚠] mitre_technique_id proposé rejeté — hors de la "
+                f"short-list supply-chain autorisée : {proposed_technique_id!r}"
             )
         mitre_technique_id = (
             proposed_technique_id.strip().upper()
