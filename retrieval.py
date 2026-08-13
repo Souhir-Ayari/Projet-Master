@@ -25,7 +25,6 @@ PDF complet. Ce découpage évite de coupler ce module de recherche au reste
 du pipeline d'extraction.
 """
 
-import math
 import time
 import xml.etree.ElementTree as ET
 
@@ -33,6 +32,7 @@ import requests
 
 from config import (
     ARXIV_API_URL,
+    KNOWLEDGE_ATTACK_VECTORS_PATH,
     RETRIEVAL_SIMILARITY_THRESHOLD,
     SEMANTIC_SCHOLAR_API_URL,
     TIER2_ENABLED,
@@ -41,43 +41,44 @@ from config import (
 )
 from jsonl_utils import append_jsonl
 from knowledge_table import embed_text, load_table
-
-
-def _cosine_similarity(a: list[float], b: list[float]) -> float:
-    if not a or not b or len(a) != len(b):
-        return 0.0
-    dot = sum(x * y for x, y in zip(a, b))
-    norm_a = math.sqrt(sum(x * x for x in a))
-    norm_b = math.sqrt(sum(y * y for y in b))
-    if norm_a == 0 or norm_b == 0:
-        return 0.0
-    return dot / (norm_a * norm_b)
+from vector_store import cosine_similarities, load_vectors
 
 
 def tier1_retrieve(
     query_attack_summary: str,
     query_category: str = None,
     table: list[dict] = None,
+    attack_vectors_path: str = KNOWLEDGE_ATTACK_VECTORS_PATH,
     top_k: int = 3,
 ) -> list[dict]:
     """
-    Similarité cosinus entre l'embedding de query_attack_summary et
-    attack_embedding de chaque enregistrement de la table. Un léger bonus est
-    ajouté si query_category correspond exactement (même ID MITRE validé) —
-    la similarité sémantique seule peut confondre deux attaques de la même
-    famille conceptuelle mais de catégorie MITRE différente.
+    Similarité cosinus, calculée vectoriellement (vector_store.
+    cosine_similarities) en une seule opération numpy plutôt qu'une boucle
+    Python par enregistrement, entre l'embedding de query_attack_summary et
+    TOUS les attack_embedding stockés dans attack_vectors_path (voir
+    knowledge_table.py : les embeddings ne sont plus inline dans le JSONL).
+    Un léger bonus est ajouté si query_category correspond exactement (même
+    ID MITRE validé) — la similarité sémantique seule peut confondre deux
+    attaques de la même famille conceptuelle mais de catégorie différente.
     """
     table = table if table is not None else load_table()
     if not table:
         return []
 
+    record_by_id = {record["record_id"]: record for record in table}
+    ids, matrix = load_vectors(attack_vectors_path)
+    if matrix.size == 0:
+        return []
+
     query_embedding = embed_text(query_attack_summary)
+    similarities = cosine_similarities(query_embedding, matrix)
+
     scored = []
-    for record in table:
-        record_embedding = record.get("attack_embedding")
-        if not record_embedding:
-            continue
-        similarity = _cosine_similarity(query_embedding, record_embedding)
+    for record_id, similarity in zip(ids, similarities):
+        record = record_by_id.get(record_id)
+        if record is None:
+            continue  # vecteur orphelin (rare : table_path et vectors_path désynchronisés)
+        similarity = float(similarity)
         if query_category and record.get("category") == query_category:
             similarity = min(1.0, similarity + 0.05)
         scored.append((similarity, record))
@@ -197,6 +198,7 @@ def retrieve(
     cve: str = None,
     package: str = None,
     table: list[dict] = None,
+    attack_vectors_path: str = KNOWLEDGE_ATTACK_VECTORS_PATH,
     threshold: float = RETRIEVAL_SIMILARITY_THRESHOLD,
 ) -> dict:
     """
@@ -206,7 +208,9 @@ def retrieve(
     l'ingestion réelle (téléchargement + Layer1->Layer2 + append à la table)
     reste à la charge du script orchestrateur.
     """
-    tier1_results = tier1_retrieve(query_attack_summary, query_category, table)
+    tier1_results = tier1_retrieve(
+        query_attack_summary, query_category, table, attack_vectors_path
+    )
     best_score = tier1_results[0]["similarity_score"] if tier1_results else 0.0
 
     result = {

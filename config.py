@@ -559,6 +559,13 @@ MITRE_CACHE_PATH = os.path.join(
 KNOWLEDGE_TABLE_PATH = "results/knowledge_table.jsonl"
 TIER2_LOG_PATH = "results/tier2_retrieval_log.jsonl"
 
+# Embeddings stockés à PART du JSONL (voir vector_store.py) : inline, chaque
+# vecteur (~1600 floats) pèse ~40 Ko en JSON, ce qui ferait grossir le JSONL
+# à plusieurs dizaines de Mo sur un corpus de 15-30+ papers, et forcerait à
+# tout désérialiser du JSON juste pour une recherche par similarité.
+KNOWLEDGE_ATTACK_VECTORS_PATH = "results/knowledge_attack_vectors.npz"
+KNOWLEDGE_MITIGATION_VECTORS_PATH = "results/knowledge_mitigation_vectors.npz"
+
 # Modèle d'embedding servi par Ollama (léger, ~274 Mo) : `ollama pull nomic-embed-text`.
 # Choisi pour rester cohérent avec l'infrastructure déjà en place (Ollama pour
 # Mistral) plutôt que d'ajouter une dépendance lourde (sentence-transformers + un

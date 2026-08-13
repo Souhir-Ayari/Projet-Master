@@ -89,7 +89,8 @@ Le terminal affichera, pour chaque méthode :
 | `methodology_extractor.py` | Layer 2 : résumé attaque/mitigation ancré sur Layer 1 (Steps 1 et 3) |
 | `attack_taxonomy.py` | Validation contre le vrai référentiel MITRE ATT&CK (Step 2) |
 | `generalizability.py` | Score de généralisabilité d'une mitigation (Step 4) |
-| `knowledge_table.py` | Table de connaissance JSONL + embeddings (Step 5) |
+| `knowledge_table.py` | Table de connaissance JSONL (métadonnées) + embeddings (Step 5) |
+| `vector_store.py` | Stockage des embeddings en `.npz` (séparé du JSONL) + similarité cosinus vectorisée |
 | `retrieval.py` | Retrieval Tier 1 (embeddings) / Tier 2 (recherche live) (Step 6) |
 | `jsonl_utils.py` | Lecture/écriture JSONL partagées |
 | `build_knowledge.py` | Orchestrateur CLI OFFLINE : PDF → Layer 1 → Layer 2 → table de connaissance |
@@ -130,10 +131,18 @@ Sauvegarde les résumés bruts de Layer 2 dans `results/methodology_<pdf>.jsonl`
 (**à inspecter à la main** avant de faire confiance à la table — recommandé en
 particulier sur les 3 cas d'étude XZ Utils/SolarWinds/Log4Shell, pour lesquels
 `ground_truth_backdoor.json` sert déjà de référence), et ajoute un
-enregistrement par attaque confirmée à `results/knowledge_table.jsonl`.
+enregistrement par attaque confirmée à `results/knowledge_table.jsonl`
+(texte + métadonnées uniquement) — les embeddings sont stockés à part dans
+`results/knowledge_attack_vectors.npz` et `results/knowledge_mitigation_vectors.npz`
+(voir `vector_store.py`), reliés au JSONL par un `record_id`.
 
 Le référentiel MITRE ATT&CK (Step 2) est téléchargé une fois et mis en cache
-dans `data/mitre_attack_techniques.json` (~700 techniques, ~30 Ko).
+dans `data/mitre_attack_techniques.json` (~700 techniques, ~30 Ko). Le choix
+de catégorie est restreint à une short-list d'une quinzaine de techniques
+pertinentes pour la chaîne d'approvisionnement (`attack_taxonomy.
+SUPPLY_CHAIN_TECHNIQUE_IDS`) plutôt que les ~700 du référentiel complet —
+laisser le modèle choisir librement produisait des ID réels mais hors-sujet
+pour l'attaque décrite.
 
 Pour un retrieval significatif, viser **15-30+ papers** couvrant plusieurs
 catégories d'attaque — un seul paper ne suffit pas.

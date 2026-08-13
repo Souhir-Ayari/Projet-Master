@@ -3,21 +3,35 @@ knowledge_table.py
 --------------------
 Step 5 du pipeline méthodologie/mitigation : la table de connaissance
 elle-même. Un enregistrement par cas (attaque + éventuelle mitigation),
-stocké en JSONL, avec les embeddings de attack_summary et mitigation_summary
-calculés et stockés SÉPARÉMENT — le retrieval se fait sur la similarité de
-l'attaque (Step 6, Tier 1), mais on veut pouvoir rechercher/inspecter les
-mitigations indépendamment plus tard sans tout ré-embedder.
+stocké en JSONL — le TEXTE et les métadonnées uniquement, les embeddings
+étant stockés à part dans des fichiers .npz (voir vector_store.py) plutôt
+qu'inline dans chaque enregistrement JSON, pour que le JSONL reste
+compact et rapide à parcourir même quand le corpus grandit.
+
+attack_embedding et mitigation_embedding sont calculés et stockés
+SÉPARÉMENT — le retrieval se fait sur la similarité de l'attaque (Step 6,
+Tier 1), mais on veut pouvoir rechercher/inspecter les mitigations
+indépendamment plus tard sans tout ré-embedder.
 
 Construite à partir d'un VRAI corpus (viser 15-30+ papers couvrant plusieurs
 catégories d'attaque) — un seul paper ne suffit pas à rendre le retrieval
 (Step 6) significatif, cette table n'en est que le squelette.
 """
 
+import uuid
+
 import requests
 
-from config import KNOWLEDGE_TABLE_PATH, OLLAMA_EMBEDDING_MODEL, OLLAMA_EMBEDDINGS_URL
+from config import (
+    KNOWLEDGE_ATTACK_VECTORS_PATH,
+    KNOWLEDGE_MITIGATION_VECTORS_PATH,
+    KNOWLEDGE_TABLE_PATH,
+    OLLAMA_EMBEDDING_MODEL,
+    OLLAMA_EMBEDDINGS_URL,
+)
 from generalizability import score_generalizability
 from jsonl_utils import append_jsonl, read_jsonl
+from vector_store import add_vectors
 
 
 class EmbeddingError(Exception):
@@ -56,9 +70,15 @@ def build_record(
     """
     Construit UN enregistrement de la table de connaissance à partir de la
     sortie de MethodologyExtractor.extract() (Steps 1-3, déjà validée) et du
-    score de généralisabilité (Step 4). mitigation_embedding reste None si
-    mitigation_summary est None (honest null — pas d'embedding inventé pour
-    du texte qui n'existe pas).
+    score de généralisabilité (Step 4). Un "record_id" unique (uuid4) est
+    généré ici, utilisé ensuite pour associer les embeddings dans
+    vector_store.py sans les porter dans ce dict.
+
+    Renvoie (record, attack_embedding, mitigation_embedding) : les deux
+    derniers ne sont PAS inclus dans `record` (voir add_record), mais
+    calculés ici pour n'appeler Ollama qu'une fois par texte.
+    mitigation_embedding est None si mitigation_summary est None (honest
+    null — pas d'embedding inventé pour du texte qui n'existe pas).
     """
     attack_summary = methodology_record.get("attack_summary")
     mitigation_summary = methodology_record.get("mitigation_summary")
@@ -68,26 +88,43 @@ def build_record(
         embed_text(mitigation_summary) if mitigation_summary else None
     )
 
-    return {
+    record = {
+        "record_id": uuid.uuid4().hex,
         "attack_summary": attack_summary,
-        "attack_embedding": attack_embedding,
         "category": methodology_record.get("mitre_technique_id"),
         "category_name": methodology_record.get("mitre_technique_name"),
         "mitigation_summary": mitigation_summary,
-        "mitigation_embedding": mitigation_embedding,
         "generalizability_score": generalizability_score,
         "source_paper": source_paper,
         "confidence": methodology_record.get("confidence"),
     }
+    return record, attack_embedding, mitigation_embedding
 
 
-def add_record(record: dict, table_path: str = KNOWLEDGE_TABLE_PATH) -> None:
-    """Ajoute UN enregistrement déjà construit (build_record) à la table."""
+def add_record(
+    record: dict,
+    attack_embedding: list[float] | None,
+    mitigation_embedding: list[float] | None,
+    table_path: str = KNOWLEDGE_TABLE_PATH,
+    attack_vectors_path: str = KNOWLEDGE_ATTACK_VECTORS_PATH,
+    mitigation_vectors_path: str = KNOWLEDGE_MITIGATION_VECTORS_PATH,
+) -> None:
+    """
+    Ajoute UN enregistrement déjà construit (build_record) : les métadonnées
+    dans le JSONL, les embeddings dans les stores vectoriels séparés, reliés
+    par record["record_id"].
+    """
     append_jsonl(table_path, record)
+    if attack_embedding is not None:
+        add_vectors(attack_vectors_path, [record["record_id"]], [attack_embedding])
+    if mitigation_embedding is not None:
+        add_vectors(
+            mitigation_vectors_path, [record["record_id"]], [mitigation_embedding]
+        )
 
 
 def load_table(table_path: str = KNOWLEDGE_TABLE_PATH) -> list[dict]:
-    """Charge tous les enregistrements de la table de connaissance."""
+    """Charge tous les enregistrements (métadonnées seulement, pas les embeddings)."""
     return read_jsonl(table_path)
 
 
@@ -96,14 +133,23 @@ def build_table_from_methodology_records(
     layer1_entities_per_chunk: list[list[dict]],
     source_paper: str,
     table_path: str = KNOWLEDGE_TABLE_PATH,
+    attack_vectors_path: str = KNOWLEDGE_ATTACK_VECTORS_PATH,
+    mitigation_vectors_path: str = KNOWLEDGE_MITIGATION_VECTORS_PATH,
 ) -> list[dict]:
     """
     Construit et sauvegarde un enregistrement par chunk où une attaque a été
     confirmée (attack_present). Les chunks sans attaque ne produisent pas de
     ligne — ce n'est pas un cas à retrouver par similarité plus tard. Renvoie
-    la liste des enregistrements ajoutés, pour l'inspection manuelle
-    recommandée (Step 1 : valider à la main les résumés des 3 case studies
-    avant de passer à la suite).
+    la liste des enregistrements ajoutés (métadonnées seulement), pour
+    l'inspection manuelle recommandée (Step 1 : valider à la main les
+    résumés des 3 case studies avant de passer à la suite).
+
+    attack_vectors_path/mitigation_vectors_path sont explicitement
+    transmis à add_record() plutôt que de laisser ses valeurs par défaut
+    s'appliquer : sinon, un table_path personnalisé (ex: --table sur
+    build_knowledge.py) désynchronise le JSONL (au bon endroit) des
+    vecteurs (qui atterriraient quand même sur les chemins par défaut de
+    config.py).
     """
     if len(methodology_records) != len(layer1_entities_per_chunk):
         raise ValueError(
@@ -112,11 +158,20 @@ def build_table_from_methodology_records(
             f"doivent avoir la même longueur"
         )
     added = []
-    for record, entities in zip(methodology_records, layer1_entities_per_chunk):
-        if not record.get("attack_present"):
+    for mrecord, entities in zip(methodology_records, layer1_entities_per_chunk):
+        if not mrecord.get("attack_present"):
             continue
-        score = score_generalizability(record.get("mitigation_summary"), entities)
-        kt_record = build_record(record, score, source_paper)
-        add_record(kt_record, table_path)
+        score = score_generalizability(mrecord.get("mitigation_summary"), entities)
+        kt_record, attack_embedding, mitigation_embedding = build_record(
+            mrecord, score, source_paper
+        )
+        add_record(
+            kt_record,
+            attack_embedding,
+            mitigation_embedding,
+            table_path,
+            attack_vectors_path,
+            mitigation_vectors_path,
+        )
         added.append(kt_record)
     return added
