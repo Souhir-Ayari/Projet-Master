@@ -517,8 +517,11 @@ Règles strictes (mêmes principes anti-hallucination que pour l'extraction d'en
 2. Si le texte ne décrit aucune attaque concrète, réponds avec "attack_present": false
    et laisse tous les autres champs à null.
 3. Si une attaque est décrite mais qu'AUCUNE mitigation n'est explicitement mentionnée
-   dans CE texte, mets "mitigation_summary": null. N'invente JAMAIS une mitigation
-   plausible — un null honnête vaut mieux qu'une réponse inventée.
+   dans CE texte, mets "mitigation_summary": null — la valeur JSON null, PAS une
+   phrase explicative comme "no explicit mitigation mentioned" ou "non spécifié".
+   N'invente JAMAIS une mitigation plausible — un null honnête vaut mieux qu'une
+   réponse inventée, et une phrase qui décrit l'ABSENCE de mitigation n'est pas
+   moins fausse qu'une mitigation inventée : c'est le même null, mal formaté.
 4. "mitre_technique_id" doit être EXACTEMENT l'un des identifiants de la liste
    ci-dessus. N'en invente pas d'autre, même s'il existe dans MITRE ATT&CK en
    général : si aucun des identifiants listés ne correspond clairement au texte,

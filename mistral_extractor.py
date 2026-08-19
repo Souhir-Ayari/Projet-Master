@@ -41,16 +41,22 @@ from config import (
 # cette même fonction pour les "honest nulls"). Deux formes observées en
 # conditions réelles : soit le texte ENTIER est un jeton court sans ambiguïté
 # possible ("N/A", "Unknown", "Aucun") -> ancré (^...$) pour ne pas rejeter un
-# vrai texte qui contiendrait accidentellement un de ces mots ; soit la
-# locution "non spécifié(e)" sert de SUFFIXE descriptif ("année non
-# spécifiée") -> cherchée n'importe où dans le texte, cette locution n'ayant
-# aucun sens comme fragment d'un vrai fait extrait.
+# vrai texte qui contiendrait accidentellement un de ces mots ; soit une
+# locution sert de SUFFIXE/PHRASE descriptive ("année non spécifiée", "No
+# explicit mitigation mentioned in the text") -> cherchée n'importe où dans
+# le texte, cette locution n'ayant aucun sens comme fragment d'un vrai fait
+# extrait. Cas réel observé sur mitigation_summary (Layer 2) : le modèle
+# écrit une phrase disant qu'il n'y a pas de mitigation au lieu de renvoyer
+# null — cette phrase passait alors pour une vraie mitigation extraite et
+# récoltait un score de généralisabilité inventé.
 _FILLER_WHOLE_RE = re.compile(
     r"^(n\/?a|unknown|aucun(?:e)?s?|tbd|none)\.?$", re.IGNORECASE
 )
 _FILLER_PHRASE_RE = re.compile(
     r"non[ -]?sp[ée]cifi[ée]e?s?|non[ -]?renseign[ée]e?s?|"
-    r"not specified|not available|not provided",
+    r"not specified|not available|not provided|"
+    r"no explicit mitigation|no mitigation (?:is |was )?(?:mentioned|described|provided)|"
+    r"not mentioned",
     re.IGNORECASE,
 )
 
