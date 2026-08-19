@@ -54,6 +54,28 @@ def add_vectors(path: str, new_ids: list[str], new_vectors: list[list[float]]) -
     np.savez_compressed(path, ids=ids, vectors=vectors)
 
 
+def remove_vectors(path: str, ids_to_remove: list[str]) -> None:
+    """
+    Retire des vecteurs du store par id. Utilisé pour dédupliquer par
+    source_paper avant un nouveau run sur le même PDF (voir
+    knowledge_table.replace_paper_records) — sans ça, les vecteurs des
+    anciens enregistrements resteraient orphelins dans le .npz même après
+    leur suppression du JSONL, grossissant indéfiniment le store et faussant
+    le retrieval (l'ancienne ET la nouvelle version du même cas ressortiraient
+    toutes les deux).
+    """
+    if not ids_to_remove or not os.path.exists(path):
+        return
+    ids, vectors = _load_store(path)
+    remove_set = set(ids_to_remove)
+    keep_mask = np.array([record_id not in remove_set for record_id in ids])
+    if keep_mask.all():
+        return  # rien à retirer
+    ids = ids[keep_mask]
+    vectors = vectors[keep_mask] if vectors.size else vectors
+    np.savez_compressed(path, ids=ids, vectors=vectors)
+
+
 def load_vectors(path: str) -> tuple[list[str], np.ndarray]:
     """Renvoie (liste d'ids, matrice NxD) — matrice vide si le fichier n'existe pas encore."""
     ids, vectors = _load_store(path)

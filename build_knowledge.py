@@ -28,6 +28,7 @@ import os
 import attack_taxonomy
 from config import KNOWLEDGE_TABLE_PATH, SUPPLY_CHAIN_ENTITY_LABELS
 from gliner_extractor import GLiNERExtractor
+from jsonl_utils import clear_jsonl
 from knowledge_table import build_table_from_methodology_records
 from methodology_extractor import MethodologyExtractor
 from mistral_extractor import MistralExtractor
@@ -80,6 +81,12 @@ def main():
     methodology_log = args.methodology_log or os.path.join(
         "results", f"methodology_{os.path.splitext(source_paper)[0]}.jsonl"
     )
+    # Un fichier par PDF -> repartir propre à chaque run plutôt que d'empiler
+    # les résultats de runs précédents (le LLM n'étant pas déterministe, une
+    # ré-exécution ne produit pas des doublons exacts mais des variantes
+    # légèrement différentes, impossibles à filtrer après coup de façon
+    # fiable).
+    clear_jsonl(methodology_log)
     methodology_records = methodology.extract_from_chunks(
         chunk_texts,
         layer1_entities_per_chunk,

@@ -30,8 +30,8 @@ from config import (
     OLLAMA_EMBEDDINGS_URL,
 )
 from generalizability import score_generalizability
-from jsonl_utils import append_jsonl, read_jsonl
-from vector_store import add_vectors
+from jsonl_utils import append_jsonl, read_jsonl, write_jsonl
+from vector_store import add_vectors, remove_vectors
 
 
 class EmbeddingError(Exception):
@@ -128,6 +128,37 @@ def load_table(table_path: str = KNOWLEDGE_TABLE_PATH) -> list[dict]:
     return read_jsonl(table_path)
 
 
+def replace_paper_records(
+    source_paper: str,
+    table_path: str = KNOWLEDGE_TABLE_PATH,
+    attack_vectors_path: str = KNOWLEDGE_ATTACK_VECTORS_PATH,
+    mitigation_vectors_path: str = KNOWLEDGE_MITIGATION_VECTORS_PATH,
+) -> int:
+    """
+    Retire de la table (JSONL + les deux stores vectoriels) tous les
+    enregistrements déjà existants pour `source_paper`, AVANT d'en ajouter
+    de nouveaux. Sans ça, ré-exécuter build_knowledge.py sur le même PDF
+    empile des quasi-doublons à chaque run : le LLM n'étant pas déterministe,
+    ce ne sont même pas des doublons EXACTS faciles à filtrer après coup
+    (résumés légèrement différents d'un run à l'autre pour le même passage).
+
+    Renvoie le nombre d'enregistrements retirés (0 si c'est la première fois
+    que ce paper est traité).
+    """
+    existing = load_table(table_path)
+    to_remove = [r for r in existing if r.get("source_paper") == source_paper]
+    if not to_remove:
+        return 0
+
+    remaining = [r for r in existing if r.get("source_paper") != source_paper]
+    write_jsonl(table_path, remaining)
+
+    ids_to_remove = [r["record_id"] for r in to_remove]
+    remove_vectors(attack_vectors_path, ids_to_remove)
+    remove_vectors(mitigation_vectors_path, ids_to_remove)
+    return len(to_remove)
+
+
 def build_table_from_methodology_records(
     methodology_records: list[dict],
     layer1_entities_per_chunk: list[list[dict]],
@@ -144,6 +175,10 @@ def build_table_from_methodology_records(
     l'inspection manuelle recommandée (Step 1 : valider à la main les
     résumés des 3 case studies avant de passer à la suite).
 
+    Commence par retirer les enregistrements existants de ce même
+    source_paper (replace_paper_records) : une ré-exécution sur le même PDF
+    REMPLACE ses résultats précédents au lieu de les empiler.
+
     attack_vectors_path/mitigation_vectors_path sont explicitement
     transmis à add_record() plutôt que de laisser ses valeurs par défaut
     s'appliquer : sinon, un table_path personnalisé (ex: --table sur
@@ -157,6 +192,17 @@ def build_table_from_methodology_records(
             f"layer1_entities_per_chunk ({len(layer1_entities_per_chunk)}) "
             f"doivent avoir la même longueur"
         )
+
+    n_removed = replace_paper_records(
+        source_paper, table_path, attack_vectors_path, mitigation_vectors_path
+    )
+    if n_removed:
+        print(
+            f"[knowledge_table] {n_removed} ancien(s) enregistrement(s) de "
+            f"{source_paper!r} retiré(s) avant réinsertion (ré-exécution sur "
+            f"le même paper)."
+        )
+
     added = []
     for mrecord, entities in zip(methodology_records, layer1_entities_per_chunk):
         if not mrecord.get("attack_present"):
