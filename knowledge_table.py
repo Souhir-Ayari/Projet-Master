@@ -13,6 +13,12 @@ SÉPARÉMENT — le retrieval se fait sur la similarité de l'attaque (Step 6,
 Tier 1), mais on veut pouvoir rechercher/inspecter les mitigations
 indépendamment plus tard sans tout ré-embedder.
 
+Chaque enregistrement porte aussi "specificity" ("concrete" | "generic",
+voir specificity.py) : distingue une instance d'attaque identifiable d'une
+reformulation générale du sujet du papier (fréquent sur les papers de
+synthèse type SoK) — pas supprimé, juste marqué, pour que le retrieval
+(Step 6) puisse privilégier les cas concrets.
+
 Construite à partir d'un VRAI corpus (viser 15-30+ papers couvrant plusieurs
 catégories d'attaque) — un seul paper ne suffit pas à rendre le retrieval
 (Step 6) significatif, cette table n'en est que le squelette.
@@ -31,6 +37,7 @@ from config import (
 )
 from generalizability import score_generalizability
 from jsonl_utils import append_jsonl, read_jsonl, write_jsonl
+from specificity import is_specific_case
 from vector_store import add_vectors, remove_vectors
 
 
@@ -66,6 +73,7 @@ def build_record(
     methodology_record: dict,
     generalizability_score: float | None,
     source_paper: str,
+    layer1_entities: list[dict],
 ) -> dict:
     """
     Construit UN enregistrement de la table de connaissance à partir de la
@@ -73,6 +81,15 @@ def build_record(
     score de généralisabilité (Step 4). Un "record_id" unique (uuid4) est
     généré ici, utilisé ensuite pour associer les embeddings dans
     vector_store.py sans les porter dans ce dict.
+
+    "specificity" ("concrete" | "generic") distingue une instance d'attaque
+    identifiable (nom de paquet, CVE, date...) d'une reformulation générale
+    du sujet du papier — constaté sur les papers de synthèse (SoK,
+    Backstabber's Knife Collection), qui reformulent "ce dataset traite des
+    attaques de la supply chain" à plusieurs endroits, chacune traitée par
+    Layer 2 comme une "attaque confirmée" distincte. Les cas génériques ne
+    sont PAS supprimés (contexte de taxonomie potentiellement utile) mais
+    marqués, pour que le retrieval (Step 6) puisse privilégier le concret.
 
     Renvoie (record, attack_embedding, mitigation_embedding) : les deux
     derniers ne sont PAS inclus dans `record` (voir add_record), mais
@@ -91,6 +108,11 @@ def build_record(
     record = {
         "record_id": uuid.uuid4().hex,
         "attack_summary": attack_summary,
+        "specificity": (
+            "concrete"
+            if is_specific_case(attack_summary, layer1_entities)
+            else "generic"
+        ),
         "category": methodology_record.get("mitre_technique_id"),
         "category_name": methodology_record.get("mitre_technique_name"),
         "mitigation_summary": mitigation_summary,
@@ -209,7 +231,7 @@ def build_table_from_methodology_records(
             continue
         score = score_generalizability(mrecord.get("mitigation_summary"), entities)
         kt_record, attack_embedding, mitigation_embedding = build_record(
-            mrecord, score, source_paper
+            mrecord, score, source_paper, entities
         )
         add_record(
             kt_record,

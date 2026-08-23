@@ -104,11 +104,19 @@ def main():
         source_paper=source_paper,
         table_path=args.table,
     )
-    print(f"      -> {len(added)} enregistrement(s) ajouté(s) à {args.table}")
+    n_concrete = sum(1 for r in added if r["specificity"] == "concrete")
+    n_generic = len(added) - n_concrete
+    print(
+        f"      -> {len(added)} enregistrement(s) ajouté(s) à {args.table} "
+        f"({n_concrete} concret(s), {n_generic} générique(s) — voir "
+        f"specificity.py : un cas générique reformule le sujet du papier "
+        f"sans identifiant précis, ex: nom de paquet, CVE, date)"
+    )
 
     for record in added:
         category = record["category"] or "catégorie non validée"
-        print(f"\n  [{category}] {record['attack_summary']}")
+        tag = "concret" if record["specificity"] == "concrete" else "générique"
+        print(f"\n  [{category}][{tag}] {record['attack_summary']}")
         if record["mitigation_summary"]:
             print(
                 f"    mitigation : {record['mitigation_summary']} "
