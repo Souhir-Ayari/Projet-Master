@@ -48,9 +48,11 @@ def write_jsonl(path: str, records: list[dict]) -> None:
     directory = os.path.dirname(path)
     if directory:
         os.makedirs(directory, exist_ok=True)
+    content = "".join(
+        json.dumps(record, ensure_ascii=False) + "\n" for record in records
+    )
     with open(path, "w", encoding="utf-8") as f:
-        for record in records:
-            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+        f.write(content)
 
 
 def clear_jsonl(path: str) -> None:
