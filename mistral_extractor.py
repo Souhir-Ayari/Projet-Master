@@ -56,7 +56,12 @@ _FILLER_PHRASE_RE = re.compile(
     r"non[ -]?sp[ée]cifi[ée]e?s?|non[ -]?renseign[ée]e?s?|"
     r"not specified|not available|not provided|"
     r"no explicit mitigation|no mitigation (?:is |was )?(?:mentioned|described|provided)|"
-    r"not mentioned",
+    # "not mentioned" seul ratait des variantes réelles comme "Not explicitly
+    # mentioned" (constaté sur Sok.pdf : passait le filtre, gonflait le score
+    # de généralisabilité à 1.0 pour une mitigation qui n'existe pas) -> on
+    # tolère jusqu'à 2 mots entre "not" et "mentioned" (adverbes courants :
+    # explicitly, clearly, directly, further...).
+    r"not\s+(?:\w+\s+){0,2}mentioned",
     re.IGNORECASE,
 )
 
