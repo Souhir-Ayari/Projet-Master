@@ -617,8 +617,7 @@ class MistralExtractor:
 
     @staticmethod
     def _filter_citation_noise(entities: list[dict]) -> list[dict]:
-        """
-        Rejette les fragments de bibliographie qui continuent de fuir malgré
+        """ Rejette les fragments de bibliographie qui continuent de fuir malgré
         strip_references_section (pdf_extractor.py) : sur un PDF en deux
         colonnes, pdfplumber fusionne parfois des lignes de la liste de
         références AVEC le corps du texte AVANT même le titre "REFERENCES"
