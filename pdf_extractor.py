@@ -41,7 +41,7 @@ def strip_front_matter(text: str) -> str:
     documents qui n'ont pas cette structure (rapports CERT, threat intel).
     """
     match = re.search(r"\babstract\b", text[:4000], re.IGNORECASE)
-    return text[match.start() :] if match else text
+    return text[match.start():] if match else text
 
 
 def strip_references_section(text: str) -> str:

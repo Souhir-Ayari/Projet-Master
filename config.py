@@ -8,6 +8,7 @@ Modifier ce fichier pour ajuster les entités ciblées ou affiner les prompts
 sans toucher au reste du code.
 """
 
+import os
 import re
 
 # ---------------------------------------------------------------------------
@@ -205,6 +206,18 @@ OUTPUT_SCHEMA_EXAMPLE = {
 # comme demandé : PROMPT_NAIVE (référence basse) vs PROMPT_NAIVE_SCHEMA
 # (référence intermédiaire) vs PROMPT_ENGINEERED (optimisé).
 
+# PROMPT_NAIVE ne donnait auparavant AUCUNE indication de format ("retourne
+# un JSON", sans montrer à quoi ce JSON doit ressembler). Résultat : le
+# modèle répond souvent en prose ou avec une structure JSON de son choix
+# (autre nom de clé que "entities"), et le parsing échoue systématiquement
+# -> 0 entité extraite sur tous les chunks. Ça ne mesure alors qu'un
+# problème de format, pas la qualité d'extraction sans guidage, ce qui
+# n'est pas informatif pour la comparaison. On lui donne donc l'enveloppe
+# JSON minimale (même clé "entities" que les autres variantes), SANS pour
+# autant lui montrer la liste de catégories (naive_schema) ni les règles
+# anti-hallucination (engineered) : naive reste la référence la plus
+# faible, mais sa faiblesse mesure maintenant un manque de guidage sur le
+# CONTENU, plus un simple échec de FORMAT.
 PROMPT_NAIVE = """Extrais les entités importantes de ce texte de cybersécurité.
 
 Réponds uniquement avec un JSON valide, sans texte avant/après, au format :
@@ -212,21 +225,18 @@ Réponds uniquement avec un JSON valide, sans texte avant/après, au format :
 
 Texte:
 {text}
-json :"""
-
+"""
 
 # PROMPT_NAIVE_SCHEMA : variante intermédiaire entre naive et engineered.
-# PROMPT_NAIVE ne précise ni catégories ni schéma JSON -> le modèle échoue
-# souvent à produire un JSON exploitable (0 entité extraite), ce qui biaise
-# la comparaison : on ne sait pas si le gain d'engineered vient du schéma
-# JSON imposé, ou des règles anti-hallucination, car les DEUX changent en
-# même temps entre naive et engineered. PROMPT_NAIVE_SCHEMA isole UNE seule
-# variable (le schéma + les catégories, mais SANS règles anti-hallucination)
-# pour permettre une comparaison à 3 points propre dans le mémoire :
-#   naive (rien) -> naive_schema (format seul) -> engineered (format + anti-hallucination)
+# Depuis le fix ci-dessus, naive et naive_schema partagent désormais la
+# MÊME enveloppe JSON minimale -> la variable isolée par naive_schema est
+# maintenant UNIQUEMENT la liste explicite des catégories ({labels}),
+# toutes choses égales par ailleurs (toujours SANS règles anti-hallucination).
+# Comparaison à 3 points propre pour le mémoire :
+#   naive (JSON minimal, sans catégories) -> naive_schema (+ catégories) -> engineered (+ catégories + anti-hallucination)
 # Si naive_schema améliore déjà beaucoup le F1 par rapport à naive, le gain
-# vient surtout du format. Si le vrai saut se voit entre naive_schema et
-# engineered, le gain vient surtout des règles anti-hallucination.
+# vient surtout de la liste de catégories. Si le vrai saut se voit entre
+# naive_schema et engineered, le gain vient surtout des règles anti-hallucination.
 PROMPT_NAIVE_SCHEMA = """Extrais les entités importantes de ce texte de cybersécurité.
 
 Catégories possibles :
@@ -237,8 +247,6 @@ Réponds uniquement avec un JSON au format :
 
 Texte:
 {text}
-
-json : 
 """
 
 PROMPT_ENGINEERED = """Tu es un analyste SOC (Security Operations Center) expert en threat intelligence.
@@ -256,9 +264,14 @@ Règles strictes :
    numérotées ([1], [2]...), URL de type DOI, ou métadonnées de publication (auteurs,
    dates de conférence). Ce ne sont jamais des entités valides même si elles contiennent
    des mots-clés cybersécurité.
-5. N'utilise jamais de texte de remplissage ("non spécifié", "N/A", "unknown", "aucun").
+5. N'extrais rien depuis les métadonnées du document (titre, auteurs, affiliations,
+   notice de preprint/copyright) ni depuis des passages de discussion générale sans
+   rapport avec un incident concret (comparaisons d'outils/langages, remarques
+   générales sur l'IA, etc.). Une phrase qui décrit un concept ou une opinion
+   générale n'est jamais une entité, même si elle contient un mot-clé de la liste.
+6. N'utilise jamais de texte de remplissage ("non spécifié", "N/A", "unknown", "aucun").
    Si une catégorie n'a pas d'occurrence, omets-la simplement — ne mets aucune entrée.
-6. Réponds UNIQUEMENT avec un JSON valide, sans texte avant/après, au format exact :
+7. Réponds UNIQUEMENT avec un JSON valide, sans texte avant/après, au format exact :
 
 {{
   "entities": [
@@ -276,9 +289,15 @@ Sortie :
   ]
 }}
 
-RÈGLE SUPPLÉMENTAIRE : l'exemple ci-dessus illustre uniquement le FORMAT JSON attendu.
-Ses valeurs (0.0.0.0, CVE-0000-00000) sont fictives : ne les inclus JAMAIS dans ta réponse,
-même si elles semblent plausibles.
+Exemple de SUR-extraction à éviter (valeurs FICTIVES, illustration uniquement) :
+Texte : "Les systèmes fortement typés permettent de détecter certaines erreurs dès la compilation."
+Incorrect : {{"text": "Les systèmes fortement typés permettent de détecter certaines erreurs", "label": "mesure de mitigation"}}
+Correct : ne rien extraire ici — c'est une affirmation générale sur un concept, pas une
+mesure ou un fait précis rattaché à un incident cité dans le document.
+
+RÈGLE SUPPLÉMENTAIRE : les exemples ci-dessus illustrent uniquement le FORMAT JSON attendu.
+Leurs valeurs (0.0.0.0, CVE-0000-00000, systèmes fortement typés) sont fictives : ne les
+inclus JAMAIS dans ta réponse, même si elles semblent plausibles.
 
 Texte à analyser :
 \"\"\"
@@ -355,9 +374,14 @@ Règles strictes :
    numérotées ([1], [2]...), URL de type DOI, ou métadonnées de publication (auteurs,
    dates de conférence). Ce ne sont jamais des entités valides même si elles contiennent
    des mots-clés cybersécurité.
-5. N'utilise jamais de texte de remplissage ("non spécifié", "N/A", "unknown", "aucun").
+5. N'extrais rien depuis les métadonnées du papier (titre, auteurs, affiliations,
+   notice de preprint/copyright) ni depuis les sections de discussion générale non
+   liées à un incident concret (comparaisons de langages/outils, remarques générales
+   sur l'IA, etc.). Concentre-toi UNIQUEMENT sur les faits rattachés aux cas concrets
+   de compromission de chaîne d'approvisionnement décrits dans le document.
+6. N'utilise jamais de texte de remplissage ("non spécifié", "N/A", "unknown", "aucun").
    Si une catégorie n'a pas d'occurrence, omets-la simplement — ne mets aucune entrée.
-6. Réponds UNIQUEMENT avec un JSON valide, sans texte avant/après, au format exact :
+7. Réponds UNIQUEMENT avec un JSON valide, sans texte avant/après, au format exact :
 
 {{
   "entities": [
@@ -375,9 +399,15 @@ Sortie :
   ]
 }}
 
-RÈGLE SUPPLÉMENTAIRE : l'exemple ci-dessus illustre uniquement le FORMAT JSON attendu.
-Ses valeurs (libexemple-fictif, CVE-0000-000043) sont fictives : ne les inclus JAMAIS
-dans ta réponse, même si elles semblent plausibles.
+Exemple de SUR-extraction à éviter (valeurs FICTIVES, illustration uniquement) :
+Texte : "Les systèmes fortement typés permettent de détecter certaines erreurs dès la compilation."
+Incorrect : {{"text": "Les systèmes fortement typés permettent de détecter certaines erreurs", "label": "framework ou mécanisme de mitigation"}}
+Correct : ne rien extraire ici — c'est une affirmation générale sur un concept, pas un
+framework nommé cité dans un cas de compromission concret.
+
+RÈGLE SUPPLÉMENTAIRE : les exemples ci-dessus illustrent uniquement le FORMAT JSON attendu.
+Leurs valeurs (libexemple-fictif, CVE-0000-000043, systèmes fortement typés) sont fictives :
+ne les inclus JAMAIS dans ta réponse, même si elles semblent plausibles.
 
 Texte à analyser :
 \"\"\"
@@ -441,3 +471,120 @@ OLLAMA_MAX_RETRIES = 1  # nombre de nouvelles tentatives avant d'abandonner
 HF_MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.3"
 
 GLINER_CONFIDENCE_THRESHOLD = 0.4  # seuil de score pour retenir une entité
+
+# ---------------------------------------------------------------------------
+# 5) LAYER 2 : EXTRACTION MÉTHODOLOGIQUE (attaque + mitigation)
+# ---------------------------------------------------------------------------
+# Contrairement à Layer 1 (extraction d'entités nommées, ci-dessus, INCHANGÉE),
+# Layer 2 résume l'attaque et sa mitigation à partir d'un chunk ET des entités
+# que Layer 1 en a déjà extraites (jamais le texte brut seul — voir
+# methodology_extractor.py). Réutilise les mêmes principes anti-hallucination
+# que PROMPT_ENGINEERED : ancrage verbatim, pas de remplissage, pas d'inférence.
+#
+# mitre_technique_id est demandé dans ce MÊME appel plutôt que dans un
+# second aller-retour Ollama séparé (le modèle PROPOSE — attack_taxonomy.py
+# VALIDE ensuite, jamais de confiance aveugle, même principe que
+# mistral_extractor._filter_valid_labels). Le prompt restreint le choix à
+# attack_taxonomy.SUPPLY_CHAIN_TECHNIQUE_IDS (une short-list d'une quinzaine
+# de techniques pertinentes) plutôt que de laisser le modèle choisir parmi
+# les ~700 techniques du référentiel complet : constaté en conditions
+# réelles, un choix libre produit des ID RÉELS mais SANS RAPPORT avec
+# l'attaque décrite (ex: "T1078.001 Default Accounts" assigné à Log4Shell),
+# qui passaient une simple vérification d'existence. La mitigation n'est
+# conservée par methodology_extractor.py QUE si l'attaque est confirmée ET
+# la catégorie dans la short-list validée (Step 3) — même si le modèle en a
+# proposé une, elle est mise à null en aval sinon.
+PROMPT_METHODOLOGY = """Tu es un analyste SOC expert en compromissions de chaîne d'approvisionnement
+logicielle. Voici un extrait de document ET les entités déjà extraites de ce
+même extrait par un autre système — utilise-les comme ancrage supplémentaire,
+elles sont garanties présentes dans le texte.
+
+Entités déjà extraites de cet extrait :
+{entities}
+
+Ta tâche : UNIQUEMENT si le texte décrit une attaque concrète (pas une remarque
+générale, pas une discussion de related work), résume (a) l'attaque, (b) la
+technique MITRE ATT&CK correspondante si tu peux l'identifier avec certitude,
+et (c) sa mitigation si le texte en décrit une explicitement.
+
+Techniques MITRE ATT&CK autorisées pour "mitre_technique_id" (choisis UNIQUEMENT
+dans cette liste, ou mets null si aucune ne correspond clairement) :
+{mitre_labels}
+
+Règles strictes (mêmes principes anti-hallucination que pour l'extraction d'entités) :
+1. Base-toi UNIQUEMENT sur des faits explicitement présents dans le texte ci-dessous —
+   jamais sur des connaissances générales que tu aurais par ailleurs sur ces attaques.
+2. Si le texte ne décrit aucune attaque concrète, réponds avec "attack_present": false
+   et laisse tous les autres champs à null.
+3. Si une attaque est décrite mais qu'AUCUNE mitigation n'est explicitement mentionnée
+   dans CE texte, mets "mitigation_summary": null — la valeur JSON null, PAS une
+   phrase explicative comme "no explicit mitigation mentioned" ou "non spécifié".
+   N'invente JAMAIS une mitigation plausible — un null honnête vaut mieux qu'une
+   réponse inventée, et une phrase qui décrit l'ABSENCE de mitigation n'est pas
+   moins fausse qu'une mitigation inventée : c'est le même null, mal formaté.
+4. "mitre_technique_id" doit être EXACTEMENT l'un des identifiants de la liste
+   ci-dessus. N'en invente pas d'autre, même s'il existe dans MITRE ATT&CK en
+   général : si aucun des identifiants listés ne correspond clairement au texte,
+   mets null plutôt que de forcer une correspondance approximative.
+5. N'utilise jamais de texte de remplissage ("non spécifié", "N/A", "aucune"). Si
+   l'information n'existe pas dans le texte, mets null, jamais une chaîne vide.
+6. Chaque résumé fait 1 à 2 phrases maximum.
+7. "confidence" est un nombre entre 0.0 et 1.0 reflétant ta certitude que ce résumé
+   est fidèle au texte (pas ta certitude sur la gravité de l'attaque).
+8. Réponds UNIQUEMENT avec un JSON valide, sans texte avant/après, au format exact :
+
+{{
+  "attack_present": true,
+  "attack_summary": "<1-2 phrases ancrées sur le texte, ou null si attack_present est false>",
+  "mitre_technique_id": "<Txxxx ou Txxxx.xxx, ou null>",
+  "mitigation_summary": "<1-2 phrases ancrées sur le texte, ou null si aucune mitigation décrite>",
+  "confidence": 0.0
+}}
+
+Texte à analyser :
+\"\"\"
+{text}
+\"\"\"
+
+JSON :"""
+
+# ---------------------------------------------------------------------------
+# 6) TABLE DE CONNAISSANCE ET RETRIEVAL (Steps 5-6)
+# ---------------------------------------------------------------------------
+MITRE_STIX_URL = (
+    "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/"
+    "master/enterprise-attack/enterprise-attack.json"
+)
+MITRE_CACHE_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "data", "mitre_attack_techniques.json"
+)
+
+KNOWLEDGE_TABLE_PATH = "results/knowledge_table.jsonl"
+TIER2_LOG_PATH = "results/tier2_retrieval_log.jsonl"
+
+# Embeddings stockés à PART du JSONL (voir vector_store.py) : inline, chaque
+# vecteur (~1600 floats) pèse ~40 Ko en JSON, ce qui ferait grossir le JSONL
+# à plusieurs dizaines de Mo sur un corpus de 15-30+ papers, et forcerait à
+# tout désérialiser du JSON juste pour une recherche par similarité.
+KNOWLEDGE_ATTACK_VECTORS_PATH = "results/knowledge_attack_vectors.npz"
+KNOWLEDGE_MITIGATION_VECTORS_PATH = "results/knowledge_mitigation_vectors.npz"
+
+# Modèle d'embedding servi par Ollama (léger, ~274 Mo) : `ollama pull nomic-embed-text`.
+# Choisi pour rester cohérent avec l'infrastructure déjà en place (Ollama pour
+# Mistral) plutôt que d'ajouter une dépendance lourde (sentence-transformers + un
+# second téléchargement de modèle PyTorch) juste pour l'embedding.
+OLLAMA_EMBEDDING_MODEL = "nomic-embed-text"
+OLLAMA_EMBEDDINGS_URL = "http://localhost:11434/api/embeddings"
+
+# Step 6 - Tier 1 : en dessous de ce score de similarité, le meilleur match de
+# la table de connaissance est jugé insuffisant -> déclenche Tier 2 (recherche
+# live) si TIER2_ENABLED. Valeur de départ raisonnable pour une similarité
+# cosinus ; à recalibrer une fois la table de connaissance non triviale.
+RETRIEVAL_SIMILARITY_THRESHOLD = 0.6
+
+# Step 6 - Tier 2 : flag de config dès le départ (demandé explicitement) pour
+# que "statique vs augmenté" soit une ablation contrôlée, pas une réécriture.
+TIER2_ENABLED = False
+SEMANTIC_SCHOLAR_API_URL = "https://api.semanticscholar.org/graph/v1/paper/search"
+ARXIV_API_URL = "http://export.arxiv.org/api/query"
+TIER2_MAX_RESULTS = 5

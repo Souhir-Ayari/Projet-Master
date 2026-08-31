@@ -22,7 +22,7 @@
     { "text": "Kaspersky", "label": "organisation ayant analysé l'incident" },
     { "text": "2024", "label": "année ou période de l'incident" },
     {
-      "text": "socially engineered maintainer compromise",
+      "text": "social engineering campaigns targeting volunteer maintainers",
       "label": "vecteur d'attaque ou méthode d'infiltration"
     },
 
@@ -47,6 +47,8 @@
     { "text": "SLSA", "label": "framework ou mécanisme de mitigation" },
     { "text": "Sigstore", "label": "framework ou mécanisme de mitigation" },
     { "text": "Rekor", "label": "framework ou mécanisme de mitigation" },
+    { "text": "OIDC", "label": "framework ou mécanisme de mitigation" },
+    { "text": "Fulcio", "label": "framework ou mécanisme de mitigation" },
 
     {
       "text": "seL4",
@@ -66,6 +68,7 @@
       "text": "Azure Verified Modules",
       "label": "écosystème de composition logicielle cité"
     },
+    { "text": "AVM", "label": "écosystème de composition logicielle cité" },
 
     {
       "text": "Human-Certified Module Repositories",

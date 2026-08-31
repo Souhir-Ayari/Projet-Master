@@ -34,6 +34,44 @@ from config import (
     is_format_valid,
 )
 
+# Valeurs de remplissage que le modèle invente parfois pour "remplir" un champ
+# au lieu de l'omettre (entité OU champ de résumé libre — voir Step 3 du
+# pipeline méthodologie/mitigation dans methodology_extractor.py, qui réutilise
+# cette même fonction pour les "honest nulls"). Deux formes observées en
+# conditions réelles : soit le texte ENTIER est un jeton court sans ambiguïté
+# possible ("N/A", "Unknown", "Aucun") -> ancré (^...$) pour ne pas rejeter un
+# vrai texte qui contiendrait accidentellement un de ces mots ; soit une
+# locution sert de SUFFIXE/PHRASE descriptive ("année non spécifiée", "No
+# explicit mitigation mentioned in the text") -> cherchée n'importe où dans
+# le texte, cette locution n'ayant aucun sens comme fragment d'un vrai fait
+# extrait. Cas réel observé sur mitigation_summary (Layer 2) : le modèle
+# écrit une phrase disant qu'il n'y a pas de mitigation au lieu de renvoyer
+# null — cette phrase passait alors pour une vraie mitigation extraite et
+# récoltait un score de généralisabilité inventé.
+_FILLER_WHOLE_RE = re.compile(
+    r"^(n\/?a|unknown|aucun(?:e)?s?|tbd|none)\.?$", re.IGNORECASE
+)
+_FILLER_PHRASE_RE = re.compile(
+    r"non[ -]?sp[ée]cifi[ée]e?s?|non[ -]?renseign[ée]e?s?|"
+    r"not specified|not available|not provided|"
+    r"no explicit mitigation|no mitigation (?:is |was )?(?:mentioned|described|provided)|"
+    # "not mentioned" seul ratait des variantes réelles comme "Not explicitly
+    # mentioned" (constaté sur Sok.pdf : passait le filtre, gonflait le score
+    # de généralisabilité à 1.0 pour une mitigation qui n'existe pas) -> on
+    # tolère jusqu'à 2 mots entre "not" et "mentioned" (adverbes courants :
+    # explicitly, clearly, directly, further...).
+    r"not\s+(?:\w+\s+){0,2}mentioned",
+    re.IGNORECASE,
+)
+
+
+def is_filler_text(text: str | None) -> bool:
+    """Vrai si `text` est une valeur de remplissage plutôt qu'un fait extrait."""
+    if not text:
+        return False
+    text = text.strip()
+    return bool(_FILLER_WHOLE_RE.match(text) or _FILLER_PHRASE_RE.search(text))
+
 
 class MistralGenerationError(Exception):
     """Levée quand Ollama échoue définitivement sur un chunk (timeout/erreur
@@ -512,6 +550,7 @@ class MistralExtractor:
             )
         return valid
 
+<<<<<<< HEAD
     # Valeurs de remplissage que le modèle invente parfois pour "remplir"
     # une catégorie au lieu de l'omettre, malgré la règle anti-remplissage
     # écrite dans le prompt (voir config.PROMPT_ENGINEERED/TOPIC règle 6).
@@ -531,6 +570,8 @@ class MistralExtractor:
         re.IGNORECASE,
     )
 
+=======
+>>>>>>> claude/topic-prompt-leak-filter-df4ouu
     @staticmethod
     def _filter_filler_values(entities: list[dict]) -> list[dict]:
         """
@@ -540,6 +581,7 @@ class MistralExtractor:
         modèle en pratique (constaté : "année non spécifiée", "entreprise
         non spécifiée" réapparaissent malgré la consigne) — ce filtre
         l'applique de façon garantie, indépendamment de l'obéissance du
+<<<<<<< HEAD
         modèle.
         """
         valid, rejected = [], []
@@ -550,6 +592,14 @@ class MistralExtractor:
                 or MistralExtractor._FILLER_PHRASE_RE.search(text)
             )
             (rejected if is_filler else valid).append(e)
+=======
+        modèle. Réutilise is_filler_text (module-level), partagée avec
+        methodology_extractor.py pour les "honest nulls" du Step 3.
+        """
+        valid, rejected = [], []
+        for e in entities:
+            (rejected if is_filler_text(e.get("text", "")) else valid).append(e)
+>>>>>>> claude/topic-prompt-leak-filter-df4ouu
         if rejected:
             print(
                 f"[⚠] {len(rejected)} entité(s) rejetée(s) — valeur de "
