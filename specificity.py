@@ -61,7 +61,10 @@ if __name__ == "__main__":
     entities = [
         {"text": "event-stream", "label": "paquet ou bibliothèque logicielle concerné"},
         {"text": "CVE-2021-44228", "label": "identifiant CVE"},
-        {"text": "SLSA", "label": "framework ou mécanisme de mitigation"},  # pas un identifiant "dur"
+        {
+            "text": "SLSA",
+            "label": "framework ou mécanisme de mitigation",
+        },  # pas un identifiant "dur"
     ]
     print(
         is_specific_case(
@@ -71,7 +74,5 @@ if __name__ == "__main__":
         )
     )  # True : "event-stream" apparaît dans le résumé
     print(
-        is_specific_case(
-            "Malicious packages used in real-world attacks", entities
-        )
+        is_specific_case("Malicious packages used in real-world attacks", entities)
     )  # False : aucune entité identifiante dans ce texte générique

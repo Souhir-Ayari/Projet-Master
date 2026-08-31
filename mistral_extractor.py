@@ -34,7 +34,6 @@ from config import (
     is_format_valid,
 )
 
-
 # Valeurs de remplissage que le modèle invente parfois pour "remplir" un champ
 # au lieu de l'omettre (entité OU champ de résumé libre — voir Step 3 du
 # pipeline méthodologie/mitigation dans methodology_extractor.py, qui réutilise
@@ -92,7 +91,7 @@ class MistralExtractor:
     # Backend HuggingFace transformers (optionnel, nécessite un GPU)
     # ------------------------------------------------------------------ #
     def _load_transformers_model(self):
-        from transformers import AutoModelForCausalLM, AutoTokenizer 
+        from transformers import AutoModelForCausalLM, AutoTokenizer
         import torch
 
         print(f"[Mistral] Chargement de {HF_MODEL_NAME} via transformers ...")
@@ -221,7 +220,7 @@ class MistralExtractor:
         if parsed and not isinstance(parsed.get("entities"), list):
             preview = raw_output.strip().replace("\n", " ")[:200]
             print(
-                f"[⚠] JSON parsé mais sans clé \"entities\" exploitable "
+                f'[⚠] JSON parsé mais sans clé "entities" exploitable '
                 f"(clés trouvées : {list(parsed.keys())}). Le modèle a "
                 f"peut-être utilisé un autre nom de champ. "
                 f"Extrait de la réponse brute : {preview!r}"
@@ -365,10 +364,7 @@ class MistralExtractor:
                 except json.JSONDecodeError:
                     pass
             preview = match.group(0).strip().replace("\n", " ")[:200]
-            print(
-                f"[⚠] JSON trouvé mais invalide ({e}). "
-                f"Extrait : {preview!r}"
-            )
+            print(f"[⚠] JSON trouvé mais invalide ({e}). " f"Extrait : {preview!r}")
             return {}
 
     @staticmethod
@@ -380,8 +376,6 @@ class MistralExtractor:
     # "de"/"ou"/"la" matcheraient quasiment n'importe quel besoin utilisateur en
     # français, ce qui viderait le filtrage de tout son sens (il sélectionnerait
     # presque toujours la totalité des 23 labels).
-    
-
 
     _STOPWORDS_LABELS: ClassVar[frozenset[str]] = frozenset(
         {
@@ -392,7 +386,7 @@ class MistralExtractor:
             "le",
             "les",
             "l'",
-            "d'",   
+            "d'",
             "un",
             "une",
             "ou",
@@ -407,6 +401,7 @@ class MistralExtractor:
             "avec",
         }
     )
+
     @staticmethod
     def _select_relevant_labels(user_need: str, all_labels: list[str]) -> list[str]:
         """
@@ -569,9 +564,7 @@ class MistralExtractor:
         """
         valid, rejected = [], []
         for e in entities:
-            (
-                rejected if is_filler_text(e.get("text", "")) else valid
-            ).append(e)
+            (rejected if is_filler_text(e.get("text", "")) else valid).append(e)
         if rejected:
             print(
                 f"[⚠] {len(rejected)} entité(s) rejetée(s) — valeur de "
@@ -604,9 +597,7 @@ class MistralExtractor:
         for e in entities:
             text = e.get("text", "").strip()
             (
-                rejected
-                if MistralExtractor._CITATION_NOISE_RE.search(text)
-                else valid
+                rejected if MistralExtractor._CITATION_NOISE_RE.search(text) else valid
             ).append(e)
         if rejected:
             print(
