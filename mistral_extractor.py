@@ -163,7 +163,7 @@ class MistralExtractor:
             raise ValueError(f"Backend inconnu : {self.backend}")
 
     def extract(
-        self, text: str, prompt_variant: str = "engineered", user_need: str = None
+        self, text: str, prompt_variant: str = "engineered", user_need: str = ""
     ) -> dict:
         """
         Extrait les entités via prompt.
@@ -295,7 +295,7 @@ class MistralExtractor:
         self,
         chunks: list[str],
         prompt_variant: str = "engineered",
-        user_need: str = None,
+        user_need: str = "",
     ) -> dict:
         all_entities = []
         seen = set()
@@ -550,28 +550,6 @@ class MistralExtractor:
             )
         return valid
 
-<<<<<<< HEAD
-    # Valeurs de remplissage que le modèle invente parfois pour "remplir"
-    # une catégorie au lieu de l'omettre, malgré la règle anti-remplissage
-    # écrite dans le prompt (voir config.PROMPT_ENGINEERED/TOPIC règle 6).
-    # Deux formes observées en conditions réelles : soit le texte ENTIER est
-    # un jeton court sans ambiguïté possible ("N/A", "Unknown", "Aucun") ->
-    # ancré (^...$) pour ne pas rejeter un vrai texte qui contiendrait
-    # accidentellement un de ces mots ; soit la locution "non spécifié(e)"
-    # sert de SUFFIXE descriptif ("année non spécifiée", "entreprise non
-    # spécifiée") -> cherchée n'importe où dans le texte, cette locution
-    # n'ayant aucun sens comme fragment d'une vraie entité nommée.
-    _FILLER_WHOLE_RE = re.compile(
-        r"^(n\/?a|unknown|aucun(?:e)?s?|tbd|none)\.?$", re.IGNORECASE
-    )
-    _FILLER_PHRASE_RE = re.compile(
-        r"non[ -]?sp[ée]cifi[ée]e?s?|non[ -]?renseign[ée]e?s?|"
-        r"not specified|not available|not provided",
-        re.IGNORECASE,
-    )
-
-=======
->>>>>>> claude/topic-prompt-leak-filter-df4ouu
     @staticmethod
     def _filter_filler_values(entities: list[dict]) -> list[dict]:
         """
@@ -581,25 +559,12 @@ class MistralExtractor:
         modèle en pratique (constaté : "année non spécifiée", "entreprise
         non spécifiée" réapparaissent malgré la consigne) — ce filtre
         l'applique de façon garantie, indépendamment de l'obéissance du
-<<<<<<< HEAD
-        modèle.
-        """
-        valid, rejected = [], []
-        for e in entities:
-            text = e.get("text", "").strip()
-            is_filler = bool(
-                MistralExtractor._FILLER_WHOLE_RE.match(text)
-                or MistralExtractor._FILLER_PHRASE_RE.search(text)
-            )
-            (rejected if is_filler else valid).append(e)
-=======
         modèle. Réutilise is_filler_text (module-level), partagée avec
         methodology_extractor.py pour les "honest nulls" du Step 3.
         """
         valid, rejected = [], []
         for e in entities:
             (rejected if is_filler_text(e.get("text", "")) else valid).append(e)
->>>>>>> claude/topic-prompt-leak-filter-df4ouu
         if rejected:
             print(
                 f"[⚠] {len(rejected)} entité(s) rejetée(s) — valeur de "
@@ -617,7 +582,8 @@ class MistralExtractor:
 
     @staticmethod
     def _filter_citation_noise(entities: list[dict]) -> list[dict]:
-        """ Rejette les fragments de bibliographie qui continuent de fuir malgré
+        """
+        Rejette les fragments de bibliographie qui continuent de fuir malgré
         strip_references_section (pdf_extractor.py) : sur un PDF en deux
         colonnes, pdfplumber fusionne parfois des lignes de la liste de
         références AVEC le corps du texte AVANT même le titre "REFERENCES"
