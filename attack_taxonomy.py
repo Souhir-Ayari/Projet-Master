@@ -1,10 +1,26 @@
 """
 attack_taxonomy.py
 -------------------
-Step 2 du pipeline méthodologie/mitigation : ancrage sur la vraie taxonomie
-MITRE ATT&CK plutôt qu'une catégorie inventée par le LLM. Remplace un système
-de labels ad hoc par un référentiel citable — important pour la crédibilité
-d'un papier (ICAART).
+Step 2 du pipeline méthodologie/mitigation : ancrage sur une VRAIE taxonomie
+publique plutôt qu'une catégorie inventée par le LLM — référentiel citable,
+important pour la crédibilité d'un papier.
+
+Deux domaines sont supportés, chacun avec son référentiel officiel :
+
+  - "llm"          -> MITRE ATLAS (Adversarial Threat Landscape for AI
+                      Systems) : injection de prompt, jailbreak, fuite de
+                      données, empoisonnement RAG... C'est le référentiel
+                      pertinent pour le sujet "Nexus Intel" (menaces sur les
+                      LLM), et le domaine par DÉFAUT.
+  - "supply_chain" -> MITRE ATT&CK (Enterprise) : compromission de chaîne
+                      d'approvisionnement logicielle (XZ Utils, SolarWinds,
+                      Log4Shell). Conservé pour que les résultats déjà
+                      produits sur ce corpus restent reproductibles.
+
+Les deux bundles STIX ont la même structure (objets "attack-pattern" avec
+une external_reference portant l'identifiant officiel), seuls changent
+l'URL, le nom de source et le format d'identifiant (Txxxx vs AML.Txxxx) —
+d'où le registre _TAXONOMIES ci-dessous plutôt que deux modules séparés.
 
 Le LLM PROPOSE un identifiant de technique (voir config.PROMPT_METHODOLOGY,
 champ "mitre_technique_id") ; ce module VALIDE contre la liste réelle, sur le
@@ -18,23 +34,70 @@ import re
 
 import requests
 
-from config import MITRE_STIX_URL, MITRE_CACHE_PATH
+# Les constantes de domaine sont définies dans config.py (source de vérité
+# unique) et ré-exportées ici pour que `attack_taxonomy.DOMAIN_LLM` reste
+# utilisable depuis les modules qui raisonnent en termes de taxonomie.
+from config import (
+    DEFAULT_DOMAIN,
+    DOMAIN_LLM,
+    DOMAIN_SUPPLY_CHAIN,
+    MITRE_ATLAS_CACHE_PATH,
+    MITRE_ATLAS_STIX_URL,
+    MITRE_ATTACK_CACHE_PATH,
+    MITRE_ATTACK_STIX_URL,
+)
 
-_TECHNIQUE_ID_RE = re.compile(r"^T\d{4}(\.\d{3})?$", re.IGNORECASE)
+# ---------------------------------------------------------------------------
+# Short-lists de techniques pertinentes, par domaine
+# ---------------------------------------------------------------------------
+# Constaté en conditions réelles : en laissant le modèle choisir librement
+# parmi les centaines de techniques d'un référentiel complet, il propose des
+# ID RÉELS mais SANS RAPPORT avec l'attaque décrite (ex: "T1078.001 Valid
+# Accounts: Default Accounts" assigné à l'exploitation de Log4Shell) — une
+# simple vérification d'existence les laisse passer. Même remède que pour la
+# sur-extraction Layer 1 : réduire l'espace de choix à ce qui est
+# effectivement pertinent pour le domaine.
 
-# Short-list de techniques MITRE ATT&CK pertinentes pour les attaques de
-# chaîne d'approvisionnement logicielle. Constaté en conditions réelles : en
-# laissant le modèle choisir librement parmi les ~700 techniques du
-# référentiel complet, il propose des ID RÉELS mais SANS RAPPORT avec
-# l'attaque décrite (ex: "T1078.001 Valid Accounts: Default Accounts" assigné
-# à l'exploitation de Log4Shell, "T1566.001 Spearphishing Attachment" assigné
-# à la compromission du build SolarWinds) — is_valid_technique_id() les
-# laissait passer car ils EXISTENT, même s'ils sont faux pour ce cas précis.
-# Même remède que pour la sur-extraction Layer 1 (CYBER_ENTITY_LABELS trop
-# large sur ce document) : réduire l'espace de choix à ce qui est
-# effectivement pertinent, plutôt que faire confiance à un tri libre parmi
-# des centaines d'options. Tous les ID ci-dessous sont vérifiés présents
-# dans le référentiel MITRE ATT&CK réel (voir data/mitre_attack_techniques.json).
+# MITRE ATLAS — menaces sur les LLM/systèmes d'IA. Tous ces ID sont vérifiés
+# présents dans le bundle ATLAS réel (voir data/mitre_atlas_techniques.json).
+# AML.T0051.001 (Indirect) correspond précisément à l'attaque de Greshake et
+# al. citée en référence [2] du sujet ; AML.T0054 (Jailbreak) couvre les
+# travaux type LG-SCO.
+LLM_THREAT_TECHNIQUE_IDS = frozenset(
+    {
+        # --- Injection de prompt (coeur du sujet) ---
+        "AML.T0051",  # LLM Prompt Injection
+        "AML.T0051.000",  # Direct
+        "AML.T0051.001",  # Indirect
+        "AML.T0051.002",  # Triggered
+        "AML.T0093",  # Prompt Infiltration via Public-Facing Application
+        "AML.T0094",  # Delay Execution of LLM Instructions
+        "AML.T0061",  # LLM Prompt Self-Replication
+        # --- Contournement des garde-fous ---
+        "AML.T0054",  # LLM Jailbreak
+        "AML.T0065",  # LLM Prompt Crafting
+        "AML.T0068",  # LLM Prompt Obfuscation
+        "AML.T0015",  # Evade AI Model
+        # --- Extraction / fuite ---
+        "AML.T0056",  # Extract LLM System Prompt
+        "AML.T0057",  # LLM Data Leakage
+        "AML.T0069",  # Discover LLM System Information
+        "AML.T0069.002",  # System Prompt
+        "AML.T0024.000",  # Infer Training Data Membership
+        # --- Manipulation du contexte / RAG / agents ---
+        "AML.T0070",  # RAG Poisoning
+        "AML.T0071",  # False RAG Entry Injection
+        "AML.T0080",  # AI Agent Context Poisoning
+        "AML.T0092",  # Manipulate User LLM Chat History
+        "AML.T0067",  # LLM Trusted Output Components Manipulation
+        "AML.T0086",  # Exfiltration via AI Agent Tool Invocation
+        "AML.T0110",  # AI Agent Tool Poisoning
+        # --- Empoisonnement en amont ---
+        "AML.T0020",  # Poison Training Data
+    }
+)
+
+# MITRE ATT&CK — compromission de chaîne d'approvisionnement logicielle.
 SUPPLY_CHAIN_TECHNIQUE_IDS = frozenset(
     {
         "T1195",  # Supply Chain Compromise
@@ -58,18 +121,57 @@ SUPPLY_CHAIN_TECHNIQUE_IDS = frozenset(
     }
 )
 
+_TAXONOMIES = {
+    DOMAIN_LLM: {
+        "label": "MITRE ATLAS",
+        "url": MITRE_ATLAS_STIX_URL,
+        "cache_path": MITRE_ATLAS_CACHE_PATH,
+        "source_name": "mitre-atlas",
+        "id_regex": re.compile(r"^AML\.T\d{4}(\.\d{3})?$", re.IGNORECASE),
+        "shortlist": LLM_THREAT_TECHNIQUE_IDS,
+    },
+    DOMAIN_SUPPLY_CHAIN: {
+        "label": "MITRE ATT&CK (Enterprise)",
+        "url": MITRE_ATTACK_STIX_URL,
+        "cache_path": MITRE_ATTACK_CACHE_PATH,
+        "source_name": "mitre-attack",
+        "id_regex": re.compile(r"^T\d{4}(\.\d{3})?$", re.IGNORECASE),
+        "shortlist": SUPPLY_CHAIN_TECHNIQUE_IDS,
+    },
+}
 
-def _download_and_cache(cache_path: str = MITRE_CACHE_PATH, timeout: int = 120) -> dict:
+
+def available_domains() -> list[str]:
+    """Domaines supportés, pour les valeurs de --domain en ligne de commande."""
+    return sorted(_TAXONOMIES)
+
+
+def _taxonomy(domain: str) -> dict:
+    try:
+        return _TAXONOMIES[domain]
+    except KeyError:
+        raise ValueError(
+            f"Domaine inconnu : {domain!r}. Domaines supportés : "
+            f"{', '.join(available_domains())}"
+        ) from None
+
+
+def taxonomy_label(domain: str = DEFAULT_DOMAIN) -> str:
+    """Nom lisible du référentiel du domaine ("MITRE ATLAS", "MITRE ATT&CK (Enterprise)")."""
+    return _taxonomy(domain)["label"]
+
+
+def _download_and_cache(domain: str = DEFAULT_DOMAIN, timeout: int = 120) -> dict:
     """
-    Télécharge le bundle STIX MITRE ATT&CK (Enterprise, ~50 Mo) et n'en garde
-    que ce qui est utile ici : {technique_id: technique_name} pour chaque
-    "attack-pattern" non révoqué/déprécié. Le bundle complet contient aussi
-    les groupes, logiciels, mitigations et relations — on ne persiste
-    localement que l'extrait dont ce module a besoin, pour ne pas garder 50 Mo
-    dans le dépôt à chaque run.
+    Télécharge le bundle STIX du référentiel du domaine et n'en garde que ce
+    qui est utile ici : {technique_id: technique_name} pour chaque
+    "attack-pattern" non révoqué/déprécié. Les bundles complets contiennent
+    aussi les groupes, mitigations et relations (~50 Mo pour ATT&CK) — on ne
+    persiste localement que l'extrait dont ce module a besoin.
     """
-    print(f"[MITRE ATT&CK] Téléchargement du référentiel depuis {MITRE_STIX_URL} ...")
-    response = requests.get(MITRE_STIX_URL, timeout=timeout)
+    taxo = _taxonomy(domain)
+    print(f"[{taxo['label']}] Téléchargement du référentiel depuis {taxo['url']} ...")
+    response = requests.get(taxo["url"], timeout=timeout)
     response.raise_for_status()
     bundle = response.json()
 
@@ -81,25 +183,26 @@ def _download_and_cache(cache_path: str = MITRE_CACHE_PATH, timeout: int = 120) 
             continue
         technique_id = None
         for ref in obj.get("external_references", []):
-            if ref.get("source_name") == "mitre-attack":
+            if ref.get("source_name") == taxo["source_name"]:
                 technique_id = ref.get("external_id")
                 break
-        if technique_id and _TECHNIQUE_ID_RE.match(technique_id):
+        if technique_id and taxo["id_regex"].match(technique_id):
             techniques[technique_id.upper()] = obj.get("name", "")
 
+    cache_path = taxo["cache_path"]
     directory = os.path.dirname(cache_path)
     if directory:
         os.makedirs(directory, exist_ok=True)
     with open(cache_path, "w", encoding="utf-8") as f:
         json.dump(techniques, f, ensure_ascii=False, indent=2)
-    print(f"[MITRE ATT&CK] {len(techniques)} techniques mises en cache -> {cache_path}")
+    print(f"[{taxo['label']}] {len(techniques)} techniques mises en cache -> {cache_path}")
     return techniques
 
 
-def load_techniques(cache_path: str = MITRE_CACHE_PATH, refresh: bool = False) -> dict:
+def load_techniques(domain: str = DEFAULT_DOMAIN, refresh: bool = False) -> dict:
     """
-    Charge {technique_id: technique_name} depuis le cache local, en le
-    (re)téléchargeant si absent ou si refresh=True.
+    Charge {technique_id: technique_name} depuis le cache local du domaine,
+    en le (re)téléchargeant si absent ou si refresh=True.
 
     Si le téléchargement échoue : retombe sur le cache local s'il existe déjà
     (avec avertissement) ; lève une erreur explicite seulement s'il n'y a NI
@@ -107,81 +210,120 @@ def load_techniques(cache_path: str = MITRE_CACHE_PATH, refresh: bool = False) -
     validation qui accepterait silencieusement n'importe quel ID faute de
     référentiel chargé.
     """
+    taxo = _taxonomy(domain)
+    cache_path = taxo["cache_path"]
     if refresh or not os.path.exists(cache_path):
         try:
-            return _download_and_cache(cache_path)
+            return _download_and_cache(domain)
         except requests.exceptions.RequestException as e:
             if os.path.exists(cache_path):
                 print(
-                    f"[⚠] Échec du téléchargement MITRE ATT&CK ({e}), "
+                    f"[⚠] Échec du téléchargement {taxo['label']} ({e}), "
                     f"utilisation du cache existant."
                 )
             else:
                 raise RuntimeError(
-                    f"Impossible de télécharger le référentiel MITRE ATT&CK et "
-                    f"aucun cache local trouvé ({cache_path}). Vérifiez la "
-                    f"connexion réseau, ou lancez load_techniques(refresh=True) "
-                    f"une fois la connexion rétablie."
+                    f"Impossible de télécharger le référentiel {taxo['label']} "
+                    f"et aucun cache local trouvé ({cache_path}). Vérifiez la "
+                    f"connexion réseau, ou lancez "
+                    f"load_techniques({domain!r}, refresh=True) une fois la "
+                    f"connexion rétablie."
                 ) from e
     with open(cache_path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
-def is_valid_technique_id(technique_id: str | None, techniques: dict = None) -> bool:
-    """Vérifie qu'un identifiant proposé par le LLM existe réellement dans MITRE ATT&CK."""
+def is_valid_technique_id(
+    technique_id: str | None, techniques: dict = None, domain: str = DEFAULT_DOMAIN
+) -> bool:
+    """Vérifie qu'un identifiant proposé par le LLM existe réellement dans le référentiel."""
     if not technique_id:
         return False
-    techniques = techniques if techniques is not None else load_techniques()
+    techniques = techniques if techniques is not None else load_techniques(domain)
     return technique_id.strip().upper() in techniques
 
 
-def technique_name(technique_id: str | None, techniques: dict = None) -> str | None:
-    """Nom officiel de la technique, ou None si l'ID est invalide/absent."""
+def technique_name(
+    technique_id: str | None, techniques: dict = None, domain: str = DEFAULT_DOMAIN
+) -> str | None:
+    """
+    Nom officiel de la technique, ou None si l'ID est invalide/absent. Les
+    sous-techniques sont qualifiées par leur parente ("LLM Prompt Injection:
+    Indirect" plutôt que "Indirect" tout court) : c'est ce nom qui est stocké
+    dans la table de connaissance et lu par un humain, où "Indirect" seul
+    n'aurait aucun sens.
+    """
     if not technique_id:
         return None
-    techniques = techniques if techniques is not None else load_techniques()
-    return techniques.get(technique_id.strip().upper())
+    techniques = techniques if techniques is not None else load_techniques(domain)
+    technique_id = technique_id.strip().upper()
+    if technique_id not in techniques:
+        return None
+    return _display_name(technique_id, techniques)
 
 
-def is_valid_supply_chain_technique_id(technique_id: str | None) -> bool:
+def is_in_shortlist(technique_id: str | None, domain: str = DEFAULT_DOMAIN) -> bool:
     """
-    Vérifie qu'un identifiant proposé par le LLM est à la fois un VRAI ID
-    MITRE ATT&CK ET fait partie de la short-list pertinente pour les attaques
-    de chaîne d'approvisionnement (SUPPLY_CHAIN_TECHNIQUE_IDS ci-dessus).
-    Plus strict que is_valid_technique_id() : un ID réel mais hors-sujet
-    (ex: T1078.001 proposé pour Log4Shell) est rejeté ici, alors qu'il
-    passerait la simple vérification d'existence.
+    Vérifie qu'un identifiant proposé par le LLM fait partie de la short-list
+    pertinente pour CE domaine. Plus strict que is_valid_technique_id() : un
+    ID réel mais hors-sujet (ex: T1078.001 proposé pour Log4Shell) est rejeté
+    ici, alors qu'il passerait la simple vérification d'existence.
     """
     if not technique_id:
         return False
-    return technique_id.strip().upper() in SUPPLY_CHAIN_TECHNIQUE_IDS
+    return technique_id.strip().upper() in _taxonomy(domain)["shortlist"]
 
 
-def supply_chain_labels_block(techniques: dict = None) -> str:
+def _display_name(technique_id: str, techniques: dict) -> str:
+    """
+    Nom lisible d'une technique, préfixé du nom de sa technique parente quand
+    c'est une sous-technique. Dans les bundles STIX, une sous-technique ne
+    porte que son nom court — "Direct", "Indirect", "System Prompt" pour
+    AML.T0051.000/.001 et AML.T0069.002. Injectés seuls dans le prompt, ces
+    noms ne veulent rien dire ("Indirect" quoi ?) et le modèle ne peut pas
+    choisir correctement ; MITRE les affiche toujours "Parent: Enfant".
+    """
+    name = techniques.get(technique_id, "")
+    # Une sous-technique se termine par ".NNN" : "T1195.001" -> "T1195",
+    # "AML.T0051.001" -> "AML.T0051". Le point de "AML." ne compte pas.
+    head, _, tail = technique_id.rpartition(".")
+    parent_id = head if head and tail.isdigit() and len(tail) == 3 else ""
+    parent_name = techniques.get(parent_id, "") if parent_id else ""
+    if parent_name and name:
+        return f"{parent_name}: {name}"
+    return name
+
+
+def shortlist_labels_block(domain: str = DEFAULT_DOMAIN, techniques: dict = None) -> str:
     """
     Construit le bloc "ID : nom" injecté dans PROMPT_METHODOLOGY, pour que le
     modèle choisisse dans une liste fermée de techniques plausibles au lieu
-    d'inventer un ID parmi les ~700 du référentiel complet.
+    d'inventer un ID parmi les centaines du référentiel complet.
     """
-    techniques = techniques if techniques is not None else load_techniques()
+    techniques = techniques if techniques is not None else load_techniques(domain)
     lines = []
-    for technique_id in sorted(SUPPLY_CHAIN_TECHNIQUE_IDS):
-        name = techniques.get(technique_id, "")
+    for technique_id in sorted(_taxonomy(domain)["shortlist"]):
+        name = _display_name(technique_id, techniques)
         lines.append(f"- {technique_id} : {name}" if name else f"- {technique_id}")
     return "\n".join(lines)
 
 
+def id_prefix_pattern(domain: str = DEFAULT_DOMAIN) -> re.Pattern:
+    """
+    Regex de normalisation d'un ID proposé par le modèle : il ajoute parfois
+    le nom de la technique après l'identifiant ("AML.T0051.001: Indirect"),
+    ce qui fait échouer une comparaison stricte alors que l'ID lui-même est
+    correct. Utilisée par methodology_extractor._normalize_technique_id.
+    """
+    pattern = _taxonomy(domain)["id_regex"].pattern
+    return re.compile("^(" + pattern.lstrip("^").rstrip("$") + ")", re.IGNORECASE)
+
+
 if __name__ == "__main__":
-    techs = load_techniques()
-    print(f"{len(techs)} techniques chargées.")
-    sample_valid = next(iter(techs))
-    print(f"Exemple valide : {sample_valid} -> {technique_name(sample_valid, techs)}")
-    print(f"ID inventé 'T9999.999' valide ? {is_valid_technique_id('T9999.999', techs)}")
-    print(
-        f"ID réel mais hors sujet 'T1078.001' valide pour la short-list "
-        f"supply chain ? {is_valid_supply_chain_technique_id('T1078.001')}"
-    )
-    print(f"'T1195' (Supply Chain Compromise) valide pour la short-list ? "
-          f"{is_valid_supply_chain_technique_id('T1195')}")
-    print("\nShort-list injectée dans le prompt :")
-    print(supply_chain_labels_block(techs))
+    for domain in available_domains():
+        taxo = _taxonomy(domain)
+        print(f"\n=== domaine {domain!r} — {taxo['label']} ===")
+        techs = load_techniques(domain)
+        print(f"{len(techs)} techniques chargées au total.")
+        print(f"Short-list ({len(taxo['shortlist'])} techniques) injectée dans le prompt :")
+        print(shortlist_labels_block(domain, techs))

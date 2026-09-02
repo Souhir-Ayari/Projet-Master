@@ -11,13 +11,14 @@ Steps 1-3 du plan méthodologie/mitigation :
   Step 1 : résumé attaque/mitigation ancré sur le texte + les entités Layer 1,
            avec sauvegarde JSONL immédiate (extract_from_chunks).
   Step 2 (validation, voir attack_taxonomy.py) : le "mitre_technique_id"
-           proposé par le modèle est vérifié contre la short-list
-           supply-chain — jamais accepté tel quel, même principe que
+           proposé par le modèle est vérifié contre la short-list DU DOMAINE
+           analysé (MITRE ATLAS pour "llm", MITRE ATT&CK pour
+           "supply_chain") — jamais accepté tel quel, même principe que
            mistral_extractor._filter_valid_labels. Normalisé au préalable
            (_normalize_technique_id) : le modèle ajoute parfois le nom de la
-           technique après l'ID ("T1190: Exploit Public-Facing Application"),
-           ce qui faisait échouer la validation d'un ID pourtant correct et
-           effaçait silencieusement catégorie ET mitigation en aval.
+           technique après l'ID ("AML.T0051.001: Indirect"), ce qui faisait
+           échouer la validation d'un ID pourtant correct et effaçait
+           silencieusement catégorie ET mitigation en aval.
   Step 3 : la mitigation est conservée dès que l'attaque est confirmée,
            QUE la catégorie soit validée ou non — un résumé de mitigation
            ancré sur le texte reste un signal réel même quand l'étape de
@@ -25,45 +26,72 @@ Steps 1-3 du plan méthodologie/mitigation :
            séparément, sans entraîner la mitigation avec elle). Les valeurs
            de remplissage ("non spécifié"...) sont rejetées via
            mistral_extractor.is_filler_text, réutilisée telle quelle.
+           La mitigation est STRUCTURÉE : un couple (mitigation_type,
+           mitigation_summary) plutôt qu'une phrase libre, le type étant
+           validé contre config.MITIGATION_TYPES selon le même principe
+           propose/valide que la catégorie MITRE.
 """
 
 import json
-import re
 
 import attack_taxonomy
-from config import PROMPT_METHODOLOGY
+from config import DEFAULT_DOMAIN, MITIGATION_TYPES, methodology_prompt
 from jsonl_utils import append_jsonl
 from mistral_extractor import MistralExtractor, MistralGenerationError, is_filler_text
 
-_ID_PREFIX_RE = re.compile(r"^(T\d{4}(?:\.\d{3})?)")
 
-
-def _normalize_technique_id(raw: str | None) -> str | None:
+def _normalize_technique_id(raw: str | None, domain: str = DEFAULT_DOMAIN) -> str | None:
     """
     Le modèle ajoute parfois le nom de la technique après l'ID
-    ("T1190: Exploit Public-Facing Application" au lieu de "T1190"), ce qui
-    fait échouer une comparaison stricte même quand l'ID lui-même est
-    correct. On ne garde que le préfixe ID avant validation.
+    ("AML.T0051.001: Indirect" au lieu de "AML.T0051.001"), ce qui fait
+    échouer une comparaison stricte même quand l'ID lui-même est correct. On
+    ne garde que le préfixe ID avant validation. Le format de l'ID dépend du
+    référentiel du domaine (Txxxx vs AML.Txxxx), d'où la regex fournie par
+    attack_taxonomy.id_prefix_pattern() plutôt qu'une constante locale.
     """
     if not raw:
         return None
-    match = _ID_PREFIX_RE.match(raw.strip().upper())
+    match = attack_taxonomy.id_prefix_pattern(domain).match(raw.strip().upper())
     return match.group(1) if match else None
 
 
+def _normalize_mitigation_type(raw: str | None) -> str | None:
+    """
+    Le modèle renvoie parfois le type avec des espaces, une majuscule ou un
+    tiret ("Filtering Rule", "filtering-rule") au lieu de la valeur exacte.
+    On normalise avant de valider contre config.MITIGATION_TYPES ; tout ce
+    qui ne tombe pas sur l'un des trois types autorisés devient None.
+    """
+    if not isinstance(raw, str):
+        return None
+    candidate = raw.strip().lower().replace(" ", "_").replace("-", "_")
+    return candidate if candidate in MITIGATION_TYPES else None
+
+
 class MethodologyExtractor:
-    def __init__(self, mistral: MistralExtractor = None, techniques: dict = None):
+    def __init__(
+        self,
+        mistral: MistralExtractor = None,
+        techniques: dict = None,
+        domain: str = DEFAULT_DOMAIN,
+    ):
         """
         `mistral` : réutilise une instance existante (même backend déjà
         chargé) au lieu d'en recréer une — évite un second chargement de
         modèle si le backend est "transformers".
-        `techniques` : référentiel MITRE ATT&CK pré-chargé (voir
+        `domain` : "llm" (MITRE ATLAS, défaut) ou "supply_chain" (MITRE
+        ATT&CK). Détermine le référentiel, la short-list de techniques et le
+        rôle annoncé au modèle dans le prompt.
+        `techniques` : référentiel pré-chargé (voir
         attack_taxonomy.load_techniques()) ; chargé automatiquement sinon,
         ce qui peut déclencher un téléchargement au premier appel.
         """
         self.mistral = mistral or MistralExtractor()
+        self.domain = domain
         self.techniques = (
-            techniques if techniques is not None else attack_taxonomy.load_techniques()
+            techniques
+            if techniques is not None
+            else attack_taxonomy.load_techniques(domain)
         )
 
     def extract(self, chunk_text: str, layer1_entities: list[dict]) -> dict:
@@ -77,9 +105,14 @@ class MethodologyExtractor:
         (le modèle ne peut jamais faire valider une catégorie inventée).
         """
         entities_block = self._format_entities(layer1_entities)
-        mitre_labels = attack_taxonomy.supply_chain_labels_block(self.techniques)
-        prompt = PROMPT_METHODOLOGY.format(
-            text=chunk_text, entities=entities_block, mitre_labels=mitre_labels
+        mitre_labels = attack_taxonomy.shortlist_labels_block(
+            self.domain, self.techniques
+        )
+        prompt = methodology_prompt(
+            domain=self.domain,
+            entities=entities_block,
+            mitre_labels=mitre_labels,
+            text=chunk_text,
         )
 
         try:
@@ -106,21 +139,22 @@ class MethodologyExtractor:
         )
 
         # Step 2 : le modèle PROPOSE une technique, on VALIDE contre la
-        # short-list supply-chain (attack_taxonomy.SUPPLY_CHAIN_TECHNIQUE_IDS)
-        # — plus stricte qu'une simple vérification d'existence dans MITRE
-        # ATT&CK : un ID réel mais hors-sujet pour ce domaine est rejeté ici
-        # aussi (voir le commentaire au-dessus de SUPPLY_CHAIN_TECHNIQUE_IDS).
-        # Normalisé d'abord (_normalize_technique_id) : "T1190: Exploit
-        # Public-Facing Application" doit valider comme "T1190".
+        # short-list du domaine (attack_taxonomy.LLM_THREAT_TECHNIQUE_IDS ou
+        # SUPPLY_CHAIN_TECHNIQUE_IDS) — plus stricte qu'une simple
+        # vérification d'existence dans le référentiel : un ID réel mais
+        # hors-sujet pour ce domaine est rejeté ici aussi (voir le
+        # commentaire au-dessus des short-lists). Normalisé d'abord
+        # (_normalize_technique_id) : "AML.T0051.001: Indirect" doit valider
+        # comme "AML.T0051.001".
         raw_technique_id = parsed.get("mitre_technique_id")
-        normalized_technique_id = _normalize_technique_id(raw_technique_id)
-        technique_valid = attack_taxonomy.is_valid_supply_chain_technique_id(
-            normalized_technique_id
+        normalized_technique_id = _normalize_technique_id(raw_technique_id, self.domain)
+        technique_valid = attack_taxonomy.is_in_shortlist(
+            normalized_technique_id, self.domain
         )
         if attack_present and raw_technique_id and not technique_valid:
             print(
                 f"[⚠] mitre_technique_id proposé rejeté — hors de la "
-                f"short-list supply-chain autorisée : {raw_technique_id!r}"
+                f"short-list {self.domain} autorisée : {raw_technique_id!r}"
                 + (
                     f" (normalisé en {normalized_technique_id!r})"
                     if normalized_technique_id != raw_technique_id
@@ -140,10 +174,29 @@ class MethodologyExtractor:
         # catégorie ratait, pour une raison n'ayant souvent rien à voir avec
         # la qualité de la mitigation elle-même.
         mitigation_summary = None
+        mitigation_type = None
         if attack_present:
             mitigation_summary = self._clean_text_field(
                 parsed.get("mitigation_summary")
             )
+            # Le type n'a de sens qu'accompagné d'un résumé : un type seul
+            # ("filtering_rule" sans rien décrire) serait une catégorie vide.
+            if mitigation_summary:
+                raw_mitigation_type = parsed.get("mitigation_type")
+                mitigation_type = _normalize_mitigation_type(raw_mitigation_type)
+                if raw_mitigation_type and not mitigation_type:
+                    # Résumé gardé quand même : même découplage que pour la
+                    # catégorie MITRE ci-dessus — une défense réellement
+                    # décrite dans le texte reste un signal exploitable même
+                    # si elle n'entre dans aucun des trois types prévus (ex:
+                    # une recommandation organisationnelle). Perdre le résumé
+                    # parce que le type ne colle pas coûterait plus que de
+                    # garder un type null.
+                    print(
+                        f"[⚠] mitigation_type proposé rejeté — hors des types "
+                        f"autorisés {sorted(MITIGATION_TYPES)} : "
+                        f"{raw_mitigation_type!r} (le résumé est conservé)"
+                    )
 
         confidence = parsed.get("confidence")
         try:
@@ -152,12 +205,14 @@ class MethodologyExtractor:
             confidence = None
 
         return {
+            "domain": self.domain,
             "attack_present": attack_present,
             "attack_summary": attack_summary,
             "mitre_technique_id": mitre_technique_id,
             "mitre_technique_name": attack_taxonomy.technique_name(
-                mitre_technique_id, self.techniques
+                mitre_technique_id, self.techniques, self.domain
             ),
+            "mitigation_type": mitigation_type,
             "mitigation_summary": mitigation_summary,
             "confidence": confidence,
         }
@@ -217,16 +272,16 @@ class MethodologyExtractor:
 
 if __name__ == "__main__":
     sample_text = (
-        "In 2024, investigators uncovered a multi-stage backdoor in the XZ "
-        "Utils compression library (CVE-2024-3094), introduced through social "
-        "engineering of a maintainer. HCMRs require SLSA-level provenance to "
-        "prevent similar opaque build manipulation."
+        "The attacker plants instructions inside a web page that the assistant "
+        "later retrieves, causing it to exfiltrate the contents of the user's "
+        "session. The authors mitigate this by wrapping retrieved content in "
+        "explicit delimiters and restating the system instructions after it."
     )
     sample_entities = [
-        {"text": "CVE-2024-3094", "label": "identifiant CVE"},
-        {"text": "XZ Utils", "label": "paquet ou bibliothèque logicielle concerné"},
-        {"text": "SLSA", "label": "framework ou mécanisme de mitigation"},
+        {"text": "web page", "label": "vecteur d'entrée"},
+        {"text": "exfiltrate the contents", "label": "impact sur le modèle"},
+        {"text": "explicit delimiters", "label": "défense ou garde-fou cité"},
     ]
-    extractor = MethodologyExtractor()
+    extractor = MethodologyExtractor()  # domaine "llm" par défaut
     result = extractor.extract(sample_text, sample_entities)
     print(json.dumps(result, indent=2, ensure_ascii=False))

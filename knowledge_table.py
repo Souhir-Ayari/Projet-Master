@@ -29,6 +29,7 @@ import uuid
 import requests
 
 from config import (
+    DEFAULT_DOMAIN,
     KNOWLEDGE_ATTACK_VECTORS_PATH,
     KNOWLEDGE_MITIGATION_VECTORS_PATH,
     KNOWLEDGE_TABLE_PATH,
@@ -74,6 +75,7 @@ def build_record(
     generalizability_score: float | None,
     source_paper: str,
     layer1_entities: list[dict],
+    domain: str = DEFAULT_DOMAIN,
 ) -> dict:
     """
     Construit UN enregistrement de la table de connaissance à partir de la
@@ -107,14 +109,28 @@ def build_record(
 
     record = {
         "record_id": uuid.uuid4().hex,
+        # Domaine d'analyse : la table peut contenir les deux corpus
+        # (menaces LLM et supply chain), dont les "category" viennent de
+        # référentiels DIFFÉRENTS (AML.Txxxx vs Txxxx). Sans ce champ, un
+        # AML.T0051 et un T1195 seraient indistinguables en tant que
+        # provenance de taxonomie lors d'une analyse a posteriori.
+        "domain": methodology_record.get("domain", domain),
         "attack_summary": attack_summary,
         "specificity": (
             "concrete"
-            if is_specific_case(attack_summary, layer1_entities)
+            if is_specific_case(attack_summary, layer1_entities, domain)
             else "generic"
         ),
         "category": methodology_record.get("mitre_technique_id"),
         "category_name": methodology_record.get("mitre_technique_name"),
+        # Mitigation STRUCTURÉE (type + résumé) plutôt qu'une phrase libre :
+        # le type est une valeur fermée (config.MITIGATION_TYPES), déjà
+        # validée par methodology_extractor, ce qui rend les défenses
+        # groupables/comptables et prêtes à alimenter la génération de
+        # contre-mesures concrètes. Peut être null avec un résumé non-null
+        # (défense réelle hors des trois types) — voir le découplage dans
+        # methodology_extractor._validate.
+        "mitigation_type": methodology_record.get("mitigation_type"),
         "mitigation_summary": mitigation_summary,
         "generalizability_score": generalizability_score,
         "source_paper": source_paper,
@@ -188,6 +204,7 @@ def build_table_from_methodology_records(
     table_path: str = KNOWLEDGE_TABLE_PATH,
     attack_vectors_path: str = KNOWLEDGE_ATTACK_VECTORS_PATH,
     mitigation_vectors_path: str = KNOWLEDGE_MITIGATION_VECTORS_PATH,
+    domain: str = DEFAULT_DOMAIN,
 ) -> list[dict]:
     """
     Construit et sauvegarde un enregistrement par chunk où une attaque a été
@@ -229,9 +246,11 @@ def build_table_from_methodology_records(
     for mrecord, entities in zip(methodology_records, layer1_entities_per_chunk):
         if not mrecord.get("attack_present"):
             continue
-        score = score_generalizability(mrecord.get("mitigation_summary"), entities)
+        score = score_generalizability(
+            mrecord.get("mitigation_summary"), entities, domain
+        )
         kt_record, attack_embedding, mitigation_embedding = build_record(
-            mrecord, score, source_paper, entities
+            mrecord, score, source_paper, entities, domain
         )
         add_record(
             kt_record,

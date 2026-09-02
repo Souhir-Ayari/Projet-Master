@@ -21,8 +21,7 @@ from typing import ClassVar
 from config import (
     PROMPTS,
     CYBER_ENTITY_LABELS,
-    SUPPLY_CHAIN_ENTITY_LABELS,
-    SUPPLY_CHAIN_ENTITY_DESCRIPTIONS,
+    DEFAULT_DOMAIN,
     TEMPLATE_LEAK_VALUES,
     MISTRAL_BACKEND,
     OLLAMA_MODEL_NAME,
@@ -32,6 +31,7 @@ from config import (
     HF_MODEL_NAME,
     build_labels_block,
     is_format_valid,
+    topic_config,
 )
 
 # Valeurs de remplissage que le modèle invente parfois pour "remplir" un champ
@@ -163,7 +163,11 @@ class MistralExtractor:
             raise ValueError(f"Backend inconnu : {self.backend}")
 
     def extract(
-        self, text: str, prompt_variant: str = "engineered", user_need: str = ""
+        self,
+        text: str,
+        prompt_variant: str = "engineered",
+        user_need: str = "",
+        domain: str = DEFAULT_DOMAIN,
     ) -> dict:
         """
         Extrait les entités via prompt.
@@ -172,11 +176,17 @@ class MistralExtractor:
         - "naive"/"engineered" : taxonomie générique CYBER_ENTITY_LABELS.
         - "custom"  : besoin de l'utilisateur (voir user_need), taxonomie
           générique en référence secondaire.
-        - "topic"   : taxonomie SUPPLY_CHAIN_ENTITY_LABELS, spécifique aux
-          attaques de chaîne d'approvisionnement logicielle / backdoors
-          (ex: XZ Utils, SolarWinds, Log4Shell) — à utiliser quand le
-          document analysé porte précisément sur ce sujet, pour comparer
-          la précision d'un prompt généraliste vs un prompt spécialisé.
+        - "topic"   : taxonomie ET prompt spécialisés sur le DOMAINE analysé
+          (voir config.TOPIC_DOMAINS) — à utiliser quand le document porte
+          précisément sur ce sujet, pour comparer la précision d'un prompt
+          généraliste vs un prompt spécialisé.
+
+        domain : "llm" (menaces sur les LLM — injection de prompt, jailbreak,
+        fuite de données ; le sujet de master, et le défaut) ou
+        "supply_chain" (compromissions de chaîne d'approvisionnement type XZ
+        Utils / SolarWinds / Log4Shell). N'a d'effet que sur prompt_variant
+        == "topic" : les autres variantes utilisent la taxonomie générique et
+        servent justement de point de comparaison indépendant du sujet.
 
         user_need : description en langage naturel de ce que l'utilisateur veut
         extraire (ex: "extrais uniquement les CVE et les adresses IP mentionnées",
@@ -185,8 +195,10 @@ class MistralExtractor:
         """
         template = PROMPTS[prompt_variant]
         if prompt_variant == "topic":
-            labels_for_prompt = SUPPLY_CHAIN_ENTITY_LABELS
-            descriptions_for_prompt = SUPPLY_CHAIN_ENTITY_DESCRIPTIONS
+            topic = topic_config(domain)
+            template = topic["prompt"]
+            labels_for_prompt = topic["labels"]
+            descriptions_for_prompt = topic["descriptions"]
         elif prompt_variant == "custom" and user_need:
             # Restreint la liste de labels AVANT même que le modèle ne la voie :
             # sans ça, le modèle a tendance à vouloir "remplir" chacune des 23
@@ -296,6 +308,7 @@ class MistralExtractor:
         chunks: list[str],
         prompt_variant: str = "engineered",
         user_need: str = "",
+        domain: str = DEFAULT_DOMAIN,
     ) -> dict:
         all_entities = []
         seen = set()
@@ -303,7 +316,9 @@ class MistralExtractor:
         n = len(chunks)
         for i, chunk in enumerate(chunks, start=1):
             print(f"    chunk {i}/{n} ...", end=" ", flush=True)
-            result = self.extract(chunk, prompt_variant, user_need=user_need)
+            result = self.extract(
+                chunk, prompt_variant, user_need=user_need, domain=domain
+            )
             print(f"{len(result['entities'])} entité(s)")
             raw_outputs.append(result["raw_model_output"])
             for e in result["entities"]:

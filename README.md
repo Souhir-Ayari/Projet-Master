@@ -87,7 +87,8 @@ Le terminal affichera, pour chaque méthode :
 | `evaluator.py` | Precision/Recall/F1 + taux d'hallucination |
 | `main.py` | Orchestrateur CLI (Layer 1 : extraction d'entités) |
 | `methodology_extractor.py` | Layer 2 : résumé attaque/mitigation ancré sur Layer 1 (Steps 1 et 3) |
-| `attack_taxonomy.py` | Validation contre le vrai référentiel MITRE ATT&CK (Step 2) |
+| `attack_taxonomy.py` | Validation contre le vrai référentiel MITRE — ATLAS ou ATT&CK selon le domaine (Step 2) |
+| `specificity.py` | Marque un cas comme concret ou générique selon les entités Layer 1 identifiantes |
 | `generalizability.py` | Score de généralisabilité d'une mitigation (Step 4) |
 | `knowledge_table.py` | Table de connaissance JSONL (métadonnées) + embeddings (Step 5) |
 | `vector_store.py` | Stockage des embeddings en `.npz` (séparé du JSONL) + similarité cosinus vectorisée |
@@ -107,13 +108,46 @@ PDF → texte → chunks
    → Layer 1 : extraction d'entités (existant)
    → Layer 2 : résumé attaque/mitigation ancré sur le texte + les entités
      Layer 1 (jamais le texte brut seul)
-   → catégorie MITRE ATT&CK validée contre le vrai référentiel (pas une
+   → catégorie MITRE validée contre le vrai référentiel du domaine (pas une
      taxonomie inventée par le LLM)
-   → mitigation conservée UNIQUEMENT si attaque + catégorie confirmées
-     (honest null sinon — jamais de mitigation inventée)
+   → mitigation STRUCTURÉE (type + résumé) conservée dès que l'attaque est
+     confirmée (honest null sinon — jamais de mitigation inventée)
    → score de généralisabilité (mentions de produits/fournisseurs nommés)
    → knowledge_table.jsonl
 ```
+
+### Domaines d'analyse
+
+Le pipeline traite deux sujets, chacun avec **sa** taxonomie de labels Layer 1,
+**son** prompt spécialisé et **son** référentiel MITRE (`--domain`) :
+
+| Domaine | Sujet | Référentiel | Labels Layer 1 |
+|---|---|---|---|
+| `llm` (défaut) | menaces émergentes sur les LLM : injection de prompt directe/indirecte, jailbreak, fuite du prompt système, empoisonnement RAG | **MITRE ATLAS** | `config.LLM_THREAT_ENTITY_LABELS` |
+| `supply_chain` | compromissions de chaîne d'approvisionnement logicielle (XZ Utils, SolarWinds, Log4Shell) | MITRE ATT&CK | `config.SUPPLY_CHAIN_ENTITY_LABELS` |
+
+MITRE ATT&CK Enterprise ne décrit **aucune** technique d'attaque sur les LLM
+(pas d'ID `Txxxx` pour une injection de prompt) : le domaine `llm` s'ancre
+donc sur MITRE ATLAS, le référentiel officiel des menaces sur les systèmes
+d'IA, avec des identifiants de la forme `AML.Txxxx[.xxx]`. Le domaine
+`supply_chain` est conservé à l'identique pour que les résultats déjà produits
+sur ce premier corpus restent reproductibles.
+
+### Mitigation structurée
+
+`mitigation_summary` n'est plus une phrase libre seule : chaque mitigation
+porte un **type** fermé (`config.MITIGATION_TYPES`), proposé par le modèle puis
+validé en code comme la catégorie MITRE —
+
+| Type | Nature de la défense |
+|---|---|
+| `filtering_rule` | filtrage de l'entrée ou de la sortie du modèle |
+| `secure_prompt_template` | structure de prompt durcie (délimiteurs, séparation instructions/données) |
+| `detection_script` | détection automatisée a posteriori (classifieur, sonde, test) |
+
+Un type hors de cette liste est mis à `null` **sans effacer le résumé** : une
+défense réellement décrite dans le texte reste un signal exploitable même si
+elle n'entre dans aucun des trois types (même découplage que pour la catégorie).
 
 ### Installation supplémentaire
 
@@ -125,7 +159,8 @@ ollama pull nomic-embed-text
 
 ### Construire la table de connaissance (un paper à la fois)
 ```bash
-python build_knowledge.py --pdf backdoor.pdf
+python build_knowledge.py --pdf greshake_indirect_injection.pdf   # domaine llm par défaut
+python build_knowledge.py --pdf backdoor.pdf --domain supply_chain
 ```
 Sauvegarde les résumés bruts de Layer 2 dans `results/methodology_<pdf>.jsonl`
 (**à inspecter à la main** avant de faire confiance à la table — recommandé en
@@ -136,21 +171,26 @@ enregistrement par attaque confirmée à `results/knowledge_table.jsonl`
 `results/knowledge_attack_vectors.npz` et `results/knowledge_mitigation_vectors.npz`
 (voir `vector_store.py`), reliés au JSONL par un `record_id`.
 
-Le référentiel MITRE ATT&CK (Step 2) est téléchargé une fois et mis en cache
-dans `data/mitre_attack_techniques.json` (~700 techniques, ~30 Ko). Le choix
-de catégorie est restreint à une short-list d'une quinzaine de techniques
-pertinentes pour la chaîne d'approvisionnement (`attack_taxonomy.
-SUPPLY_CHAIN_TECHNIQUE_IDS`) plutôt que les ~700 du référentiel complet —
-laisser le modèle choisir librement produisait des ID réels mais hors-sujet
-pour l'attaque décrite.
+Le référentiel MITRE du domaine (Step 2) est téléchargé une fois et mis en
+cache dans `data/` : `mitre_atlas_techniques.json` (170 techniques ATLAS) ou
+`mitre_attack_techniques.json` (~700 techniques ATT&CK). Le choix de catégorie
+est restreint à une short-list d'une vingtaine de techniques pertinentes pour
+le domaine (`attack_taxonomy.LLM_THREAT_TECHNIQUE_IDS` /
+`SUPPLY_CHAIN_TECHNIQUE_IDS`) plutôt qu'au référentiel complet — laisser le
+modèle choisir librement produisait des ID réels mais hors-sujet pour
+l'attaque décrite.
 
 Pour un retrieval significatif, viser **15-30+ papers** couvrant plusieurs
 catégories d'attaque — un seul paper ne suffit pas.
 
 ### Chercher dans la table de connaissance
 ```bash
+python query_knowledge.py --attack-summary "Une page web récupérée par l'agent contient des instructions cachées" --category AML.T0051.001
 python query_knowledge.py --attack-summary "Backdoor introduite via un mainteneur compromis" --category T1195
 ```
+La catégorie suit le référentiel du corpus interrogé (`AML.Txxxx` pour `llm`,
+`Txxxx` pour `supply_chain`) ; elle sert de bonus de similarité, jamais de
+filtre.
 Tier 1 (embeddings) est toujours utilisé. Tier 2 (recherche live sur Semantic
 Scholar/arXiv, ingestion à la volée) est **désactivé par défaut**
 (`config.TIER2_ENABLED = False`) — l'activer en fait une ablation statique vs

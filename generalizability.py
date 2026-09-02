@@ -14,25 +14,57 @@ mais volontairement non implémenté ici : elle ajoute un aller-retour LLM de
 plus par mitigation, à faire seulement une fois la version simple validée.
 """
 
-# Labels Layer 1 considérés comme "produit/fournisseur nommé" pour ce score.
+from config import DEFAULT_DOMAIN, DOMAIN_LLM, DOMAIN_SUPPLY_CHAIN
+
+# Labels Layer 1 considérés comme "produit/fournisseur nommé" pour ce score,
+# PAR DOMAINE — les taxonomies Layer 1 étant différentes, une liste unique
+# serait silencieusement inopérante sur l'autre domaine (aucun label ne
+# matcherait, donc TOUTES les mitigations noteraient 1.0 : un score constant
+# qui aurait l'air de fonctionner).
+#
 # Volontairement restreint aux catégories qui désignent un produit/écosystème
 # PROPRIÉTAIRE ou spécifique à un fournisseur — pas les identifiants
 # génériques (CVE, dates) ni les standards ouverts type SLSA/Sigstore, qui
 # sont eux-mêmes des mécanismes de mitigation généralisables plutôt que des
 # produits verrouillés à un fournisseur.
-VENDOR_ENTITY_LABELS = frozenset(
-    {
-        "paquet ou bibliothèque logicielle concerné",
-        "nom de logiciel ou produit",
-        "distribution ou système affecté",
-        "écosystème de composition logicielle cité",
-        "système d'exploitation",
-    }
-)
+VENDOR_ENTITY_LABELS_BY_DOMAIN = {
+    # Menaces LLM : ce qui rend une défense NON portable, c'est qu'elle soit
+    # formulée pour un modèle précis ("ajouter cette consigne au prompt
+    # système de GPT-4") ou qu'elle repose sur l'outil maison des auteurs.
+    # "défense ou garde-fou cité" en est EXCLU pour la même raison que SLSA
+    # côté supply chain : un mécanisme de défense nommé (délimiteurs
+    # explicites, classifieur de refus) est justement le genre de solution
+    # généralisable que ce score doit récompenser, pas pénaliser — l'y mettre
+    # ferait baisser la note de toute mitigation qui nomme sa propre méthode,
+    # c'est-à-dire des meilleures. "vecteur d'entrée" et "impact sur le
+    # modèle" en sont exclus aussi : ce sont des catégories du problème, pas
+    # des dépendances de la solution.
+    DOMAIN_LLM: frozenset(
+        {
+            "modèle LLM ciblé",
+            "nom du système ou de l'attaque proposé par les auteurs",
+        }
+    ),
+    DOMAIN_SUPPLY_CHAIN: frozenset(
+        {
+            "paquet ou bibliothèque logicielle concerné",
+            "nom de logiciel ou produit",
+            "distribution ou système affecté",
+            "écosystème de composition logicielle cité",
+            "système d'exploitation",
+        }
+    ),
+}
+
+# Conservé sous son ancien nom pour le code qui l'importait quand le pipeline
+# ne traitait que la supply chain.
+VENDOR_ENTITY_LABELS = VENDOR_ENTITY_LABELS_BY_DOMAIN[DOMAIN_SUPPLY_CHAIN]
 
 
 def score_generalizability(
-    mitigation_summary: str | None, layer1_entities: list[dict]
+    mitigation_summary: str | None,
+    layer1_entities: list[dict],
+    domain: str = DEFAULT_DOMAIN,
 ) -> float | None:
     """
     Renvoie None si mitigation_summary est absent — rien à noter, cohérent
@@ -44,11 +76,19 @@ def score_generalizability(
     if not mitigation_summary:
         return None
 
+    try:
+        vendor_labels = VENDOR_ENTITY_LABELS_BY_DOMAIN[domain]
+    except KeyError:
+        raise ValueError(
+            f"Domaine inconnu : {domain!r}. Domaines supportés : "
+            f"{', '.join(sorted(VENDOR_ENTITY_LABELS_BY_DOMAIN))}"
+        ) from None
+
     text_lower = mitigation_summary.lower()
     vendor_mentions = 0
     seen = set()
     for e in layer1_entities:
-        if e.get("label") not in VENDOR_ENTITY_LABELS:
+        if e.get("label") not in vendor_labels:
             continue
         entity_text = e.get("text", "").strip().lower()
         if not entity_text or entity_text in seen:
@@ -61,6 +101,24 @@ def score_generalizability(
 
 
 if __name__ == "__main__":
+    llm_entities = [
+        {"text": "GPT-4", "label": "modèle LLM ciblé"},
+        {"text": "prompt utilisateur", "label": "vecteur d'entrée"},  # pas un vendor
+    ]
+    print(
+        score_generalizability(
+            "Encadrer le contenu récupéré par des délimiteurs explicites et "
+            "répéter les consignes système après lui.",
+            llm_entities,
+        )
+    )  # défense portable, aucun modèle nommé -> 1.0
+    print(
+        score_generalizability(
+            "Ajouter la consigne de refus au prompt système de GPT-4.",
+            llm_entities,
+        )
+    )  # dépend d'un modèle nommé -> 0.5
+
     entities = [
         {
             "text": "Azure Verified Modules",
@@ -73,12 +131,14 @@ if __name__ == "__main__":
         score_generalizability(
             "L'utilisation de SLSA pour la provenance des artefacts est recommandée.",
             entities,
+            DOMAIN_SUPPLY_CHAIN,
         )
     )  # aucune mention vendor -> 1.0
     print(
         score_generalizability(
             "Azure Verified Modules et Debian montrent l'intérêt d'une gouvernance stricte.",
             entities,
+            DOMAIN_SUPPLY_CHAIN,
         )
     )  # 2 mentions -> 0.333
-    print(score_generalizability(None, entities))  # None
+    print(score_generalizability(None, entities, DOMAIN_SUPPLY_CHAIN))  # None

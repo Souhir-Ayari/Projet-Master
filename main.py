@@ -40,6 +40,7 @@ import datetime
 import json
 import os
 
+from config import DEFAULT_DOMAIN, TOPIC_DOMAINS
 from evaluator import compare_methods, evaluate
 from gliner_extractor import GLiNERExtractor
 from mistral_extractor import MistralExtractor
@@ -117,8 +118,19 @@ def main():
         "'naive_schema' isole la variable 'schéma JSON' seule (sans règles "
         "anti-hallucination) pour une comparaison propre naive -> naive_schema -> engineered. "
         "'custom' permet de spécifier un besoin d'extraction précis (voir --user-need). "
-        "'topic' utilise un prompt + une taxonomie spécifiques aux attaques de chaîne "
-        "d'approvisionnement logicielle / backdoors (XZ Utils, SolarWinds, Log4Shell).",
+        "'topic' utilise un prompt + une taxonomie spécifiques au sujet du document "
+        "(voir --domain).",
+    )
+    parser.add_argument(
+        "--domain",
+        default=DEFAULT_DOMAIN,
+        choices=sorted(TOPIC_DOMAINS),
+        help="Sujet du document analysé, utilisé UNIQUEMENT par la variante "
+        "'topic' : 'llm' (menaces sur les LLM — injection de prompt, jailbreak, "
+        "fuite de données ; défaut) ou 'supply_chain' (chaîne "
+        "d'approvisionnement logicielle : XZ Utils, SolarWinds, Log4Shell). "
+        "Les autres variantes utilisent la taxonomie générique et servent de "
+        "point de comparaison indépendant du sujet.",
     )
     parser.add_argument(
         "--user-need",
@@ -169,11 +181,12 @@ def main():
     for variant in args.variants:
         need = user_need if variant == "custom" else None
         result = mistral.extract_from_chunks(
-            chunk_texts, prompt_variant=variant, user_need=need
+            chunk_texts, prompt_variant=variant, user_need=need, domain=args.domain
         )
         print(
             f"\n--- CAS 2 - Mistral prompt '{variant}' ---"
             + (f" (besoin : {need})" if variant == "custom" else "")
+            + (f" (domaine : {args.domain})" if variant == "topic" else "")
         )
         save_json(result, f"case2_mistral_{variant}.json")
         all_results[f"mistral_{variant}"] = result
