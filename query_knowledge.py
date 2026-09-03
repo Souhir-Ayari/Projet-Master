@@ -21,6 +21,8 @@ enregistrement, sans casser la recherche.
 import argparse
 import json
 
+from config import KNOWLEDGE_TABLE_PATH
+from knowledge_table import load_table, vector_paths_for
 from retrieval import retrieve
 
 
@@ -41,13 +43,24 @@ def main():
     )
     parser.add_argument("--cve", default=None)
     parser.add_argument("--package", default=None)
+    parser.add_argument(
+        "--table",
+        default=KNOWLEDGE_TABLE_PATH,
+        help="Table de connaissance à interroger (par défaut : "
+        "config.KNOWLEDGE_TABLE_PATH). Le store vectoriel associé est déduit "
+        "du nom de la table, comme à la construction — sans ça, interroger un "
+        "corpus séparé lisait ses textes mais les vecteurs de l'autre.",
+    )
     args = parser.parse_args()
 
+    attack_vectors_path, _ = vector_paths_for(args.table)
     result = retrieve(
         query_attack_summary=args.attack_summary,
         query_category=args.category,
         cve=args.cve,
         package=args.package,
+        table=load_table(args.table),
+        attack_vectors_path=attack_vectors_path,
     )
     print(json.dumps(result, indent=2, ensure_ascii=False))
 

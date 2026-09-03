@@ -24,6 +24,7 @@ catégories d'attaque) — un seul paper ne suffit pas à rendre le retrieval
 (Step 6) significatif, cette table n'en est que le squelette.
 """
 
+import os
 import uuid
 
 import requests
@@ -164,6 +165,29 @@ def add_record(
 def load_table(table_path: str = KNOWLEDGE_TABLE_PATH) -> list[dict]:
     """Charge tous les enregistrements (métadonnées seulement, pas les embeddings)."""
     return read_jsonl(table_path)
+
+
+def vector_paths_for(table_path: str) -> tuple[str, str]:
+    """
+    Chemins des deux stores vectoriels associés à `table_path`.
+
+    Une table de connaissance n'est pas un fichier isolé : c'est un TRIPLET
+    (JSONL + .npz attaque + .npz mitigation) reliés par record_id. Passer
+    --table sans déplacer les vecteurs avec lui écrivait le JSONL au bon
+    endroit mais les vecteurs sur les chemins par défaut de config.py — deux
+    corpus distincts partageaient alors un même store, et le retrieval sur
+    l'un ramenait des cas de l'autre. Les chemins sont donc dérivés du nom de
+    la table, pour qu'un triplet reste toujours cohérent, à la construction
+    (build_knowledge.py) comme à l'interrogation (query_knowledge.py).
+
+    Le chemin par défaut garde les noms historiques (knowledge_attack_vectors
+    .npz, pas knowledge_table_attack_vectors.npz) pour ne pas orpheliner les
+    vecteurs déjà produits par les runs précédents.
+    """
+    if table_path == KNOWLEDGE_TABLE_PATH:
+        return KNOWLEDGE_ATTACK_VECTORS_PATH, KNOWLEDGE_MITIGATION_VECTORS_PATH
+    stem = os.path.splitext(table_path)[0]
+    return f"{stem}_attack_vectors.npz", f"{stem}_mitigation_vectors.npz"
 
 
 def replace_paper_records(

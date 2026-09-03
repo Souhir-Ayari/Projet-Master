@@ -36,7 +36,7 @@ import attack_taxonomy
 from config import DEFAULT_DOMAIN, KNOWLEDGE_TABLE_PATH, topic_config
 from gliner_extractor import GLiNERExtractor
 from jsonl_utils import clear_jsonl
-from knowledge_table import build_table_from_methodology_records
+from knowledge_table import build_table_from_methodology_records, vector_paths_for
 from methodology_extractor import MethodologyExtractor
 from mistral_extractor import MistralExtractor
 from pdf_extractor import chunk_text, extract_text_from_pdf
@@ -62,7 +62,10 @@ def main():
     parser.add_argument(
         "--table",
         default=KNOWLEDGE_TABLE_PATH,
-        help="Chemin de la table de connaissance JSONL (par défaut : config.KNOWLEDGE_TABLE_PATH)",
+        help="Chemin de la table de connaissance JSONL (par défaut : "
+        "config.KNOWLEDGE_TABLE_PATH). Les deux stores vectoriels suivent "
+        "automatiquement le nom de la table (voir vector_paths_for) : un "
+        "corpus = un triplet JSONL + 2 .npz, jamais mélangé avec un autre.",
     )
     parser.add_argument(
         "--methodology-log",
@@ -116,11 +119,14 @@ def main():
     print(f"      -> résultats bruts sauvegardés dans {methodology_log} (à inspecter à la main)")
 
     print("\n[4/4] Steps 4-5 : score de généralisabilité + ajout à la table de connaissance")
+    attack_vectors_path, mitigation_vectors_path = vector_paths_for(args.table)
     added = build_table_from_methodology_records(
         methodology_records,
         layer1_entities_per_chunk,
         source_paper=source_paper,
         table_path=args.table,
+        attack_vectors_path=attack_vectors_path,
+        mitigation_vectors_path=mitigation_vectors_path,
         domain=args.domain,
     )
     n_concrete = sum(1 for r in added if r["specificity"] == "concrete")
