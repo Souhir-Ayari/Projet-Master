@@ -198,14 +198,29 @@ SUPPLY_CHAIN_ENTITY_DESCRIPTIONS = {
 # sont exactement ceux qui structurent un cas d'attaque sur LLM — par OÙ elle
 # entre, COMMENT elle contourne, QUOI elle vise, QUEL effet elle produit —
 # et se mappent directement sur les champs de la table de connaissance.
+# ATTENTION à la nature des labels. Les quatre axes du sujet sont des RÔLES
+# ANALYTIQUES ("impact sur le modèle" est une fonction dans une phrase), pas
+# des types d'entités nommées — or GLiNER est un extracteur d'entités. Mesuré
+# sur le corpus réel : avec ces seuls quatre axes, GLiNER n'a trouvé que 8
+# entités sur 23 chunks de Greshake et al., et 0 sur 14 chunks de Wolf et al.
+# Layer 1 vidé, specificity.py et generalizability.py n'ont plus rien à quoi
+# s'accrocher (1 cas concret sur 29, tous les scores à 1.0).
+#
+# D'où l'ajout de labels CONCRETS aux côtés des axes du sujet : ce sont eux
+# que GLiNER sait réellement extraire (un nom propre dans le texte), et ce
+# sont eux qui rendent un cas identifiable. Les papers de ce domaine parlent
+# de Bing Chat, GitHub Copilot, ChatGPT — nommer ces systèmes est ce qui
+# distingue un cas d'attaque réel d'une reformulation du sujet.
 LLM_THREAT_ENTITY_LABELS = [
+    # Les quatre axes du sujet : ils structurent l'ANALYSE (et le prompt
+    # "topic" de Mistral, qui les exploite mieux que GLiNER).
     "vecteur d'entrée",
     "mécanisme de contournement",
     "modèle LLM ciblé",
     "impact sur le modèle",
-    # Deux labels de support, pas des axes du sujet : ils servent à marquer les
-    # cas CONCRETS (voir specificity.py) et à repérer les défenses citées,
-    # matière première du champ mitigation de Layer 2.
+    # Labels concrets : des noms propres réellement présents dans le texte,
+    # matière première de specificity.py et generalizability.py.
+    "application ou service intégrant un LLM",
     "défense ou garde-fou cité",
     "nom du système ou de l'attaque proposé par les auteurs",
 ]
@@ -214,6 +229,7 @@ LLM_THREAT_ENTITY_DESCRIPTIONS = {
     "vecteur d'entrée": "canal par lequel le contenu adverse atteint le modèle (ex: type de canal comme « prompt utilisateur », « document injecté », « plugin ou outil compromis » — exemples de CATÉGORIES génériques, pas des faits à reprendre)",
     "mécanisme de contournement": "technique employée pour franchir l'alignement ou les garde-fous (ex: type de technique comme « encodage », « jeu de rôle », « injection indirecte » — exemples de CATÉGORIES génériques, pas des faits à reprendre)",
     "modèle LLM ciblé": "nom ou famille du modèle visé, uniquement s'il est nommé dans le texte (aucun exemple fourni, pour éviter toute confusion avec un vrai modèle)",
+    "application ou service intégrant un LLM": "nom propre de l'application, de l'assistant ou du plugin attaqué, tel qu'il est écrit dans le texte (aucun exemple fourni)",
     "impact sur le modèle": "conséquence obtenue par l'attaquant (ex: type d'effet comme « fuite de données », « exécution d'action non autorisée », « contournement de garde-fou » — exemples de CATÉGORIES génériques, pas des faits à reprendre)",
     "défense ou garde-fou cité": "mécanisme de protection nommé dans le texte : filtre, détecteur, méthode d'alignement, format de prompt durci (aucun exemple fourni)",
     "nom du système ou de l'attaque proposé par les auteurs": "nom donné par les auteurs du document analysé à leur attaque, benchmark ou défense (aucun exemple fourni)",
@@ -654,9 +670,25 @@ GLINER_CONFIDENCE_THRESHOLD = 0.4  # seuil de score pour retenir une entité
 # un COUPLE (type, résumé). Un type fermé rend la table de connaissance
 # exploitable en aval — on peut regrouper/compter les défenses par nature, et
 # c'est le champ qui alimentera la génération de contre-mesures concrètes
-# (règle de filtrage, gabarit de prompt durci, script de détection). Le résumé
-# reste conservé même si le type est rejeté (voir methodology_extractor), même
-# principe de découplage que pour la catégorie MITRE.
+# (règle de filtrage, gabarit de prompt durci, script de détection).
+#
+# ATTENTION — le type est demandé dans un SECOND appel, pas dans celui-ci.
+# Première version : les trois types et leurs descriptions étaient injectés
+# dans PROMPT_METHODOLOGY, à côté de la demande de résumé. Mesuré sur le
+# corpus réel (Greshake et al., 23 chunks) : 11 mitigations sur 13 se sont
+# mises à PARAPHRASER la description du type au lieu de résumer le texte
+# ("Implementing secure prompt templates to separate instructions from data
+# and reinforce system prompts" — c'est la définition ci-dessous traduite,
+# pas ce que dit le papier). Le modèle lisait la liste comme un catalogue de
+# solutions à recommander, et remplissait avec une mitigation plausible des
+# chunks où l'ancienne version mettait honnêtement null. C'est exactement
+# l'hallucination que tout le reste du pipeline cherche à empêcher, et le
+# champ typé l'a réintroduite.
+#
+# D'où la séparation en deux étapes (voir methodology_extractor) : le résumé
+# est produit SANS jamais voir la liste des types, puis un second appel
+# classe ce résumé — il ne voit que le résumé déjà écrit, donc il ne peut
+# plus en contaminer le contenu.
 MITIGATION_TYPES = {
     "filtering_rule": "règle de filtrage appliquée à l'entrée ou à la sortie du modèle (blocage de motifs, nettoyage du contenu récupéré, liste d'autorisation d'outils)",
     "secure_prompt_template": "structure de prompt durcie : délimiteurs, séparation explicite instructions/données, consignes système renforcées, rappel de rôle",
@@ -665,8 +697,32 @@ MITIGATION_TYPES = {
 
 
 def mitigation_types_block() -> str:
-    """Bloc "type : description" injecté dans PROMPT_METHODOLOGY."""
+    """Bloc "type : description" injecté dans PROMPT_MITIGATION_TYPE."""
     return "\n".join(f"- {name} : {desc}" for name, desc in MITIGATION_TYPES.items())
+
+
+# Second appel, appliqué UNIQUEMENT à un résumé de mitigation déjà extrait.
+# Il ne reçoit PAS le texte du papier ni la liste des techniques : sa seule
+# tâche est de ranger une phrase existante dans l'une de trois cases. Ne rien
+# lui donner d'autre est le point important — c'est ce qui garantit qu'il ne
+# peut pas réécrire la mitigation, seulement l'étiqueter.
+PROMPT_MITIGATION_TYPE = """Voici UNE mesure de défense, déjà extraite d'un article scientifique :
+
+"{mitigation_summary}"
+
+Classe-la dans l'une des catégories suivantes :
+{mitigation_types}
+
+Règles :
+1. Réponds avec le nom EXACT de la catégorie (en minuscules avec underscores),
+   ou null si la mesure décrite n'entre clairement dans aucune des trois.
+2. Ne reformule pas, ne complète pas, ne juge pas la mesure : tu ne fais que
+   la ranger dans une case.
+3. Réponds UNIQUEMENT avec un JSON valide, sans texte avant/après :
+
+{{"mitigation_type": "<une des catégories ci-dessus, ou null>"}}
+
+JSON :"""
 
 
 # Contexte injecté dans PROMPT_METHODOLOGY selon le domaine analysé.
@@ -707,10 +763,6 @@ Techniques {taxonomy_name} autorisées pour "mitre_technique_id" (choisis UNIQUE
 dans cette liste, ou mets null si aucune ne correspond clairement) :
 {mitre_labels}
 
-Types de mitigation autorisés pour "mitigation_type" (choisis UNIQUEMENT dans
-cette liste, ou mets null si la mitigation décrite n'entre dans aucun) :
-{mitigation_types}
-
 Règles strictes (mêmes principes anti-hallucination que pour l'extraction d'entités) :
 1. Base-toi UNIQUEMENT sur des faits explicitement présents dans le texte ci-dessous —
    jamais sur des connaissances générales que tu aurais par ailleurs sur ces attaques.
@@ -726,12 +778,16 @@ Règles strictes (mêmes principes anti-hallucination que pour l'extraction d'en
    ci-dessus. N'en invente pas d'autre, même s'il existe dans {taxonomy_name} en
    général : si aucun des identifiants listés ne correspond clairement au texte,
    mets null plutôt que de forcer une correspondance approximative.
-4bis. "mitigation_type" doit être EXACTEMENT l'une des trois valeurs listées
-   ci-dessus, écrite en minuscules avec les underscores. Choisis-le d'après la
-   NATURE de la défense décrite dans le texte, pas d'après ce qui serait
-   souhaitable : si la mitigation décrite n'entre clairement dans aucun des
-   trois types, mets "mitigation_type": null tout en gardant le résumé.
-   Si "mitigation_summary" est null, "mitigation_type" doit l'être aussi.
+4bis. La liste de techniques ci-dessus sert à CHOISIR un identifiant, jamais à
+   rédiger. Ne recopie pas le nom d'une technique dans "attack_summary" :
+   "LLM Prompt Injection: Indirect" est une étiquette, pas un résumé de ce que
+   fait l'attaque décrite dans CE texte. Si tu ne peux pas décrire l'attaque
+   autrement qu'en reprenant le nom de la catégorie, c'est que le texte n'en
+   décrit pas une — mets "attack_present": false.
+4ter. "mitigation_summary" doit décrire ce que CE texte propose, avec les
+   termes de CE texte. Une recommandation générale de bonne pratique que tu
+   connais par ailleurs n'est pas une mitigation extraite : si le texte
+   n'énonce pas explicitement de contre-mesure, mets null.
 5. N'utilise jamais de texte de remplissage ("non spécifié", "N/A", "aucune"). Si
    l'information n'existe pas dans le texte, mets null, jamais une chaîne vide.
 6. Chaque résumé fait 1 à 2 phrases maximum.
@@ -743,7 +799,6 @@ Règles strictes (mêmes principes anti-hallucination que pour l'extraction d'en
   "attack_present": true,
   "attack_summary": "<1-2 phrases ancrées sur le texte, ou null si attack_present est false>",
   "mitre_technique_id": "<{id_format}, ou null>",
-  "mitigation_type": "<l'un des types listés ci-dessus, ou null>",
   "mitigation_summary": "<1-2 phrases ancrées sur le texte, ou null si aucune mitigation décrite>",
   "confidence": 0.0
 }}
@@ -780,7 +835,6 @@ def methodology_prompt(
         taxonomy_name=context["taxonomy_name"],
         id_format=context["id_format"],
         mitre_labels=mitre_labels,
-        mitigation_types=mitigation_types_block(),
         entities=entities,
         text=text,
     )

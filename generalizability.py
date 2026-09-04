@@ -42,16 +42,20 @@ VENDOR_ENTITY_LABELS_BY_DOMAIN = {
     DOMAIN_LLM: frozenset(
         {
             "modèle LLM ciblé",
+            "application ou service intégrant un LLM",
             "nom du système ou de l'attaque proposé par les auteurs",
         }
     ),
+    # "nom de logiciel ou produit" et "système d'exploitation" figuraient ici
+    # à l'origine : ils appartiennent à CYBER_ENTITY_LABELS (la taxonomie
+    # générique de main.py), pas à SUPPLY_CHAIN_ENTITY_LABELS — donc jamais
+    # présents dans les entités que reçoit ce module, et sans effet. Retirés
+    # plutôt que laissés là à faire croire qu'ils comptent.
     DOMAIN_SUPPLY_CHAIN: frozenset(
         {
             "paquet ou bibliothèque logicielle concerné",
-            "nom de logiciel ou produit",
             "distribution ou système affecté",
             "écosystème de composition logicielle cité",
-            "système d'exploitation",
         }
     ),
 }

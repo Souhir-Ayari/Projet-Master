@@ -35,16 +35,17 @@ from config import DEFAULT_DOMAIN, DOMAIN_LLM, DOMAIN_SUPPLY_CHAIN
 # (taxonomie générique de main.py) et non à SUPPLY_CHAIN_ENTITY_LABELS.
 SPECIFIC_ENTITY_LABELS_BY_DOMAIN = {
     # Menaces LLM : ce qui distingue un CAS d'attaque réel d'une reformulation
-    # du sujet, c'est qu'on sache QUOI a été visé et AVEC QUEL effet — un
-    # modèle nommé, un impact précis, ou une attaque/défense que les auteurs
-    # ont nommée. "vecteur d'entrée" et "mécanisme de contournement" en sont
-    # volontairement EXCLUS : ce sont des catégories ("prompt utilisateur",
-    # "encodage") présentes dans à peu près toute phrase générale du domaine,
-    # donc sans pouvoir discriminant.
+    # du sujet, c'est qu'un NOM PROPRE soit cité — le modèle visé, le service
+    # attaqué (Bing Chat, Copilot...), la défense ou l'attaque nommée par les
+    # auteurs. Seuls des labels concrets figurent ici : les axes analytiques
+    # du sujet ("vecteur d'entrée", "mécanisme de contournement", "impact sur
+    # le modèle") en sont EXCLUS, parce qu'ils décrivent des catégories
+    # ("prompt utilisateur", "fuite de données") présentes dans à peu près
+    # toute phrase générale du domaine — sans pouvoir discriminant.
     DOMAIN_LLM: frozenset(
         {
             "modèle LLM ciblé",
-            "impact sur le modèle",
+            "application ou service intégrant un LLM",
             "défense ou garde-fou cité",
             "nom du système ou de l'attaque proposé par les auteurs",
         }
