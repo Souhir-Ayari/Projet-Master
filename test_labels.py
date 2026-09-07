@@ -29,7 +29,7 @@ from collections import Counter
 from config import DEFAULT_DOMAIN, TOPIC_DOMAINS, topic_config
 from generalizability import VENDOR_ENTITY_LABELS_BY_DOMAIN
 from gliner_extractor import GLiNERExtractor
-from pdf_extractor import chunk_text, extract_text_from_pdf
+from pdf_extractor import SCORE_ACCEPTABLE, _score_extraction, chunk_text, extract_text_from_pdf
 from specificity import SPECIFIC_ENTITY_LABELS_BY_DOMAIN
 
 
@@ -114,6 +114,17 @@ def main():
         if n == 0:
             print("          (rien — label probablement inadapté à GLiNER,")
             print("           ou absent de ce papier)")
+
+    # Qualité de l'extraction PDF : un texte aux espaces perdus produit des
+    # entités soudées et fausse tout ce qui suit, sans lever d'erreur.
+    score_pdf = _score_extraction(text)
+    print(f"\n{'-' * 62}")
+    print(f"Qualité du texte extrait du PDF : {score_pdf:.4f} (0 = parfait)")
+    if score_pdf > SCORE_ACCEPTABLE:
+        print("[!] Des mots restent soudés dans le texte extrait. GLiNER ne peut")
+        print("    pas séparer ce que pdfplumber a collé, et les résumés de")
+        print("    Layer 2 en pâtiront aussi. Inspecter le texte brut avec :")
+        print(f"      python pdf_extractor.py {args.pdf}")
 
     n_ident = sum(par_label.get(label, 0) for label in identifiants)
     print(f"\n{'-' * 62}")

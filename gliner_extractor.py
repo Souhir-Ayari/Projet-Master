@@ -11,6 +11,7 @@ import json
 from gliner import GLiNER
 
 from config import CYBER_ENTITY_LABELS, GLINER_MODEL_NAME, GLINER_CONFIDENCE_THRESHOLD
+from pdf_extractor import is_glued_token
 
 
 class GLiNERExtractor:
@@ -42,6 +43,15 @@ class GLiNERExtractor:
                 "score": round(float(e["score"]), 4),
             }
             for e in raw_entities
+            # Rejette les mots soudés par une extraction PDF ratée
+            # ("BingChatincentivizedustofollowthelinkbysaying"). Ils passaient
+            # tous les contrôles existants : présents dans le texte source
+            # (donc pas des hallucinations) et comptant pour un seul mot (donc
+            # invisibles pour un filtre plafonnant un nombre de mots). Le vrai
+            # correctif est en amont, dans extract_text_from_pdf ; ce filtre
+            # est le garde-fou pour les PDF que la correction ne sauve pas
+            # complètement.
+            if not is_glued_token(e["text"])
         ]
         return {"method": "gliner_ner", "entities": entities}
 

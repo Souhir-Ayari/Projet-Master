@@ -33,6 +33,7 @@ from config import (
     is_format_valid,
     topic_config,
 )
+from pdf_extractor import is_glued_token
 
 # Valeurs de remplissage que le modèle invente parfois pour "remplir" un champ
 # au lieu de l'omettre (entité OU champ de résumé libre — voir Step 3 du
@@ -552,15 +553,23 @@ class MistralExtractor:
         des faux positifs qui ne sont pas des hallucinations (le texte existe
         bien dans la source) mais ne sont plus des entités nommées. Le
         ground truth ne dépasse jamais 6 mots (voir ground_truth_backdoor.json).
+
+        Le plafond en MOTS ne suffit pas seul : quand l'extraction PDF perd
+        les espaces, une phrase entière ressort comme un jeton unique
+        ("BingChatincentivizedustofollowthelinkbysaying") et compte pour un
+        mot. D'où le contrôle complémentaire en caractères
+        (pdf_extractor.is_glued_token).
         """
         valid, rejected = [], []
         for e in entities:
-            n_words = len(e.get("text", "").split())
-            (rejected if n_words > max_words else valid).append(e)
+            texte = e.get("text", "")
+            trop_long = len(texte.split()) > max_words or is_glued_token(texte)
+            (rejected if trop_long else valid).append(e)
         if rejected:
             print(
                 f"[⚠] {len(rejected)} entité(s) rejetée(s) — texte trop long "
-                f"(> {max_words} mots), probable clause descriptive plutôt "
+                f"(> {max_words} mots, ou mots soudés par l'extraction PDF), "
+                f"probable clause descriptive plutôt "
                 f"qu'entité nommée : {[e.get('text') for e in rejected]}"
             )
         return valid
