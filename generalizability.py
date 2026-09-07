@@ -14,7 +14,7 @@ mais volontairement non implémenté ici : elle ajoute un aller-retour LLM de
 plus par mitigation, à faire seulement une fois la version simple validée.
 """
 
-from config import DEFAULT_DOMAIN, DOMAIN_LLM, DOMAIN_SUPPLY_CHAIN
+from config import DEFAULT_DOMAIN, DOMAIN_LLM, DOMAIN_SUPPLY_CHAIN, is_generic_term
 
 # Labels Layer 1 considérés comme "produit/fournisseur nommé" pour ce score,
 # PAR DOMAINE — les taxonomies Layer 1 étant différentes, une liste unique
@@ -96,6 +96,13 @@ def score_generalizability(
             continue
         entity_text = e.get("text", "").strip().lower()
         if not entity_text or entity_text in seen:
+            continue
+        # "LLM", "model", "package" portent un label produit mais ne nomment
+        # aucun produit : une mitigation qui les mentionne reste parfaitement
+        # portable. Les compter ferait chuter la note de presque toutes les
+        # mitigations du corpus, pour la seule raison qu'elles parlent du
+        # domaine — l'inverse de ce que ce score mesure.
+        if is_generic_term(entity_text, domain):
             continue
         if entity_text in text_lower:
             vendor_mentions += 1

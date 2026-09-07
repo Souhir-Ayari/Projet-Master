@@ -22,7 +22,7 @@ chaque section — d'où une liste de labels identifiants PAR DOMAINE plutôt
 qu'une seule liste supply-chain.
 """
 
-from config import DEFAULT_DOMAIN, DOMAIN_LLM, DOMAIN_SUPPLY_CHAIN
+from config import DEFAULT_DOMAIN, DOMAIN_LLM, DOMAIN_SUPPLY_CHAIN, is_generic_term
 
 # Labels Layer 1 considérés comme des identifiants "durs" d'une instance
 # d'attaque précise plutôt que d'une catégorie générique — un par domaine
@@ -93,6 +93,10 @@ def is_specific_case(
     return any(
         e.get("label") in specific_labels
         and e.get("text", "").strip()
+        # Un nom commun du domaine ("LLM", "model") porte un label
+        # identifiant mais ne distingue aucun cas : présent dans presque
+        # toute phrase du corpus, il rendrait TOUS les cas concrets.
+        and not is_generic_term(e.get("text"), domain)
         and e.get("text", "").strip().lower() in text_lower
         for e in layer1_entities
     )

@@ -24,7 +24,7 @@ LONGUEUR_MOT_MAX_PLAUSIBLE = 20
 # crénage interne devient un espace et "attack" ressort en "att ack". D'où
 # l'essai de plusieurs valeurs et la sélection de la MOINS mauvaise, mesurée
 # sur le texte produit (_score_extraction) plutôt que devinée par PDF.
-_TOLERANCES_A_ESSAYER = (None, 1.5, 1.0)  # None = valeur par défaut de pdfplumber
+_TOLERANCES_A_ESSAYER = (None, 1.5, 1.0, 0.5)  # None = valeur par défaut de pdfplumber
 
 
 # Mots courts LÉGITIMES (anglais et français). Sans cette liste, la détection

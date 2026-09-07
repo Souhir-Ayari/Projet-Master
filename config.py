@@ -583,6 +583,59 @@ TOPIC_DOMAINS = {
 }
 
 
+# Termes que GLiNER étiquette avec un label identifiant alors qu'ils désignent
+# la CATÉGORIE, pas une instance. Mesuré sur Greshake et al. : sur 59 entités
+# identifiantes, GLiNER range "LLMs" (8x), "model" (5x), "LLM" (4x) et "RLHF"
+# (4x) sous "modèle LLM ciblé", et "LLMs"/"LLM-integrated applications" sous
+# "application ou service intégrant un LLM". Seuls Bing Chat, GPT-4, Bard et
+# Microsoft 365 nomment réellement quelque chose.
+#
+# L'enjeu n'est pas cosmétique : specificity.py marque un cas "concrete" dès
+# qu'une entité identifiante apparaît dans son résumé. Or "LLM" et "model"
+# apparaissent dans quasiment TOUTE phrase de ce corpus — sans ce filtre,
+# "Indirect Prompt Injection allows adversaries to control LLM-integrated
+# applications" devient un cas concret. La colonne passe de tout-générique
+# (avant la correction des labels) à tout-concret : constante dans les deux
+# cas, donc sans valeur.
+#
+# Un nom propre distingue un cas ; un nom commun du domaine ne distingue rien.
+GENERIC_ENTITY_TERMS_BY_DOMAIN = {
+    DOMAIN_LLM: frozenset(
+        {
+            "llm", "llms", "model", "models", "the model", "language model",
+            "language models", "large language model", "large language models",
+            "llm-integrated application", "llm-integrated applications",
+            "ai", "ai model", "ai models", "chatbot", "chatbots",
+            "assistant", "agent", "agents", "system", "systems",
+            "rlhf", "prompt", "prompts", "user", "attacker", "application",
+            "applications", "plugin", "plugins", "api", "apis",
+        }
+    ),
+    DOMAIN_SUPPLY_CHAIN: frozenset(
+        {
+            "package", "packages", "library", "libraries", "software",
+            "dependency", "dependencies", "module", "modules", "component",
+            "components", "repository", "repositories", "system", "systems",
+            "application", "applications", "the package", "open source",
+            "open-source software", "oss",
+        }
+    ),
+}
+
+
+def is_generic_term(text: str | None, domain: str = DEFAULT_DOMAIN) -> bool:
+    """
+    Vrai si `text` désigne la catégorie plutôt qu'une instance nommée —
+    auquel cas il ne doit compter ni comme identifiant d'un cas concret
+    (specificity.py) ni comme dépendance à un produit (generalizability.py).
+    """
+    if not text:
+        return True
+    return text.strip().lower() in GENERIC_ENTITY_TERMS_BY_DOMAIN.get(
+        domain, frozenset()
+    )
+
+
 def topic_config(domain: str = DEFAULT_DOMAIN) -> dict:
     """Prompt "topic", labels Layer 1 et descriptions du domaine demandé."""
     try:
