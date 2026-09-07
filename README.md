@@ -89,6 +89,9 @@ Le terminal affichera, pour chaque méthode :
 | `methodology_extractor.py` | Layer 2 : résumé attaque/mitigation ancré sur Layer 1 (Steps 1 et 3) |
 | `attack_taxonomy.py` | Validation contre le vrai référentiel MITRE — ATLAS ou ATT&CK selon le domaine (Step 2) |
 | `specificity.py` | Marque un cas comme concret ou générique selon les entités Layer 1 identifiantes |
+| `deduplication.py` | Plafonne les cas par (papier, catégorie) — un papier reformule son sujet, ce ne sont pas des cas distincts |
+| `test_labels.py` | Teste les labels Layer 1 (GLiNER seul, sans Ollama) + cohérence des filtres |
+| `verifier_run.py` | Contrôle qualité hors ligne d'un run : catégories, spécificité, redondance, remplissage |
 | `generalizability.py` | Score de généralisabilité d'une mitigation (Step 4) |
 | `knowledge_table.py` | Table de connaissance JSONL (métadonnées) + embeddings (Step 5) |
 | `vector_store.py` | Stockage des embeddings en `.npz` (séparé du JSONL) + similarité cosinus vectorisée |
@@ -132,6 +135,35 @@ donc sur MITRE ATLAS, le référentiel officiel des menaces sur les systèmes
 d'IA, avec des identifiants de la forme `AML.Txxxx[.xxx]`. Le domaine
 `supply_chain` est conservé à l'identique pour que les résultats déjà produits
 sur ce premier corpus restent reproductibles.
+
+### Déduplication par catégorie
+
+Un papier de recherche reformule son sujet dans l'introduction, le related
+work, la discussion et la conclusion. Layer 2 traite chaque reformulation
+comme un cas distinct : sur Greshake et al., **23 chunks sur 23** marqués
+« attaque confirmée », dont 18 partageant `AML.T0051.001` avec des résumés
+paraphrasant les mêmes phrases. Ce ne sont pas 18 attaques, c'est une attaque
+décrite 18 fois — et les mitigations se dupliquent mécaniquement avec elles.
+
+`deduplication.py` plafonne donc les cas **par (papier, catégorie)**, en
+gardant les plus spécifiques (cas concret d'abord, puis porteur d'une
+mitigation, puis ancrage factuel). Le plafond est par papier, jamais global :
+deux papiers décrivant la même technique apportent chacun leur point de vue,
+c'est de la matière utile ; c'est la répétition interne qui est du bruit.
+
+```bash
+python build_knowledge.py --pdf paper.pdf --max-per-category 3   # défaut
+python build_knowledge.py --pdf paper.pdf --max-per-category 0   # désactivé
+```
+
+Le filtrage intervient **avant** le calcul des embeddings : sur Greshake, 23
+cas ramenés à 8 économisent 22 appels Ollama par run.
+
+Niveau 2 (fusionner les résumés sémantiquement redondants par similarité
+d'embeddings) volontairement non implémenté : il coûte un embedding par cas
+avant même de savoir si on le garde. `verifier_run.py` signale la redondance
+résiduelle par recouvrement de vocabulaire, ce qui permet de juger si ce
+raffinement vaut la peine.
 
 ### Mitigation structurée
 

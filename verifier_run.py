@@ -28,6 +28,7 @@ Usage :
 """
 
 import argparse
+import re
 from collections import Counter
 
 from config import KNOWLEDGE_TABLE_PATH, MITIGATION_TYPES
@@ -37,6 +38,27 @@ from mistral_extractor import is_filler_text
 # Un résumé plus long que ça n'est plus un résumé : le prompt demande 1-2
 # phrases, au-delà le modèle recopie un paragraphe du papier.
 MAX_SUMMARY_WORDS = 80
+
+
+# Mots vides ignorés dans la comparaison de résumés : deux phrases anglaises
+# partagent toujours "the/of/to", ce qui gonflerait artificiellement le
+# recouvrement et ferait passer pour redondants des cas différents.
+_MOTS_VIDES = frozenset(
+    "the of to and a an in on for by with that this is are can could be as at "
+    "from or into it its their they which when where attack attacks model "
+    "models llm llms".split()
+)
+
+
+def _mots(texte: str | None) -> set:
+    """Mots porteurs de sens d'un résumé, pour mesurer son recouvrement avec un autre."""
+    if not texte:
+        return set()
+    return {
+        mot
+        for mot in re.findall(r"[a-zA-Z']+", texte.lower())
+        if len(mot) > 2 and mot not in _MOTS_VIDES
+    }
 
 
 def _pct(n: int, total: int) -> str:
@@ -139,6 +161,37 @@ def verifier(table_path: str, paper: str = None) -> int:
                 "labels de generalizability.py ne matchent probablement aucune "
                 "entité de la taxonomie du domaine (no-op silencieux)."
             )
+
+    # --- Redondance résiduelle -------------------------------------------
+    # Le plafond par catégorie (deduplication.py) borne le NOMBRE de cas, pas
+    # leur diversité : deux résumés très proches peuvent tenir sous le
+    # plafond. Ce contrôle par recouvrement de vocabulaire est un niveau 2 du
+    # pauvre — il ne fusionne rien, il signale seulement ce qu'un niveau 2 par
+    # embeddings traiterait, pour décider s'il vaut la peine de l'implémenter.
+    _section("REDONDANCE RÉSIDUELLE (résumés très proches, même catégorie)")
+    paires = []
+    for categorie in {r.get("category") for r in records}:
+        groupe = [r for r in records if r.get("category") == categorie]
+        for i, a in enumerate(groupe):
+            for b in groupe[i + 1 :]:
+                mots_a, mots_b = _mots(a.get("attack_summary")), _mots(b.get("attack_summary"))
+                if not mots_a or not mots_b:
+                    continue
+                jaccard = len(mots_a & mots_b) / len(mots_a | mots_b)
+                if jaccard >= 0.5:
+                    paires.append((jaccard, categorie, a, b))
+    paires.sort(reverse=True, key=lambda p: p[0])
+    print(f"  {len(paires)} paire(s) de résumés à plus de 50% de vocabulaire commun")
+    for jaccard, categorie, a, b in paires[:4]:
+        print(f"\n    [{jaccard:.0%} commun — {categorie}]")
+        print(f"      A: {a['attack_summary'][:88]}")
+        print(f"      B: {b['attack_summary'][:88]}")
+    if len(paires) > 3:
+        alertes.append(
+            f"{len(paires)} paires de résumés quasi identiques subsistent. "
+            "Baisser --max-per-category, ou implémenter le niveau 2 de "
+            "deduplication.py (fusion par similarité d'embeddings)."
+        )
 
     # --- Contrôles de contenu --------------------------------------------
     _section("CONTRÔLES DE CONTENU")

@@ -37,6 +37,7 @@ from config import (
     OLLAMA_EMBEDDING_MODEL,
     OLLAMA_EMBEDDINGS_URL,
 )
+from deduplication import MAX_CASES_PER_CATEGORY, deduplicate_by_category
 from generalizability import score_generalizability
 from jsonl_utils import append_jsonl, read_jsonl, write_jsonl
 from specificity import is_specific_case
@@ -229,14 +230,20 @@ def build_table_from_methodology_records(
     attack_vectors_path: str = KNOWLEDGE_ATTACK_VECTORS_PATH,
     mitigation_vectors_path: str = KNOWLEDGE_MITIGATION_VECTORS_PATH,
     domain: str = DEFAULT_DOMAIN,
+    max_per_category: int = MAX_CASES_PER_CATEGORY,
 ) -> list[dict]:
     """
     Construit et sauvegarde un enregistrement par chunk où une attaque a été
-    confirmée (attack_present). Les chunks sans attaque ne produisent pas de
-    ligne — ce n'est pas un cas à retrouver par similarité plus tard. Renvoie
-    la liste des enregistrements ajoutés (métadonnées seulement), pour
-    l'inspection manuelle recommandée (Step 1 : valider à la main les
-    résumés des 3 case studies avant de passer à la suite).
+    confirmée (attack_present), APRÈS déduplication par catégorie. Les chunks
+    sans attaque ne produisent pas de ligne — ce n'est pas un cas à retrouver
+    par similarité plus tard. Renvoie la liste des enregistrements ajoutés
+    (métadonnées seulement), pour l'inspection manuelle recommandée (Step 1 :
+    valider à la main les résumés des case studies avant de passer à la suite).
+
+    La déduplication (voir deduplication.py) intervient AVANT le calcul des
+    embeddings, pas après : un cas écarté ne doit pas coûter deux appels
+    Ollama pour être ensuite jeté. Sur Greshake et al., 23 cas ramenés à ~6
+    économisent une trentaine d'appels par run.
 
     Commence par retirer les enregistrements existants de ce même
     source_paper (replace_paper_records) : une ré-exécution sur le même PDF
@@ -255,6 +262,20 @@ def build_table_from_methodology_records(
             f"layer1_entities_per_chunk ({len(layer1_entities_per_chunk)}) "
             f"doivent avoir la même longueur"
         )
+
+    n_confirmes = sum(1 for r in methodology_records if r.get("attack_present"))
+    methodology_records, layer1_entities_per_chunk, ecartes = deduplicate_by_category(
+        methodology_records, layer1_entities_per_chunk, domain, max_per_category
+    )
+    if ecartes:
+        total_ecarte = sum(ecartes.values())
+        print(
+            f"[knowledge_table] déduplication : {n_confirmes} cas confirmés -> "
+            f"{len(methodology_records)} gardés ({total_ecarte} reformulation(s) "
+            f"écartée(s), max {max_per_category} par catégorie et par papier)"
+        )
+        for categorie, n in sorted(ecartes.items(), key=lambda kv: -kv[1]):
+            print(f"    {n:3} écarté(s) pour {categorie or 'catégorie non validée'}")
 
     n_removed = replace_paper_records(
         source_paper, table_path, attack_vectors_path, mitigation_vectors_path

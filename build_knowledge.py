@@ -34,6 +34,7 @@ import os
 
 import attack_taxonomy
 from config import DEFAULT_DOMAIN, KNOWLEDGE_TABLE_PATH, topic_config
+from deduplication import MAX_CASES_PER_CATEGORY
 from gliner_extractor import GLiNERExtractor
 from jsonl_utils import clear_jsonl
 from knowledge_table import build_table_from_methodology_records, vector_paths_for
@@ -66,6 +67,16 @@ def main():
         "config.KNOWLEDGE_TABLE_PATH). Les deux stores vectoriels suivent "
         "automatiquement le nom de la table (voir vector_paths_for) : un "
         "corpus = un triplet JSONL + 2 .npz, jamais mélangé avec un autre.",
+    )
+    parser.add_argument(
+        "--max-per-category",
+        type=int,
+        default=MAX_CASES_PER_CATEGORY,
+        help="Nombre maximum de cas gardés par catégorie MITRE POUR CE PAPIER "
+        f"(défaut : {MAX_CASES_PER_CATEGORY}). Un papier de recherche reformule "
+        "son sujet dans l'intro, le related work et la conclusion : sans "
+        "plafond, la même attaque est enregistrée dix fois (voir "
+        "deduplication.py). Mettre 0 pour désactiver.",
     )
     parser.add_argument(
         "--methodology-log",
@@ -128,6 +139,9 @@ def main():
         attack_vectors_path=attack_vectors_path,
         mitigation_vectors_path=mitigation_vectors_path,
         domain=args.domain,
+        # 0 -> pas de plafond : on passe un nombre plus grand que le nombre de
+        # chunks plutôt qu'une valeur sentinelle à tester partout en aval.
+        max_per_category=args.max_per_category or len(chunks) + 1,
     )
     n_concrete = sum(1 for r in added if r["specificity"] == "concrete")
     n_generic = len(added) - n_concrete
