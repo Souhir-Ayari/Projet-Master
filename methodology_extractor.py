@@ -147,10 +147,45 @@ _CONSEIL_UTILISATEUR_RE = re.compile(
     r"|^\s*(?:les\s+)?utilisateurs?\s+(?:doivent|devraient)"
     r"|^\s*be\s+(?:cautious|aware|careful)"
     r"|^\s*avoid\s+(?:sharing|clicking|following|using|providing|disclosing)"
-    r"|^\s*(?:regularly|always|never|carefully)\s+verify\b"
+    r"|^\s*(?:regularly|always|never|carefully)?\s*verify\s+(?:the\s+)?"
+    r"(?:authenticity|accuracy|facts?|information|source)"
     r"|^\s*educate\s+(?:the\s+)?users?",
     re.IGNORECASE,
 )
+
+
+# Une phrase qui CONSTATE l'absence de contre-mesure n'est pas une
+# contre-mesure : c'est un null mal formaté. La règle 3 de PROMPT_METHODOLOGY
+# le dit déjà au modèle, mais elle n'est pas toujours suivie — deux cas sur
+# treize dans le dernier run :
+#
+#   "Enabling persistent storage writing is currently under investigation [...]
+#    However, the text does not provide explicit mitigation for this specific
+#    attack."
+#   "The text suggests potential mitigations such as additional filtering [...]
+#    but no explicit defense against this specific attack is mentioned."
+#
+# is_filler_text ne les attrape pas : elle vise les jetons de remplissage
+# courts ("non spécifié", "N/A"), pas une phrase entière qui enrobe le constat
+# d'absence dans du contexte. Or le contenu utile y est nul par construction —
+# le modèle dit lui-même que le texte ne décrit rien. Stocker ces phrases
+# pollue la table de mitigations creuses que le retrieval proposerait comme
+# des remèdes.
+_ABSENCE_DE_MITIGATION_RE = re.compile(
+    r"\b(?:no|not|n'est\s+pas|aucune?)\b[^.]{0,60}?"
+    r"\b(?:mitigation|defen[cs]e|countermeasure|protection|remediation|"
+    r"mitigation|contre-mesure|défense)\b[^.]{0,60}?"
+    r"\b(?:mentioned|described|provided|specified|given|discussed|proposed|"
+    r"mentionnée?|décrite?|proposée?)\b"
+    r"|\b(?:does|do|did)\s+not\s+(?:provide|describe|mention|specify|propose)\b"
+    r"[^.]{0,60}?\b(?:mitigation|defen[cs]e|countermeasure)\b",
+    re.IGNORECASE,
+)
+
+
+def _declares_no_mitigation(summary: str | None) -> bool:
+    """Vrai si le résumé constate lui-même qu'aucune contre-mesure n'est décrite."""
+    return bool(summary) and bool(_ABSENCE_DE_MITIGATION_RE.search(summary))
 
 
 def _is_end_user_advice(summary: str | None) -> bool:
@@ -320,6 +355,15 @@ class MethodologyExtractor:
             mitigation_summary = self._clean_text_field(
                 parsed.get("mitigation_summary")
             )
+            # Honest null : une phrase qui constate l'absence de contre-mesure
+            # est un null enrobé de contexte, pas une mitigation.
+            if _declares_no_mitigation(mitigation_summary):
+                print(
+                    f"[⚠] mitigation ramenée à null — la phrase constate "
+                    f"elle-même qu'aucune contre-mesure n'est décrite : "
+                    f"{mitigation_summary[:80]!r}"
+                )
+                mitigation_summary = None
 
         confidence = parsed.get("confidence")
         try:
