@@ -743,7 +743,13 @@ GLINER_CONFIDENCE_THRESHOLD = 0.4  # seuil de score pour retenir une entité
 # classe ce résumé — il ne voit que le résumé déjà écrit, donc il ne peut
 # plus en contaminer le contenu.
 MITIGATION_TYPES = {
-    "filtering_rule": "règle de filtrage appliquée à l'entrée ou à la sortie du modèle (blocage de motifs, nettoyage du contenu récupéré, liste d'autorisation d'outils)",
+    # La mention explicite du contrôle d'accès et des quotas vient d'une
+    # observation : le modèle proposait "access_control" comme type pour
+    # "Preventing the LLM from writing to persistent storage and implementing
+    # strict access controls", et le type était rejeté faute d'exister. C'est
+    # pourtant bien une restriction de ce que le système autorise, donc une
+    # règle de filtrage — la description était trop étroite, pas la taxonomie.
+    "filtering_rule": "règle de filtrage ou de restriction appliquée à l'entrée, à la sortie ou aux actions du modèle (blocage de motifs, nettoyage du contenu récupéré, liste d'autorisation d'outils, contrôle d'accès aux données, limitation de débit ou de fenêtre de contexte)",
     "secure_prompt_template": "structure de prompt durcie : délimiteurs, séparation explicite instructions/données, consignes système renforcées, rappel de rôle",
     "detection_script": "détection automatisée a posteriori : classifieur, test, sonde ou script signalant une tentative d'attaque ou une sortie anormale",
 }

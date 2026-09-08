@@ -131,14 +131,24 @@ def _is_explicit_null(raw) -> bool:
 # secure_prompt_template. Le résumé reste conservé — c'est bien une
 # recommandation du papier — mais sans type, faute d'en mériter un.
 #
-# Le motif est volontairement étroit (la phrase COMMENCE par une adresse aux
-# utilisateurs) : "Implementing robust input validation, user awareness
-# training, and rate limiting" mentionne aussi les utilisateurs mais décrit
-# d'abord une mesure technique réelle, et doit garder son type.
+# Le motif ne s'applique qu'au DÉBUT de la phrase, volontairement :
+# "Implementing robust input validation, user awareness training, and rate
+# limiting" mentionne aussi les utilisateurs mais décrit d'abord une mesure
+# technique réelle, et doit garder son type. Ce qui compte est ce que la
+# phrase demande EN PREMIER — à une personne d'être prudente, ou au système
+# de faire quelque chose.
+#
+# Deux formes observées : l'adresse explicite ("Users should verify...") et
+# l'impératif adressé à un humain ("Avoid sharing personal information...",
+# "Regularly verify the accuracy..."). La seconde échappait au premier motif,
+# et se retrouvait typée filtering_rule ou detection_script.
 _CONSEIL_UTILISATEUR_RE = re.compile(
     r"^\s*(?:the\s+)?users?\s+(?:should|must|need|are|have\s+to|ought)"
     r"|^\s*(?:les\s+)?utilisateurs?\s+(?:doivent|devraient)"
-    r"|^\s*be\s+(?:cautious|aware|careful)",
+    r"|^\s*be\s+(?:cautious|aware|careful)"
+    r"|^\s*avoid\s+(?:sharing|clicking|following|using|providing|disclosing)"
+    r"|^\s*(?:regularly|always|never|carefully)\s+verify\b"
+    r"|^\s*educate\s+(?:the\s+)?users?",
     re.IGNORECASE,
 )
 
