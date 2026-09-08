@@ -95,6 +95,13 @@ def _is_technique_name_echo(summary: str | None, techniques: dict) -> bool:
     return candidate in names
 
 
+# Le modèle écrit parfois son "aucun des trois" comme une CHAÎNE plutôt que
+# comme le null JSON. C'est la bonne réponse, mal encodée : il ne faut pas la
+# journaliser comme un type rejeté, sinon le log signale une anomalie là où le
+# modèle a justement bien fait son travail.
+_TYPES_NULS = frozenset({"null", "none", "aucun", "aucune", "n/a", "na", ""})
+
+
 def _normalize_mitigation_type(raw: str | None) -> str | None:
     """
     Le modèle renvoie parfois le type avec des espaces, une majuscule ou un
@@ -106,6 +113,62 @@ def _normalize_mitigation_type(raw: str | None) -> str | None:
         return None
     candidate = raw.strip().lower().replace(" ", "_").replace("-", "_")
     return candidate if candidate in MITIGATION_TYPES else None
+
+
+def _is_explicit_null(raw) -> bool:
+    """Vrai si le modèle a dit "aucun type ne convient", quelle qu'en soit l'écriture."""
+    if raw is None:
+        return True
+    return isinstance(raw, str) and raw.strip().lower() in _TYPES_NULS
+
+
+# Une consigne adressée aux UTILISATEURS finaux ("les utilisateurs doivent
+# vérifier...", "soyez prudent...") n'est pas une contre-mesure technique :
+# elle ne s'implémente ni comme règle de filtrage, ni comme gabarit de prompt,
+# ni comme script de détection. Constaté sur Greshake et al. : le classifieur
+# rangeait "Users should verify information from LLMs" en detection_script et
+# "Users should be cautious when sharing personal information" en
+# secure_prompt_template. Le résumé reste conservé — c'est bien une
+# recommandation du papier — mais sans type, faute d'en mériter un.
+#
+# Le motif est volontairement étroit (la phrase COMMENCE par une adresse aux
+# utilisateurs) : "Implementing robust input validation, user awareness
+# training, and rate limiting" mentionne aussi les utilisateurs mais décrit
+# d'abord une mesure technique réelle, et doit garder son type.
+_CONSEIL_UTILISATEUR_RE = re.compile(
+    r"^\s*(?:the\s+)?users?\s+(?:should|must|need|are|have\s+to|ought)"
+    r"|^\s*(?:les\s+)?utilisateurs?\s+(?:doivent|devraient)"
+    r"|^\s*be\s+(?:cautious|aware|careful)",
+    re.IGNORECASE,
+)
+
+
+def _is_end_user_advice(summary: str | None) -> bool:
+    """Vrai si la mitigation est un conseil de prudence adressé aux utilisateurs."""
+    return bool(summary) and bool(_CONSEIL_UTILISATEUR_RE.search(summary))
+
+
+# Un résumé réduit à un renvoi bibliographique ("Jailbreak of ChatGPT
+# (ref: [13])") ne décrit pas l'attaque : il pointe vers un autre article.
+# strip_references_section coupe la bibliographie finale, mais les renvois
+# NUMÉROTÉS restent disséminés dans le corps du texte, et un chunk qui n'en
+# contient guère plus produit ce genre de résumé creux. Même bruit que
+# mistral_extractor._filter_citation_noise attrape à Layer 1, réapparu ici au
+# niveau du résumé complet.
+_RENVOI_BIBLIO_RE = re.compile(r"\(\s*(?:ref|cf|see|voir)?\.?\s*:?\s*\[\d{1,3}\]\s*\)|\[\d{1,3}\]")
+
+
+def _is_citation_stub(summary: str | None, max_mots: int = 8) -> bool:
+    """
+    Vrai si le résumé n'est qu'un titre suivi d'un renvoi de citation. Le
+    plafond de mots est déterminant : un vrai résumé d'attaque peut citer une
+    référence en passant, alors qu'un résumé de moins de huit mots CONTENANT
+    un renvoi n'a plus de place pour décrire quoi que ce soit.
+    """
+    if not summary or not _RENVOI_BIBLIO_RE.search(summary):
+        return False
+    reste = _RENVOI_BIBLIO_RE.sub("", summary)
+    return len(reste.split()) <= max_mots
 
 
 class MethodologyExtractor:
@@ -196,6 +259,13 @@ class MethodologyExtractor:
             )
             attack_present = False
             attack_summary = None
+        elif _is_citation_stub(attack_summary):
+            print(
+                f"[⚠] attack_summary rejeté — renvoi bibliographique plutôt "
+                f"que description d'attaque : {attack_summary!r}"
+            )
+            attack_present = False
+            attack_summary = None
 
         # Step 2 : le modèle PROPOSE une technique, on VALIDE contre la
         # short-list du domaine (attack_taxonomy.LLM_THREAT_TECHNIQUE_IDS ou
@@ -283,6 +353,17 @@ class MethodologyExtractor:
         if not mitigation_summary:
             return None
 
+        # Court-circuit : inutile d'interroger le modèle sur une phrase dont on
+        # sait déjà qu'elle n'est pas une contre-mesure technique. Le modèle,
+        # sommé de choisir parmi trois cases, en choisit toujours une.
+        if _is_end_user_advice(mitigation_summary):
+            print(
+                f"[⚠] mitigation non typée — conseil aux utilisateurs plutôt "
+                f"que contre-mesure technique (le résumé est conservé) : "
+                f"{mitigation_summary[:80]!r}"
+            )
+            return None
+
         prompt = PROMPT_MITIGATION_TYPE.format(
             mitigation_summary=mitigation_summary,
             mitigation_types=mitigation_types_block(),
@@ -296,7 +377,7 @@ class MethodologyExtractor:
         parsed = self.mistral._parse_json_full(raw_output)
         raw_type = parsed.get("mitigation_type")
         mitigation_type = _normalize_mitigation_type(raw_type)
-        if raw_type and not mitigation_type:
+        if not mitigation_type and not _is_explicit_null(raw_type):
             print(
                 f"[⚠] mitigation_type proposé rejeté — hors des types autorisés "
                 f"{sorted(MITIGATION_TYPES)} : {raw_type!r} (le résumé est conservé)"

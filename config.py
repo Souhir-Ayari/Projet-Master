@@ -769,9 +769,18 @@ Classe-la dans l'une des catégories suivantes :
 Règles :
 1. Réponds avec le nom EXACT de la catégorie (en minuscules avec underscores),
    ou null si la mesure décrite n'entre clairement dans aucune des trois.
-2. Ne reformule pas, ne complète pas, ne juge pas la mesure : tu ne fais que
+2. Les trois catégories désignent des contre-mesures TECHNIQUES, implémentées
+   dans le système. Réponds null pour tout le reste, notamment :
+   - une consigne adressée aux utilisateurs finaux ("les utilisateurs doivent
+     vérifier...", "soyez prudent avant de cliquer...") ;
+   - une recommandation d'organisation, de gouvernance ou de sensibilisation ;
+   - une remarque sur la méthodologie ou l'éthique des auteurs ("nous avons
+     testé localement, de façon responsable").
+   Ce sont peut-être de bonnes recommandations, mais aucune ne s'implémente
+   comme une règle de filtrage, un gabarit de prompt ou un script.
+3. Ne reformule pas, ne complète pas, ne juge pas la mesure : tu ne fais que
    la ranger dans une case.
-3. Réponds UNIQUEMENT avec un JSON valide, sans texte avant/après :
+4. Réponds UNIQUEMENT avec un JSON valide, sans texte avant/après :
 
 {{"mitigation_type": "<une des catégories ci-dessus, ou null>"}}
 
