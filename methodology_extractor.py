@@ -171,14 +171,25 @@ _CONSEIL_UTILISATEUR_RE = re.compile(
 # le modèle dit lui-même que le texte ne décrit rien. Stocker ces phrases
 # pollue la table de mitigations creuses que le retrieval proposerait comme
 # des remèdes.
+_MOT_DEFENSE = (
+    r"(?:mitigations?|defen[cs]es?|countermeasures?|protections?|"
+    r"remediations?|contre-mesures?|défenses?)"
+)
+_VERBE_MENTION = (
+    r"(?:mention|describe|provide|specify|give|discuss|propose|state|"
+    r"mentionn|décri|propos)\w*"
+)
+# Deux ordres possibles selon la tournure, et un adverbe s'intercale souvent
+# entre la négation et le verbe ("does not EXPLICITLY describe a mitigation") :
+# c'est ce qui faisait échouer la première version du motif.
 _ABSENCE_DE_MITIGATION_RE = re.compile(
-    r"\b(?:no|not|n'est\s+pas|aucune?)\b[^.]{0,60}?"
-    r"\b(?:mitigation|defen[cs]e|countermeasure|protection|remediation|"
-    r"mitigation|contre-mesure|défense)\b[^.]{0,60}?"
-    r"\b(?:mentioned|described|provided|specified|given|discussed|proposed|"
-    r"mentionnée?|décrite?|proposée?)\b"
-    r"|\b(?:does|do|did)\s+not\s+(?:provide|describe|mention|specify|propose)\b"
-    r"[^.]{0,60}?\b(?:mitigation|defen[cs]e|countermeasure)\b",
+    # "no explicit defense ... is mentioned" : négation, défense, puis verbe
+    rf"\b(?:no|not|aucune?)\b[^.]{{0,60}}?\b{_MOT_DEFENSE}\b[^.]{{0,60}}?"
+    rf"\b(?:mentioned|described|provided|specified|given|discussed|proposed|"
+    rf"mentionnée?|décrite?|proposée?)\b"
+    # "does not (explicitly) describe a mitigation" : négation, verbe, défense
+    rf"|\b(?:does|do|did|is|are|was|were)\s+not\s+(?:\w+\s+){{0,2}}{_VERBE_MENTION}"
+    rf"[^.]{{0,60}}?\b{_MOT_DEFENSE}\b",
     re.IGNORECASE,
 )
 

@@ -79,10 +79,18 @@ def specificity_rank(
     d'être gardé. Chaque composante répond à "lequel de ces deux résumés
     d'une même catégorie vaut-il mieux garder ?".
 
-    1. cas concret (specificity.is_specific_case) — un cas qui nomme un
-       système visé bat une reformulation générale, c'est le critère décisif ;
-    2. porte une mitigation — un cas sans contre-mesure n'apporte rien au
-       retrieval, dont le but est justement de proposer une remédiation ;
+    1. porte une mitigation — critère DÉCISIF. La table existe pour proposer
+       une remédiation face à une attaque nouvelle : un cas sans contre-mesure
+       n'y contribue pas, aussi précis soit-il. Mesuré sur le papier de
+       benchmark des défenses, l'ordre inverse (concret d'abord) écartait la
+       phrase qui énumère les dix défenses du papier — paraphrase,
+       retokenisation, délimiteurs, sandwich, prévention par instruction,
+       détection par perplexité, détection à réponse connue — au profit de
+       "Prompt Injection attack using PaLM 2", concret mais sans aucune
+       contre-mesure. C'est exactement l'inverse de ce que le sujet demande ;
+    2. cas concret (specificity.is_specific_case) — départage ensuite : à
+       mitigation égale, un cas qui nomme le système visé vaut mieux qu'une
+       reformulation générale ;
     3. nombre d'entités Layer 1 citées — mesure de l'ancrage factuel ;
     4. longueur du résumé, PLAFONNÉE à 40 mots — un résumé détaillé est
        préférable à "Indirect Prompt Injection" tout court, mais au-delà de
@@ -93,8 +101,8 @@ def specificity_rank(
     """
     summary = record.get("attack_summary") or ""
     return (
-        int(is_specific_case(summary, layer1_entities, domain)),
         int(bool(record.get("mitigation_summary"))),
+        int(is_specific_case(summary, layer1_entities, domain)),
         _entities_in_summary(summary, layer1_entities),
         min(len(summary.split()), 40),
         record.get("confidence") or 0.0,
