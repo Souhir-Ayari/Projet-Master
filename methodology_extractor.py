@@ -305,16 +305,52 @@ class MethodologyExtractor:
             else None
         )
 
-        # Un résumé qui n'est que l'étiquette d'une technique recopiée depuis
-        # le prompt ne décrit aucune attaque : l'enregistrement entier est
-        # abandonné plutôt que de garder un cas vide de contenu.
-        if _is_technique_name_echo(attack_summary, self.techniques):
+        # La mitigation est extraite AVANT les contrôles sur le résumé
+        # d'attaque : elle décide si un résumé creux condamne tout
+        # l'enregistrement ou seulement lui-même (voir ci-dessous).
+        mitigation_candidate = (
+            self._clean_text_field(parsed.get("mitigation_summary"))
+            if attack_present
+            else None
+        )
+        if _declares_no_mitigation(mitigation_candidate):
             print(
-                f"[⚠] attack_summary rejeté — recopie le nom d'une technique "
-                f"du prompt au lieu de décrire l'attaque : {attack_summary!r}"
+                f"[⚠] mitigation ramenée à null — la phrase constate "
+                f"elle-même qu'aucune contre-mesure n'est décrite : "
+                f"{mitigation_candidate[:80]!r}"
             )
-            attack_present = False
-            attack_summary = None
+            mitigation_candidate = None
+
+        # Un résumé qui n'est que l'étiquette d'une technique recopiée depuis
+        # le prompt ne décrit aucune attaque.
+        #
+        # Mais l'abandonner emportait aussi la mitigation du même chunk. Sur le
+        # papier de benchmark des défenses, deux chunks résumés paresseusement
+        # en "LLM Prompt Injection: Indirect" portaient "Response-based
+        # detection" et "Known-answer detection" — deux des dix défenses
+        # évaluées par le papier, perdues pour la seule raison que le résumé
+        # d'attaque était mal rédigé. Le mauvais champ condamnait le bon.
+        #
+        # L'enregistrement n'est donc abandonné que s'il ne porte AUCUNE
+        # contre-mesure. Avec une mitigation, il reste utile — l'étiquette
+        # décrit correctement la famille d'attaque, et c'est la défense qui
+        # fait la valeur de la ligne. La redondance que cela peut créer entre
+        # deux étiquettes identiques est déjà traitée en aval (deduplication
+        # par catégorie, contrôle de redondance de verifier_run).
+        if _is_technique_name_echo(attack_summary, self.techniques):
+            if mitigation_candidate:
+                print(
+                    f"[⚠] attack_summary faible (nom de technique recopié) mais "
+                    f"l'enregistrement est conservé pour sa mitigation : "
+                    f"{mitigation_candidate[:70]!r}"
+                )
+            else:
+                print(
+                    f"[⚠] attack_summary rejeté — recopie le nom d'une technique "
+                    f"du prompt et aucune mitigation à sauver : {attack_summary!r}"
+                )
+                attack_present = False
+                attack_summary = None
         elif _is_citation_stub(attack_summary):
             print(
                 f"[⚠] attack_summary rejeté — renvoi bibliographique plutôt "
@@ -361,20 +397,9 @@ class MethodologyExtractor:
         # Le TYPE de la mitigation n'est pas demandé ici : il fait l'objet
         # d'un second appel séparé (_classify_mitigation), appliqué au résumé
         # ci-dessous une fois qu'il est figé.
-        mitigation_summary = None
-        if attack_present:
-            mitigation_summary = self._clean_text_field(
-                parsed.get("mitigation_summary")
-            )
-            # Honest null : une phrase qui constate l'absence de contre-mesure
-            # est un null enrobé de contexte, pas une mitigation.
-            if _declares_no_mitigation(mitigation_summary):
-                print(
-                    f"[⚠] mitigation ramenée à null — la phrase constate "
-                    f"elle-même qu'aucune contre-mesure n'est décrite : "
-                    f"{mitigation_summary[:80]!r}"
-                )
-                mitigation_summary = None
+        # Déjà nettoyée plus haut (honest null compris) : elle devait être
+        # connue avant de décider du sort du résumé d'attaque.
+        mitigation_summary = mitigation_candidate if attack_present else None
 
         confidence = parsed.get("confidence")
         try:
