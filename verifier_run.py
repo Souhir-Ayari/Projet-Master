@@ -39,6 +39,10 @@ from mistral_extractor import is_filler_text
 # phrases, au-delà le modèle recopie un paragraphe du papier.
 MAX_SUMMARY_WORDS = 80
 
+# Au-dessus de ce recouvrement de vocabulaire, deux résumés d'une même
+# catégorie sont considérés comme des reformulations et déclenchent une alerte.
+SEUIL_REDONDANCE = 0.5
+
 
 # Mots vides ignorés dans la comparaison de résumés : deux phrases anglaises
 # partagent toujours "the/of/to", ce qui gonflerait artificiellement le
@@ -168,6 +172,28 @@ def verifier(table_path: str, paper: str = None) -> int:
     # plafond. Ce contrôle par recouvrement de vocabulaire est un niveau 2 du
     # pauvre — il ne fusionne rien, il signale seulement ce qu'un niveau 2 par
     # embeddings traiterait, pour décider s'il vaut la peine de l'implémenter.
+    # Le plafond de deduplication.py est un compromis : trop bas il écarte des
+    # cas réellement différents, trop haut il laisse passer des reformulations.
+    # Savoir OÙ il mord est la seule façon de trancher sur données plutôt que
+    # d'ajuster à l'aveugle. Un groupe saturé signifie que des cas ont été
+    # écartés ; c'est là, et seulement là, qu'il faut relire pour juger si le
+    # plafond doit bouger.
+    _section("SATURATION DU PLAFOND (groupes (papier, catégorie) pleins)")
+    groupes = Counter(
+        (r.get("source_paper"), r.get("category")) for r in records
+    )
+    plafond = max(groupes.values())
+    satures = [g for g, n in groupes.items() if n == plafond and plafond > 1]
+    print(f"  plus grand groupe observé : {plafond} enregistrement(s)")
+    if satures:
+        print(f"  {len(satures)} groupe(s) à ce maximum — candidats à la relecture :")
+        for paper, categorie in sorted(satures, key=lambda g: (g[0] or "", g[1] or "")):
+            print(f"    {plafond}x  {categorie or 'catégorie non validée'}  ({paper})")
+        print("  Si ces cas décrivent le même mécanisme, baisser --max-per-category ;")
+        print("  s'ils décrivent des mécanismes différents, le plafond peut monter.")
+    else:
+        print("  Aucun groupe saturé : le plafond ne contraint rien pour l'instant.")
+
     _section("REDONDANCE RÉSIDUELLE (résumés très proches, même catégorie)")
     paires = []
     for categorie in {r.get("category") for r in records}:
@@ -178,15 +204,25 @@ def verifier(table_path: str, paper: str = None) -> int:
                 if not mots_a or not mots_b:
                     continue
                 jaccard = len(mots_a & mots_b) / len(mots_a | mots_b)
-                if jaccard >= 0.5:
+                # Toutes les paires sont collectées, pas seulement celles au-
+                # dessus du seuil d'alerte : c'est la paire la PLUS PROCHE qui
+                # dit si le plafond est bien réglé, même quand elle reste
+                # largement sous le seuil.
+                if jaccard >= 0.15:
                     paires.append((jaccard, categorie, a, b))
     paires.sort(reverse=True, key=lambda p: p[0])
-    print(f"  {len(paires)} paire(s) de résumés à plus de 50% de vocabulaire commun")
+    au_dessus_du_seuil = [p for p in paires if p[0] >= SEUIL_REDONDANCE]
+    print(
+        f"  {len(au_dessus_du_seuil)} paire(s) au-dessus du seuil d'alerte "
+        f"({SEUIL_REDONDANCE:.0%} de vocabulaire commun)"
+    )
+    if paires:
+        print(f"  paire la plus proche du corpus : {paires[0][0]:.0%}")
     for jaccard, categorie, a, b in paires[:4]:
         print(f"\n    [{jaccard:.0%} commun — {categorie}]")
         print(f"      A: {a['attack_summary'][:88]}")
         print(f"      B: {b['attack_summary'][:88]}")
-    if len(paires) > 3:
+    if len(au_dessus_du_seuil) > 3:
         alertes.append(
             f"{len(paires)} paires de résumés quasi identiques subsistent. "
             "Baisser --max-per-category, ou implémenter le niveau 2 de "
