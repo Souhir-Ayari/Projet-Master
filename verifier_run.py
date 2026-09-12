@@ -43,6 +43,18 @@ MAX_SUMMARY_WORDS = 80
 # catégorie sont considérés comme des reformulations et déclenchent une alerte.
 SEUIL_REDONDANCE = 0.5
 
+# En dessous de ce nombre de mots porteurs de sens, un résumé ne peut pas être
+# comparé honnêtement à un autre : "LLM Prompt Injection: Indirect" n'a que
+# trois mots utiles, tous contenus dans "Indirect prompt injection on Bing Chat
+# for DDoS attacks" — le recouvrement affiche 50% alors que les deux cas n'ont
+# rien en commun (l'un limite les quotas d'API, l'autre détecte par la
+# réponse). Le score de Jaccard est instable sur les textes très courts : il
+# mesure la brièveté, pas la redondance.
+#
+# Ces résumés sont comptés à part, comme un défaut de qualité en soi : un
+# résumé de trois mots ne décrit pas une attaque, quel que soit son voisinage.
+MIN_MOTS_POUR_COMPARER = 5
+
 
 # Mots vides ignorés dans la comparaison de résumés : deux phrases anglaises
 # partagent toujours "the/of/to", ce qui gonflerait artificiellement le
@@ -201,7 +213,10 @@ def verifier(table_path: str, paper: str = None) -> int:
         for i, a in enumerate(groupe):
             for b in groupe[i + 1 :]:
                 mots_a, mots_b = _mots(a.get("attack_summary")), _mots(b.get("attack_summary"))
-                if not mots_a or not mots_b:
+                if (
+                    len(mots_a) < MIN_MOTS_POUR_COMPARER
+                    or len(mots_b) < MIN_MOTS_POUR_COMPARER
+                ):
                     continue
                 jaccard = len(mots_a & mots_b) / len(mots_a | mots_b)
                 # Toutes les paires sont collectées, pas seulement celles au-
@@ -242,8 +257,26 @@ def verifier(table_path: str, paper: str = None) -> int:
         for r in records
         if r.get("attack_summary") and len(r["attack_summary"].split()) > MAX_SUMMARY_WORDS
     ]
+    trop_courts = [
+        r
+        for r in records
+        if r.get("attack_summary")
+        and len(_mots(r["attack_summary"])) < MIN_MOTS_POUR_COMPARER
+    ]
     print(f"  texte de remplissage résiduel : {len(fillers)}")
     print(f"  résumés > {MAX_SUMMARY_WORDS} mots      : {len(trop_longs)}")
+    print(
+        f"  résumés trop courts (< {MIN_MOTS_POUR_COMPARER} mots utiles) : "
+        f"{len(trop_courts)}"
+    )
+    for r in trop_courts[:3]:
+        mit = " [porte une mitigation]" if r.get("mitigation_summary") else ""
+        print(f"    {r['attack_summary'][:70]}{mit}")
+    if trop_courts:
+        print(
+            "    (exclus de la comparaison de redondance : trop courts pour "
+            "être comparés honnêtement)"
+        )
     if fillers:
         alertes.append(
             f"{len(fillers)} champ(s) de remplissage ont échappé au filtre — "
