@@ -67,7 +67,6 @@ LLM_THREAT_TECHNIQUE_IDS = frozenset(
     {
         # --- Injection de prompt (coeur du sujet) ---
         "AML.T0051",  # LLM Prompt Injection
-        "AML.T0051.000",  # Direct
         "AML.T0051.001",  # Indirect
         "AML.T0051.002",  # Triggered
         "AML.T0093",  # Prompt Infiltration via Public-Facing Application
