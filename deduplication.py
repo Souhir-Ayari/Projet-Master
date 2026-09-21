@@ -47,7 +47,7 @@ from specificity import is_specific_case
 # légitimement décrire deux ou trois variantes réellement différentes d'une
 # même technique (chez Greshake, l'injection indirecte via page web, via
 # document, et via plugin sont des cas distincts qui partagent AML.T0051.001).
-MAX_CASES_PER_CATEGORY = 3
+MAX_CASES_PER_CATEGORY = 3  # Keep at most 3 distinct scenarios per category and paper
 
 # Le plafond s'applique PAR PAPIER, jamais globalement : deux papiers qui
 # décrivent la même technique apportent chacun leur point de vue, leurs
