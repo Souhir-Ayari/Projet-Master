@@ -236,6 +236,7 @@ recherche ne ramène rien d'exploitable.
 python test_retrieval.py              # 4 requêtes, top-3, table par défaut
 python test_retrieval.py --top-k 5
 python test_retrieval.py --offline    # sans Ollama : attack_summary bien transmis à Tier 2
+python test_retrieval.py --table results/knowledge_table_llm.jsonl --output files/retrieval_top3.txt
 ```
 Chaque requête décrit une attaque sans reprendre le nom de la technique
 (injection indirecte, fuite du prompt système, jailbreak, empoisonnement RAG)

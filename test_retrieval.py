@@ -27,10 +27,12 @@ Usage :
     python test_retrieval.py                       # table par défaut, top-3
     python test_retrieval.py --table results/knowledge_table.jsonl --top-k 5
     python test_retrieval.py --offline             # contrôle du fix, sans Ollama
+    python test_retrieval.py --table results/knowledge_table_llm.jsonl --output files/retrieval_top3.txt
 """
 
 import argparse
 import os
+import sys
 import tempfile
 from collections import Counter
 
@@ -207,6 +209,32 @@ def check_attack_summary_forwarding() -> bool:
     return ok
 
 
+class _Tee:
+    """
+    Écrit la sortie à la fois dans le terminal et dans un fichier UTF-8.
+
+    Une redirection PowerShell (`> fichier.txt`) écrit en UTF-16 et, sous
+    Windows, fait planter print() sur les caractères hors cp1252 (✓, «, ✗)
+    dès que la sortie n'est plus une console : --output évite les deux.
+    """
+
+    def __init__(self, path: str):
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        self.file = open(path, "w", encoding="utf-8")
+        self.console = sys.stdout
+
+    def write(self, text: str) -> None:
+        self.file.write(text)
+        try:
+            self.console.write(text)
+        except UnicodeEncodeError:
+            self.console.write(text.encode("ascii", "replace").decode("ascii"))
+
+    def flush(self) -> None:
+        self.file.flush()
+        self.console.flush()
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Teste le retrieval Tier 1 sur des requêtes manuelles (Step 6)."
@@ -219,7 +247,17 @@ def main():
         help="Contrôle seulement la transmission de attack_summary à Tier 2 "
         "(embeddings simulés, sans Ollama ni table réelle).",
     )
+    parser.add_argument(
+        "--output",
+        default=None,
+        help="Enregistre aussi la sortie dans ce fichier texte UTF-8 "
+        "(ex: files/retrieval_top3.txt), dossier créé si besoin.",
+    )
     args = parser.parse_args()
+
+    if args.output:
+        sys.stdout = _Tee(args.output)
+        print(f"# python test_retrieval.py {' '.join(sys.argv[1:])}\n")
 
     if args.offline:
         raise SystemExit(0 if check_attack_summary_forwarding() else 1)
