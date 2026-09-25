@@ -970,3 +970,9 @@ TIER2_ENABLED = False
 SEMANTIC_SCHOLAR_API_URL = "https://api.semanticscholar.org/graph/v1/paper/search"
 ARXIV_API_URL = "http://export.arxiv.org/api/query"
 TIER2_MAX_RESULTS = 5
+
+# Repli de Tier 2 quand l'attaque n'a ni CVE, ni paquet, ni ID MITRE (cas
+# courant sur le domaine "llm") : la requête live est construite à partir des
+# premiers mots de attack_summary. Au-delà, les termes discriminants sont
+# noyés dans la phrase et Semantic Scholar/arXiv ramènent du bruit.
+TIER2_SUMMARY_MAX_WORDS = 20

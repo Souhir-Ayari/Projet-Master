@@ -38,6 +38,7 @@ from config import (
     TIER2_ENABLED,
     TIER2_LOG_PATH,
     TIER2_MAX_RESULTS,
+    TIER2_SUMMARY_MAX_WORDS,
 )
 from jsonl_utils import append_jsonl
 from knowledge_table import embed_text, load_table
@@ -107,14 +108,36 @@ def _log_tier2_trigger(query: dict, outcome: str, n_ingested: int = 0) -> None:
     )
 
 
-def _build_tier2_query(cve: str = None, package: str = None, mitre_id: str = None) -> str:
-    """Construit une requête textuelle à partir des identifiants disponibles de l'attaque."""
+def _build_tier2_query(
+    cve: str = None,
+    package: str = None,
+    mitre_id: str = None,
+    attack_summary: str = None,
+    max_summary_words: int = TIER2_SUMMARY_MAX_WORDS,
+) -> str:
+    """
+    Construit une requête textuelle à partir des identifiants disponibles de
+    l'attaque, et à défaut de son résumé.
+
+    Les identifiants (CVE, paquet, ID MITRE) restent prioritaires : ils sont
+    précis et courts, exactement ce qu'attend une recherche par mots-clés.
+    Mais sur le domaine "llm", une nouvelle attaque n'a presque jamais de CVE
+    ni de paquet, et l'ID MITRE est souvent inconnu au moment de la requête :
+    sans repli sur attack_summary, Tier 2 levait une ValueError alors que la
+    description de l'attaque était bien disponible (elle n'était simplement
+    pas transmise depuis retrieve()). Le résumé est tronqué : une phrase
+    entière noie les termes discriminants dans la recherche Semantic
+    Scholar/arXiv.
+    """
     parts = [p for p in (cve, package, mitre_id) if p]
-    if not parts:
-        raise ValueError(
-            "Au moins un identifiant (cve, package ou mitre_id) est requis pour Tier 2."
-        )
-    return " ".join(parts)
+    if parts:
+        return " ".join(parts)
+    if attack_summary and attack_summary.strip():
+        return " ".join(attack_summary.split()[:max_summary_words])
+    raise ValueError(
+        "Au moins un identifiant (cve, package ou mitre_id) ou un résumé "
+        "d'attaque est requis pour Tier 2."
+    )
 
 
 def _search_semantic_scholar(query: str, max_results: int, timeout: int = 20) -> list[dict]:
@@ -169,15 +192,16 @@ def tier2_search(
     cve: str = None,
     package: str = None,
     mitre_id: str = None,
+    attack_summary: str = None,
     max_results: int = TIER2_MAX_RESULTS,
 ) -> list[dict]:
     """
-    Construit une requête à partir des identifiants disponibles de l'attaque,
-    cherche sur Semantic Scholar puis arXiv en repli. Journalise
+    Construit une requête à partir des identifiants disponibles de l'attaque
+    (ou de son résumé à défaut, voir _build_tier2_query), cherche sur Semantic Scholar puis arXiv en repli. Journalise
     systématiquement le déclenchement (voir _log_tier2_trigger), y compris en
     cas d'échec réseau des deux sources.
     """
-    query = _build_tier2_query(cve, package, mitre_id)
+    query = _build_tier2_query(cve, package, mitre_id, attack_summary)
     results = _search_semantic_scholar(query, max_results)
     source = "semantic_scholar"
     if not results:
@@ -186,7 +210,13 @@ def tier2_search(
 
     outcome = f"{len(results)} résultat(s) via {source}" if results else "aucun résultat exploitable"
     _log_tier2_trigger(
-        query={"cve": cve, "package": package, "mitre_id": mitre_id, "text": query},
+        query={
+            "attack_summary": attack_summary,
+            "cve": cve,
+            "package": package,
+            "mitre_id": mitre_id,
+            "text": query,
+        },
         outcome=outcome,
     )
     return results
@@ -214,6 +244,15 @@ def retrieve(
     best_score = tier1_results[0]["similarity_score"] if tier1_results else 0.0
 
     result = {
+        # Requête renvoyée avec le résultat : sans elle, une sortie de
+        # query_knowledge.py sauvegardée pour l'évaluation ne dit plus à
+        # quelle attaque ses cas répondent.
+        "query": {
+            "attack_summary": query_attack_summary,
+            "category": query_category,
+            "cve": cve,
+            "package": package,
+        },
         "tier1_results": tier1_results,
         "best_score": best_score,
         "tier2_triggered": False,
@@ -224,11 +263,19 @@ def retrieve(
         if TIER2_ENABLED:
             result["tier2_triggered"] = True
             result["tier2_search_results"] = tier2_search(
-                cve=cve, package=package, mitre_id=query_category
+                cve=cve,
+                package=package,
+                mitre_id=query_category,
+                attack_summary=query_attack_summary,
             )
         else:
             _log_tier2_trigger(
-                query={"cve": cve, "package": package, "mitre_id": query_category},
+                query={
+                    "attack_summary": query_attack_summary,
+                    "cve": cve,
+                    "package": package,
+                    "mitre_id": query_category,
+                },
                 outcome=(
                     f"Tier 2 aurait été déclenché (best_score={best_score:.3f} "
                     f"< {threshold}) mais TIER2_ENABLED=False"

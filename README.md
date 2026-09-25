@@ -99,6 +99,7 @@ Le terminal affichera, pour chaque méthode :
 | `jsonl_utils.py` | Lecture/écriture JSONL partagées |
 | `build_knowledge.py` | Orchestrateur CLI OFFLINE : PDF → Layer 1 → Layer 2 → table de connaissance |
 | `query_knowledge.py` | Orchestrateur CLI de retrieval sur la table de connaissance |
+| `test_retrieval.py` | Requêtes manuelles à famille ATLAS connue -> Hit@k du retrieval Tier 1 (+ contrôle hors ligne de Tier 2) |
 
 ## Pipeline méthodologie/mitigation (Layer 2)
 
@@ -229,6 +230,32 @@ Scholar/arXiv, ingestion à la volée) est **désactivé par défaut**
 augmenté contrôlable, pas une réécriture. Chaque déclenchement de Tier 2 est
 journalisé dans `results/tier2_retrieval_log.jsonl`, y compris quand la
 recherche ne ramène rien d'exploitable.
+
+### Tester le retrieval sur des requêtes manuelles
+```bash
+python test_retrieval.py              # 4 requêtes, top-3, table par défaut
+python test_retrieval.py --top-k 5
+python test_retrieval.py --offline    # sans Ollama : attack_summary bien transmis à Tier 2
+```
+Chaque requête décrit une attaque sans reprendre le nom de la technique
+(injection indirecte, fuite du prompt système, jailbreak, empoisonnement RAG)
+et porte l'ensemble des techniques ATLAS attendues. Le script affiche le top-k
+(score, catégorie, spécificité, papier source) et un Hit@k. Une requête dont
+aucune catégorie attendue n'existe dans la table est comptée **hors corpus**,
+pas comme un raté : c'est la taille du corpus qui est en cause, pas le
+retrieval. Le critère par catégorie ne remplace pas la relecture des résumés
+remontés.
+
+Sans CVE, paquet ni ID MITRE (cas courant sur le domaine `llm`), Tier 2
+construit sa requête live à partir des premiers mots de l'`attack_summary`
+(`config.TIER2_SUMMARY_MAX_WORDS`) ; le résumé est aussi journalisé et renvoyé
+dans le champ `query` du résultat.
+
+**Limite à signaler dans le papier** : la table de connaissance de la première
+soumission compte ~25 enregistrements. Les Hit@k mesurés dessus portent sur
+peu de requêtes et sur une couverture partielle de la short-list ATLAS (d'où
+le décompte « hors corpus ») ; ce sont des indications de fonctionnement, pas
+des performances généralisables.
 
 ### Ce qui n'est PAS implémenté
 
