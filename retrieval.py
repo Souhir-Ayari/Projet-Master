@@ -33,6 +33,7 @@ import requests
 from config import (
     ARXIV_API_URL,
     KNOWLEDGE_ATTACK_VECTORS_PATH,
+    RETRIEVAL_CATEGORY_BONUS,
     RETRIEVAL_SIMILARITY_THRESHOLD,
     SEMANTIC_SCHOLAR_API_URL,
     TIER2_ENABLED,
@@ -81,7 +82,7 @@ def tier1_retrieve(
             continue  # vecteur orphelin (rare : table_path et vectors_path désynchronisés)
         similarity = float(similarity)
         if query_category and record.get("category") == query_category:
-            similarity = min(1.0, similarity + 0.05)
+            similarity = min(1.0, similarity + RETRIEVAL_CATEGORY_BONUS)
         scored.append((similarity, record))
 
     scored.sort(key=lambda pair: pair[0], reverse=True)
@@ -255,11 +256,20 @@ def retrieve(
         },
         "tier1_results": tier1_results,
         "best_score": best_score,
+        "threshold": threshold,
+        # tier2_triggered vaut toujours False tant que TIER2_ENABLED=False :
+        # seul, il confond "score suffisant, Tier 2 inutile" et "score
+        # insuffisant, Tier 2 nécessaire mais désactivé". tier2_would_trigger
+        # expose ce second cas dans le JSON lui-même (et plus seulement dans
+        # tier2_retrieval_log.jsonl), pour pouvoir le citer comme preuve dans
+        # la section limitations du papier.
+        "tier2_would_trigger": best_score < threshold,
+        "tier2_enabled": TIER2_ENABLED,
         "tier2_triggered": False,
         "tier2_search_results": [],
     }
 
-    if best_score < threshold:
+    if result["tier2_would_trigger"]:
         if TIER2_ENABLED:
             result["tier2_triggered"] = True
             result["tier2_search_results"] = tier2_search(

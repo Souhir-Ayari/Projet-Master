@@ -16,10 +16,16 @@ La catégorie attendue dépend du domaine du corpus interrogé : AML.Txxxx
 "supply_chain". Elle sert de bonus de similarité, jamais de filtre — une
 catégorie du mauvais référentiel ne fait donc que ne matcher aucun
 enregistrement, sans casser la recherche.
+
+--output enregistre le JSON en UTF-8 (une redirection PowerShell `>` écrit
+en UTF-16, illisible pour json.load) :
+    python query_knowledge.py --attack-summary "..." --table
+        results/knowledge_table_llm.jsonl --output files/retrieval_relevant_test.json
 """
 
 import argparse
 import json
+import os
 
 from config import KNOWLEDGE_TABLE_PATH
 from knowledge_table import load_table, vector_paths_for
@@ -51,6 +57,12 @@ def main():
         "du nom de la table, comme à la construction — sans ça, interroger un "
         "corpus séparé lisait ses textes mais les vecteurs de l'autre.",
     )
+    parser.add_argument(
+        "--output",
+        default=None,
+        help="Enregistre aussi le résultat JSON dans ce fichier (UTF-8), "
+        "dossier créé si besoin.",
+    )
     args = parser.parse_args()
 
     attack_vectors_path, _ = vector_paths_for(args.table)
@@ -62,7 +74,13 @@ def main():
         table=load_table(args.table),
         attack_vectors_path=attack_vectors_path,
     )
-    print(json.dumps(result, indent=2, ensure_ascii=False))
+    output = json.dumps(result, indent=2, ensure_ascii=False)
+    print(output)
+    if args.output:
+        os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
+        with open(args.output, "w", encoding="utf-8") as f:
+            f.write(output + "\n")
+        print(f"\n[✓] Résultat enregistré dans {args.output}")
 
 
 if __name__ == "__main__":

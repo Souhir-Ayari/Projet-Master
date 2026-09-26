@@ -99,6 +99,8 @@ Le terminal affichera, pour chaque méthode :
 | `jsonl_utils.py` | Lecture/écriture JSONL partagées |
 | `build_knowledge.py` | Orchestrateur CLI OFFLINE : PDF → Layer 1 → Layer 2 → table de connaissance |
 | `query_knowledge.py` | Orchestrateur CLI de retrieval sur la table de connaissance |
+| `remediation.py` | Step 7 : boucle Propose -> Verify -> Revise minimale (N=1), vérification de traçabilité en code |
+| `run_remediation.py` | Orchestrateur CLI du Step 7 : 3 modes (sans retrieval / retrieval / retrieval + boucle) -> Table IV |
 | `test_retrieval.py` | Requêtes manuelles à famille ATLAS connue -> Hit@k du retrieval Tier 1 (+ contrôle hors ligne de Tier 2) |
 
 ## Pipeline méthodologie/mitigation (Layer 2)
@@ -258,15 +260,48 @@ peu de requêtes et sur une couverture partielle de la short-list ATLAS (d'où
 le décompte « hors corpus ») ; ce sont des indications de fonctionnement, pas
 des performances généralisables.
 
+### Plan de remédiation : boucle Propose -> Verify -> Revise (Step 7)
+
+Version minimale (`remediation.py`), lancée sur les requêtes du Bloc 1 :
+
+- **Propose** : un appel Mistral, prompt contraint aux cas récupérés
+  (numérotés C1, C2...). Chaque recommandation cite ses cas ; une liste vide
+  est une réponse valide quand aucun cas ne s'applique.
+- **Verify** : règle déterministe en code, sans LLM. Une recommandation est
+  *traçable* si elle cite un cas existant, que ce cas porte une mitigation, et
+  qu'au moins 30 % de ses mots porteurs de sens se retrouvent dans cette
+  mitigation (`MIN_LEXICAL_SUPPORT`).
+- **Revise** : une seule itération (N=1), seulement si Verify rejette quelque
+  chose. Ce qui reste non traçable après la révision est écarté du plan final
+  (et conservé dans `dropped`).
+
+```bash
+python run_remediation.py --table results/knowledge_table_llm.jsonl --output-dir files/rq3
+```
+
+Produit un JSON par requête (cas récupérés, propositions, verdicts, révision,
+plan final) et `table_iv_summary.json` : pour chacun des trois modes
+(`no_retrieval`, `retrieval`, `retrieval_loop`), le nombre de recommandations,
+le taux de traçabilité, les rejets avant révision, les recommandations
+écartées et le nombre d'appels LLM. Verify est calculé dans les trois modes
+contre les mêmes cas récupérés, pour que la traçabilité soit comparable.
+L'empreinte SHA-256 de la table est enregistrée dans chaque résultat : la
+table est figée, les chiffres ne sont comparables qu'à empreinte égale.
+
+Traçable ne veut pas dire pertinent : une défense fidèlement recopiée d'un cas
+récupéré peut ne pas s'appliquer à l'attaque (typiquement sur la requête hors
+domaine). La pertinence relève de l'évaluation humaine (5 cas, Likert 1-5).
+
 ### Ce qui n'est PAS implémenté
 
-La boucle Propose → Verify → Revise (Step 7 du plan complet) n'est
-volontairement pas implémentée : elle dépend d'avoir d'abord une table de
-connaissance non triviale (15-30+ papers) pour être évaluable. De même, le
-score de généralisabilité noté par LLM avec auto-cohérence reste une version
-future documentée dans `generalizability.py` — la version actuelle (comptage
-d'entités Layer 1 nommées dans la mitigation) est la version "cheap,
-reproducible" demandée en priorité.
+- **Tier 2** (recherche live) : travail futur. Le champ `tier2_would_trigger`
+  de la sortie du retrieval indique, requête par requête, quand il aurait été
+  nécessaire (`best_score < threshold`) — `tier2_triggered` reste `false` tant
+  que `TIER2_ENABLED=False`.
+- **Ablation N=1/2/3** de la boucle : N fixé à 1.
+- **Score de généralisabilité noté par LLM** avec auto-cohérence : version
+  future documentée dans `generalizability.py` ; la version actuelle compte les
+  entités Layer 1 nommées dans la mitigation.
 
 ## Notes méthodologiques
 

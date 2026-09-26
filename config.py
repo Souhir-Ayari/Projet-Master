@@ -964,6 +964,12 @@ OLLAMA_EMBEDDINGS_URL = "http://localhost:11434/api/embeddings"
 # cosinus ; à recalibrer une fois la table de connaissance non triviale.
 RETRIEVAL_SIMILARITY_THRESHOLD = 0.6
 
+# Step 6 - Tier 1 : bonus α ajouté à la similarité cosinus quand la catégorie
+# ATLAS de la requête correspond exactement à celle du cas (score plafonné à
+# 1.0). Faible par construction : départage deux cas proches, ne fait jamais
+# remonter un cas sémantiquement éloigné.
+RETRIEVAL_CATEGORY_BONUS = 0.05
+
 # Step 6 - Tier 2 : flag de config dès le départ (demandé explicitement) pour
 # que "statique vs augmenté" soit une ablation contrôlée, pas une réécriture.
 TIER2_ENABLED = False
