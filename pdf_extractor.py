@@ -187,6 +187,18 @@ def strip_references_section(text: str) -> str:
         re.IGNORECASE,
     )
     match = pattern.search(text)
+    if not match:
+        # Mise en page sur deux colonnes : pdfplumber lit les lignes de gauche
+        # à droite, et le titre se retrouve collé à la première référence de
+        # l'autre colonne ("REFERENCES [34] Microsoft. 2023. ..."), ce que le
+        # motif ci-dessus (titre seul sur sa ligne) ne voit pas. Constaté sur
+        # Prompt-Injection.pdf : les deux derniers chunks, pure bibliographie,
+        # partaient dans GLiNER/Mistral. Restreint au titre EN MAJUSCULES
+        # suivi d'un numéro de référence, pour ne jamais couper sur un
+        # "References" en début de phrase.
+        match = re.search(
+            r"\n[ \t]*(?:REFERENCES|BIBLIOGRAPHY|RÉFÉRENCES)[ \t]+\[\d+\]", text
+        )
     return text[: match.start()] if match else text
 
 

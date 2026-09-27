@@ -59,6 +59,19 @@ Affiche dans le terminal le JSON du Cas 1 (GLiNER), puis du Cas 2 en variante
 python main.py --pdf rapport.pdf --hybrid
 ```
 
+### Ground truth du corpus LLM (RQ1)
+
+`ground_truth_prompt_injection.json` annote `Prompt-Injection.pdf` (Greshake
+et al., AISec'23) avec la taxonomie `config.LLM_THREAT_ENTITY_LABELS` :
+45 entités distinctes, chacune vérifiée présente dans le texte extrait par
+`pdf_extractor.py` (bibliographie retirée). Statut `draft_to_validate` : la
+liste doit être relue à la main avant d'être rapportée comme annotation
+manuelle.
+
+```bash
+python main.py --pdf files/Prompt-Injection.pdf --ground-truth ground_truth_prompt_injection.json --variants naive engineered custom topic --domain llm --user-need "..."
+```
+
 ### 3. Avec évaluation F1 / hallucination
 
 Copiez `ground_truth_template.json`, annotez-le à la main pour VOTRE PDF

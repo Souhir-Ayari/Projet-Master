@@ -1,0 +1,188 @@
+{
+  "_comment": "Ground truth Layer 1 pour Prompt-Injection.pdf (Greshake/Abdelnabi et al., AISec'23), taxonomie config.LLM_THREAT_ENTITY_LABELS (domaine llm). Brouillon pré-annoté : chaque entité est présente dans le texte extrait par pdf_extractor.py, mais la liste DOIT être relue et validée à la main avant d'être rapportée comme annotation manuelle. Entités distinctes (une par texte) : evaluator.py apparie sur le texte seul.",
+  "pdf_file": "Prompt-Injection.pdf",
+  "domain": "llm",
+  "annotation_status": "draft_to_validate",
+  "entities": [
+    {
+      "text": "GPT-4",
+      "label": "modèle LLM ciblé"
+    },
+    {
+      "text": "GPT-3",
+      "label": "modèle LLM ciblé"
+    },
+    {
+      "text": "text-davinci-003",
+      "label": "modèle LLM ciblé"
+    },
+    {
+      "text": "OpenAI Codex",
+      "label": "modèle LLM ciblé"
+    },
+    {
+      "text": "Bing Chat",
+      "label": "application ou service intégrant un LLM"
+    },
+    {
+      "text": "ChatGPT",
+      "label": "application ou service intégrant un LLM"
+    },
+    {
+      "text": "Github Copilot",
+      "label": "application ou service intégrant un LLM"
+    },
+    {
+      "text": "Microsoft 365 Copilot",
+      "label": "application ou service intégrant un LLM"
+    },
+    {
+      "text": "ChatGPT Retrieval Plugin",
+      "label": "application ou service intégrant un LLM"
+    },
+    {
+      "text": "Bard",
+      "label": "application ou service intégrant un LLM"
+    },
+    {
+      "text": "Microsoft Edge",
+      "label": "application ou service intégrant un LLM"
+    },
+    {
+      "text": "Indirect Prompt Injection",
+      "label": "nom du système ou de l'attaque proposé par les auteurs"
+    },
+    {
+      "text": "AI Malware",
+      "label": "nom du système ou de l'attaque proposé par les auteurs"
+    },
+    {
+      "text": "Multi-stage Exploit",
+      "label": "nom du système ou de l'attaque proposé par les auteurs"
+    },
+    {
+      "text": "Encoded Injections",
+      "label": "nom du système ou de l'attaque proposé par les auteurs"
+    },
+    {
+      "text": "Remote Control",
+      "label": "nom du système ou de l'attaque proposé par les auteurs"
+    },
+    {
+      "text": "Arbitrarily-Wrong Summaries",
+      "label": "nom du système ou de l'attaque proposé par les auteurs"
+    },
+    {
+      "text": "Passive Methods",
+      "label": "vecteur d'entrée"
+    },
+    {
+      "text": "Active Methods",
+      "label": "vecteur d'entrée"
+    },
+    {
+      "text": "User-Driven Injections",
+      "label": "vecteur d'entrée"
+    },
+    {
+      "text": "code repositories",
+      "label": "vecteur d'entrée"
+    },
+    {
+      "text": "Search Engine Optimization",
+      "label": "vecteur d'entrée"
+    },
+    {
+      "text": "social engineering",
+      "label": "vecteur d'entrée"
+    },
+    {
+      "text": "jailbreaking",
+      "label": "mécanisme de contournement"
+    },
+    {
+      "text": "Hidden Injections",
+      "label": "mécanisme de contournement"
+    },
+    {
+      "text": "Base64",
+      "label": "mécanisme de contournement"
+    },
+    {
+      "text": "homoglyph",
+      "label": "mécanisme de contournement"
+    },
+    {
+      "text": "Zero-Width-Joiner",
+      "label": "mécanisme de contournement"
+    },
+    {
+      "text": "program obfuscation",
+      "label": "mécanisme de contournement"
+    },
+    {
+      "text": "payload splitting",
+      "label": "mécanisme de contournement"
+    },
+    {
+      "text": "virtualization",
+      "label": "mécanisme de contournement"
+    },
+    {
+      "text": "data theft",
+      "label": "impact sur le modèle"
+    },
+    {
+      "text": "worming",
+      "label": "impact sur le modèle"
+    },
+    {
+      "text": "denial of service",
+      "label": "impact sur le modèle"
+    },
+    {
+      "text": "persistent compromise",
+      "label": "impact sur le modèle"
+    },
+    {
+      "text": "arbitrary code execution",
+      "label": "impact sur le modèle"
+    },
+    {
+      "text": "disinformation",
+      "label": "impact sur le modèle"
+    },
+    {
+      "text": "phishing",
+      "label": "impact sur le modèle"
+    },
+    {
+      "text": "Information Gathering",
+      "label": "impact sur le modèle"
+    },
+    {
+      "text": "Manipulated Content",
+      "label": "impact sur le modèle"
+    },
+    {
+      "text": "RLHF",
+      "label": "défense ou garde-fou cité"
+    },
+    {
+      "text": "spam detection",
+      "label": "défense ou garde-fou cité"
+    },
+    {
+      "text": "LLM supervisor",
+      "label": "défense ou garde-fou cité"
+    },
+    {
+      "text": "outlier detection",
+      "label": "défense ou garde-fou cité"
+    },
+    {
+      "text": "code review",
+      "label": "défense ou garde-fou cité"
+    }
+  ]
+}
