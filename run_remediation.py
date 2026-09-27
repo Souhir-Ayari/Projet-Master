@@ -36,7 +36,7 @@ import time
 from config import KNOWLEDGE_TABLE_PATH, OLLAMA_MODEL_NAME, TIER2_ENABLED
 from knowledge_table import load_table, vector_paths_for
 from remediation import MIN_LEXICAL_SUPPORT, MODES, Remediator
-from retrieval import retrieve
+from retrieval import VectorStoreError, check_vector_store, retrieve
 
 DEFAULT_QUERIES = [
     {
@@ -91,6 +91,12 @@ def main():
     if not table:
         raise SystemExit(f"[✗] Table vide ou absente : {args.table}")
     attack_vectors_path, _ = vector_paths_for(args.table)
+    # Sans cas récupérés, les trois modes tourneraient à vide et Verify
+    # rejetterait tout : mieux vaut s'arrêter avec la vraie cause.
+    try:
+        check_vector_store(table, attack_vectors_path)
+    except VectorStoreError as e:
+        raise SystemExit(f"[✗] {e}")
     table_hash = file_sha256(args.table)
 
     if args.queries:

@@ -25,6 +25,7 @@ PDF complet. Ce découpage évite de coupler ce module de recherche au reste
 du pipeline d'extraction.
 """
 
+import os
 import time
 import xml.etree.ElementTree as ET
 
@@ -44,6 +45,56 @@ from config import (
 from jsonl_utils import append_jsonl
 from knowledge_table import embed_text, load_table
 from vector_store import cosine_similarities, load_vectors
+
+
+class VectorStoreError(Exception):
+    """Levée quand la table et son store vectoriel ne permettent aucun retrieval."""
+
+
+def check_vector_store(table: list[dict], attack_vectors_path: str) -> dict:
+    """
+    Vérifie que la table et son store vectoriel d'attaque sont utilisables
+    ENSEMBLE, et lève VectorStoreError avec un diagnostic sinon.
+
+    Sans ce contrôle, tier1_retrieve renvoyait silencieusement [] dans deux
+    cas indiscernables en sortie (best_score=0.0, aucun cas) : le fichier .npz
+    est absent — le plus souvent parce que la table a été construite sous un
+    autre nom, et ses vecteurs avec elle —, ou bien il existe mais aucun de ses
+    record_id n'est dans la table (table reconstruite ou remplacée sans ses
+    vecteurs). En aval, la boucle Propose-Verify-Revise tournait alors sur zéro
+    cas et rejetait tout, ce qui ressemblait à un échec de la boucle.
+    """
+    table_ids = {r["record_id"] for r in table}
+    if not os.path.exists(attack_vectors_path):
+        raise VectorStoreError(
+            f"Store vectoriel introuvable : {attack_vectors_path}\n"
+            "    Les vecteurs d'une table portent le nom de la table "
+            "(<table>_attack_vectors.npz), sauf pour la table par défaut "
+            "(knowledge_attack_vectors.npz). Vérifier les .npz présents dans "
+            "results/ : renommer le bon fichier, ou reconstruire la table."
+        )
+    ids, matrix = load_vectors(attack_vectors_path)
+    matched = sum(1 for i in ids if i in table_ids)
+    report = {
+        "vectors_path": attack_vectors_path,
+        "n_vectors": int(len(ids)),
+        "n_records": len(table),
+        "n_matched": matched,
+    }
+    if matrix.size == 0 or matched == 0:
+        raise VectorStoreError(
+            f"Aucun des {len(ids)} vecteurs de {attack_vectors_path} ne "
+            f"correspond aux {len(table)} record_id de la table : la table et "
+            "ses vecteurs sont désynchronisés (table reconstruite ou copiée "
+            "sans ses vecteurs). Reprendre le .npz produit en même temps que "
+            "cette table, ou reconstruire la table."
+        )
+    if matched < len(table_ids):
+        print(
+            f"[⚠] {len(table_ids) - matched} enregistrement(s) de la table sans "
+            f"vecteur dans {attack_vectors_path} : ils ne pourront jamais remonter."
+        )
+    return report
 
 
 def tier1_retrieve(

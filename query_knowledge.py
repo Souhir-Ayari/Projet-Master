@@ -31,7 +31,7 @@ import time
 from config import KNOWLEDGE_TABLE_PATH, RETRIEVAL_RUNS_DIR
 from jsonl_utils import save_run_json
 from knowledge_table import load_table, vector_paths_for
-from retrieval import retrieve
+from retrieval import VectorStoreError, check_vector_store, retrieve
 
 
 def main():
@@ -68,12 +68,19 @@ def main():
     args = parser.parse_args()
 
     attack_vectors_path, _ = vector_paths_for(args.table)
+    table = load_table(args.table)
+    if not table:
+        raise SystemExit(f"[✗] Table vide ou absente : {args.table}")
+    try:
+        check_vector_store(table, attack_vectors_path)
+    except VectorStoreError as e:
+        raise SystemExit(f"[✗] {e}")
     result = retrieve(
         query_attack_summary=args.attack_summary,
         query_category=args.category,
         cve=args.cve,
         package=args.package,
-        table=load_table(args.table),
+        table=table,
         attack_vectors_path=attack_vectors_path,
     )
     print(json.dumps(result, indent=2, ensure_ascii=False))

@@ -96,6 +96,11 @@ def run_queries(table_path: str, top_k: int, json_path: str = None) -> None:
         print(f"[✗] Table vide ou absente : {table_path} — lancer build_knowledge.py d'abord.")
         return
     attack_vectors_path, _ = vector_paths_for(table_path)
+    try:
+        retrieval.check_vector_store(table, attack_vectors_path)
+    except retrieval.VectorStoreError as e:
+        print(f"[✗] {e}")
+        return
 
     categories_in_table = Counter(r.get("category") for r in table)
     papers = sorted({r.get("source_paper") for r in table if r.get("source_paper")})
