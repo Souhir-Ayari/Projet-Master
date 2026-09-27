@@ -275,8 +275,15 @@ Version minimale (`remediation.py`), lancée sur les requêtes du Bloc 1 :
   est une réponse valide quand aucun cas ne s'applique.
 - **Verify** : règle déterministe en code, sans LLM. Une recommandation est
   *traçable* si elle cite un cas existant, que ce cas porte une mitigation, et
-  qu'au moins 30 % de ses mots porteurs de sens se retrouvent dans cette
-  mitigation (`MIN_LEXICAL_SUPPORT`).
+  qu'au moins 60 % de ses mots porteurs de sens se retrouvent dans cette
+  mitigation (`MIN_LEXICAL_SUPPORT`). Son type devient celui de la mitigation
+  citée (déjà validé à Layer 2) ; les doublons sont retirés du plan final.
+- **Seuil de similarité** : seuls les cas récupérés au-dessus de
+  `RETRIEVAL_SIMILARITY_THRESHOLD` (0.6) sont montrés au modèle et citables.
+  Sans aucun cas au-dessus (requête hors domaine), les modes `retrieval` et
+  `retrieval_loop` s'abstiennent sans appel LLM.
+- **JSON invalide** : les recommandations sont récupérées une par une et
+  l'incident est compté (`n_parse_errors`) — jamais confondu avec une abstention.
 - **Revise** : une seule itération (N=1), seulement si Verify rejette quelque
   chose. Ce qui reste non traçable après la révision est écarté du plan final
   (et conservé dans `dropped`).

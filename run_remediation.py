@@ -147,7 +147,10 @@ def main():
 
         for mode in args.modes:
             start = time.time()
-            run = remediator.run(query["attack_summary"], cases, mode)
+            run = remediator.run(
+                query["attack_summary"], cases, mode,
+                min_similarity=retrieval_result["threshold"],
+            )
             run["seconds"] = round(time.time() - start, 1)
             record["runs"][mode] = run
             print(
@@ -155,6 +158,8 @@ def main():
                 f"traçabilité={_fmt(run['traceability_rate'])}, "
                 f"appels LLM={run['n_llm_calls']}"
                 + (", révision déclenchée" if run["revision_triggered"] else "")
+                + (", ABSTENTION : aucun cas au-dessus du seuil" if run["abstained_no_case"] else "")
+                + (f", {run['n_parse_errors']} JSON invalide(s)" if run["n_parse_errors"] else "")
             )
             for rec in run["final_plan"]:
                 mark = "✓" if rec["traceable"] else "✗"
@@ -169,6 +174,10 @@ def main():
                 "revision_triggered": run["revision_triggered"],
                 "n_rejected_initial": run["n_rejected_initial"],
                 "n_dropped": len(run.get("dropped") or []),
+                "n_duplicates": len(run.get("duplicates") or []),
+                "n_eligible_cases": run["n_eligible_cases"],
+                "abstained_no_case": run["abstained_no_case"],
+                "n_parse_errors": run["n_parse_errors"],
                 "n_llm_calls": run["n_llm_calls"],
                 "seconds": run["seconds"],
             })
@@ -190,11 +199,16 @@ def main():
 
     print("TABLE IV (brouillon) — traçabilité = part des recommandations finales "
           "traçables vers un cas récupéré ; — = plan vide (abstention)")
-    print(f"{'requête':18} {'mode':16} {'#reco':>5} {'traçab.':>8} {'ancrée':>7} {'rejets':>6} {'écartées':>8} {'appels':>6}")
+    print(f"{'requête':18} {'mode':16} {'cas':>3} {'#reco':>5} {'traçab.':>8} {'ancrée':>7} "
+          f"{'rejets':>6} {'écartées':>8} {'doubl.':>6} {'JSON✗':>5} {'appels':>6}")
     for row in summary_rows:
-        print(f"{row['query']:18} {row['mode']:16} {row['n_recommendations']:>5} "
+        print(f"{row['query']:18} {row['mode']:16} {row['n_eligible_cases']:>3} "
+              f"{row['n_recommendations']:>5} "
               f"{_fmt(row['traceability_rate']):>8} {_fmt(row['supported_rate']):>7} "
-              f"{row['n_rejected_initial']:>6} {row['n_dropped']:>8} {row['n_llm_calls']:>6}")
+              f"{row['n_rejected_initial']:>6} {row['n_dropped']:>8} {row['n_duplicates']:>6} "
+              f"{row['n_parse_errors']:>5} {row['n_llm_calls']:>6}")
+    print("cas = cas récupérés au-dessus du seuil de similarité (seuls citables) ; "
+          "JSON✗ = réponses invalides, récupérées recommandation par recommandation")
     print(f"\n[✓] Résumé : {summary_path}")
 
 

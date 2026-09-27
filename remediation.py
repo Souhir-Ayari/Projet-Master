@@ -38,10 +38,18 @@ from mistral_extractor import MistralExtractor, MistralGenerationError
 MODES = ("no_retrieval", "retrieval", "retrieval_loop")
 
 # Part minimale des mots porteurs de sens d'une recommandation qui doivent se
-# retrouver dans la mitigation du cas cité. 0.3 tolère la reformulation
-# (le modèle ne recopie pas mot pour mot) mais rejette une défense inventée,
-# dont le vocabulaire ne recoupe pas celui du cas qu'elle prétend citer.
-MIN_LEXICAL_SUPPORT = 0.3
+# retrouver dans la mitigation du cas cité. Mesuré sur le premier run réel :
+# les recommandations fidèles recopient la mitigation (ancrage 1.0), alors
+# qu'une révision a produit une défense HYBRIDE — la mitigation de C1 plus
+# une défense inventée ("... using secure prompt templates with explicit
+# separation") — ancrée à 0.5, que l'ancien seuil de 0.3 laissait passer.
+# 0.6 exige qu'une majorité nette du contenu vienne du cas cité.
+MIN_LEXICAL_SUPPORT = 0.6
+
+# Deux recommandations dont les mots porteurs de sens se recouvrent à ce
+# point (Jaccard) sont la même défense : la révision renvoie parfois une
+# variante d'une recommandation déjà acceptée.
+DUPLICATE_OVERLAP = 0.8
 
 # Mots vides ignorés dans le calcul d'ancrage : sans ça, "the/of/to" et le
 # vocabulaire commun du domaine ("model", "attack") suffiraient à faire
@@ -236,13 +244,69 @@ def verify(recommendations: list[dict], cases: list[dict]) -> list[dict]:
         else:
             reason = None
 
-        if rec.get("mitigation_type") not in MITIGATION_TYPES:
+        # Le type d'une recommandation traçable est celui de la mitigation
+        # qu'elle reprend, déjà validé à Layer 2 : le modèle le réattribuait
+        # sinon librement ("rendre public le fonctionnement interne" typé
+        # detection_script). Le type proposé est conservé pour l'analyse.
+        annotated["proposed_type"] = rec.get("mitigation_type")
+        best_case = max(
+            with_mitigation,
+            key=lambda i: lexical_support(action, cases[i]["mitigation_summary"]),
+            default=None,
+        )
+        if reason is None and best_case is not None:
+            annotated["mitigation_type"] = cases[best_case].get("mitigation_type")
+        elif rec.get("mitigation_type") not in MITIGATION_TYPES:
             annotated["mitigation_type"] = None  # même découplage que Layer 2
 
         annotated["traceable"] = reason is None
         annotated["reason"] = reason
         verified.append(annotated)
     return verified
+
+
+def deduplicate(recommendations: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Garde la première occurrence de chaque défense ; renvoie (gardées, doublons)."""
+    kept, duplicates = [], []
+    for rec in recommendations:
+        words = content_words(rec.get("action"))
+        is_dup = any(
+            words and (len(words & content_words(k.get("action"))) /
+                       len(words | content_words(k.get("action")))) >= DUPLICATE_OVERLAP
+            for k in kept
+        )
+        (duplicates if is_dup else kept).append(rec)
+    return kept, duplicates
+
+
+_FIELD_RE = {
+    "action": re.compile(r'"action"\s*:\s*"((?:[^"\\]|\\.)*)"'),
+    "mitigation_type": re.compile(r'"mitigation_type"\s*:\s*"?([a-z_]+)"?'),
+    "cited_cases": re.compile(r'"cited_cases"\s*:\s*\[([^\]]*)\]'),
+}
+
+
+def salvage_recommendations(raw: str) -> list[dict]:
+    """
+    Repli quand la réponse n'est pas un JSON valide dans son ensemble :
+    récupère les recommandations une par une, par champ. Constaté sur le
+    premier run réel : une seule virgule manquante dans la 3e recommandation
+    rendait tout le JSON invalide, et les deux premières — correctes — étaient
+    perdues, ce qui comptait à tort comme une abstention.
+    """
+    recs = []
+    for block in re.split(r'(?=\{\s*"action")', raw)[1:]:
+        action = _FIELD_RE["action"].search(block)
+        if not action:
+            continue
+        mtype = _FIELD_RE["mitigation_type"].search(block)
+        cited = _FIELD_RE["cited_cases"].search(block)
+        recs.append({
+            "action": action.group(1),
+            "mitigation_type": mtype.group(1) if mtype and mtype.group(1) != "null" else None,
+            "cited_cases": [f"C{n}" for n in _CASE_ID_RE.findall(cited.group(1))] if cited else [],
+        })
+    return recs
 
 
 def traceability_rate(verified: list[dict]) -> float | None:
@@ -259,18 +323,31 @@ class Remediator:
     def __init__(self, mistral: MistralExtractor = None):
         self.mistral = mistral or MistralExtractor()
         self.n_llm_calls = 0
+        self.n_parse_errors = 0
 
     def _call(self, prompt: str) -> tuple[list[dict], str]:
-        """Un appel LLM -> (recommandations parsées, réponse brute)."""
+        """
+        Un appel LLM -> (recommandations parsées, réponse brute). Si le JSON
+        est invalide, les recommandations sont récupérées une par une
+        (salvage_recommendations) et l'incident est compté dans
+        self.n_parse_errors : une réponse illisible ne doit jamais passer
+        pour une abstention.
+        """
         self.n_llm_calls += 1
         try:
             raw = self.mistral._generate(prompt)
         except MistralGenerationError as e:
             print(f"[⚠] Échec de génération : {e}")
+            self.n_parse_errors += 1
             return [], f"<échec de génération : {e}>"
         parsed = self.mistral._parse_json_full(raw)
-        recs = parsed.get("recommendations", []) if isinstance(parsed, dict) else []
-        return [r for r in recs if isinstance(r, dict)], raw
+        if isinstance(parsed, dict) and "recommendations" in parsed:
+            recs = parsed["recommendations"] or []
+            return [r for r in recs if isinstance(r, dict)], raw
+        self.n_parse_errors += 1
+        salvaged = salvage_recommendations(raw)
+        print(f"[⚠] JSON invalide : {len(salvaged)} recommandation(s) récupérée(s) une par une.")
+        return salvaged, raw
 
     def propose(self, attack: str, cases: list[dict], use_retrieval: bool):
         if use_retrieval:
@@ -290,7 +367,9 @@ class Remediator:
         )
         return self._call(prompt)
 
-    def run(self, attack: str, cases: list[dict], mode: str) -> dict:
+    def run(
+        self, attack: str, cases: list[dict], mode: str, min_similarity: float = 0.0
+    ) -> dict:
         """
         Exécute un mode de la Table IV sur une attaque et ses cas récupérés.
         `cases` est toujours fourni (même en no_retrieval) : le modèle ne les
@@ -300,23 +379,47 @@ class Remediator:
         if mode not in MODES:
             raise ValueError(f"Mode inconnu : {mode} (attendu : {MODES})")
         self.n_llm_calls = 0
+        self.n_parse_errors = 0
 
-        proposed, raw_propose = self.propose(attack, cases, use_retrieval=mode != "no_retrieval")
-        verified = verify(proposed, cases)
+        # Seuls les cas au-dessus du seuil de similarité (le même qui décide
+        # tier2_would_trigger) sont assez proches pour fonder une défense.
+        # Sans ce filtre, la requête hors domaine (tour Eiffel, 0.43)
+        # recevait trois défenses "traçables" : fidèles à des cas... qui ne
+        # parlent pas de la même chose. Verify compare les trois modes aux
+        # MÊMES cas éligibles, pour que la traçabilité reste comparable.
+        eligible = [c for c in cases if c.get("similarity_score", 0) >= min_similarity]
         result = {
             "mode": mode,
-            "proposed": verified,
-            "raw_propose": raw_propose,
+            "min_similarity": min_similarity,
+            "n_eligible_cases": len(eligible),
+            "abstained_no_case": False,
+            "proposed": [],
+            "raw_propose": None,
             "revised": None,
             "raw_revise": None,
             "revision_triggered": False,
         }
+
+        if mode != "no_retrieval" and not eligible:
+            # Abstention motivée, sans appel LLM : aucun cas assez proche,
+            # donc aucune défense traçable possible.
+            result["abstained_no_case"] = True
+            proposed, raw_propose = [], None
+        else:
+            proposed, raw_propose = self.propose(
+                attack, eligible, use_retrieval=mode != "no_retrieval"
+            )
+        cases = eligible
+        verified = verify(proposed, cases)
+        result["proposed"] = verified
+        result["raw_propose"] = raw_propose
 
         # Rejets de la PREMIÈRE proposition, comptés dans les trois modes :
         # c'est ce que la boucle est censée faire baisser.
         result["n_rejected_initial"] = sum(not r["traceable"] for r in verified)
 
         final = verified
+        result["dropped"] = []
         if mode == "retrieval_loop":
             rejected = [r for r in verified if not r["traceable"]]
             if rejected:
@@ -332,6 +435,8 @@ class Remediator:
             result["dropped"] = [r for r in final if not r["traceable"]]
             final = [r for r in final if r["traceable"]]
 
+        final, duplicates = deduplicate(final)
+        result["duplicates"] = duplicates
         result["final_plan"] = final
         result["n_recommendations"] = len(final)
         result["traceability_rate"] = traceability_rate(final)
@@ -341,4 +446,5 @@ class Remediator:
             else None
         )
         result["n_llm_calls"] = self.n_llm_calls
+        result["n_parse_errors"] = self.n_parse_errors
         return result
