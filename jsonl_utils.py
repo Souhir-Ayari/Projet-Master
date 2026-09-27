@@ -13,6 +13,8 @@ sauvegardée.
 
 import json
 import os
+import re
+import time
 
 
 def append_jsonl(path: str, record: dict) -> None:
@@ -66,3 +68,21 @@ def clear_jsonl(path: str) -> None:
     """
     if os.path.exists(path):
         os.remove(path)
+
+
+def save_run_json(payload: dict, directory: str, prefix: str, label: str = "", path: str = None) -> str:
+    """
+    Enregistre le résultat d'UN lancement dans un fichier JSON UTF-8 et renvoie
+    son chemin. Sans `path`, le nom est horodaté (prefix_AAAAMMJJ-HHMMSS_label
+    .json) : deux lancements ne s'écrasent jamais, même avec la même requête.
+    """
+    if path is None:
+        slug = re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-")[:40]
+        name = f"{prefix}_{time.strftime('%Y%m%d-%H%M%S')}" + (f"_{slug}" if slug else "")
+        path = os.path.join(directory, name + ".json")
+    if os.path.dirname(path):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+    return path

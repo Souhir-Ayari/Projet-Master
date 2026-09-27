@@ -223,6 +223,12 @@ catégories d'attaque — un seul paper ne suffit pas.
 python query_knowledge.py --attack-summary "Une page web récupérée par l'agent contient des instructions cachées" --category AML.T0051.001
 python query_knowledge.py --attack-summary "Backdoor introduite via un mainteneur compromis" --category T1195
 ```
+Chaque lancement enregistre son résultat JSON (UTF-8) dans `files/retrieval/`,
+sous un nom horodaté qui ne s'écrase jamais (`query_AAAAMMJJ-HHMMSS_<début de
+la requête>.json`) ; `--output` impose un nom précis. `test_retrieval.py` fait
+de même (`test_top<k>_AAAAMMJJ-HHMMSS.json` : cas remontés, verdict par
+requête, Hit@k), `--json` pour imposer le nom.
+
 La catégorie suit le référentiel du corpus interrogé (`AML.Txxxx` pour `llm`,
 `Txxxx` pour `supply_chain`) ; elle sert de bonus de similarité, jamais de
 filtre.

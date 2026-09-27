@@ -34,11 +34,12 @@ import argparse
 import os
 import sys
 import tempfile
+import time
 from collections import Counter
 
 import retrieval
-from config import KNOWLEDGE_TABLE_PATH, RETRIEVAL_SIMILARITY_THRESHOLD
-from jsonl_utils import read_jsonl
+from config import KNOWLEDGE_TABLE_PATH, RETRIEVAL_RUNS_DIR, RETRIEVAL_SIMILARITY_THRESHOLD
+from jsonl_utils import read_jsonl, save_run_json
 from knowledge_table import load_table, vector_paths_for
 from vector_store import add_vectors
 
@@ -84,7 +85,12 @@ QUERIES = [
 ]
 
 
-def run_queries(table_path: str, top_k: int) -> None:
+def run_queries(table_path: str, top_k: int, json_path: str = None) -> None:
+    """
+    Lance les requêtes manuelles, affiche le détail et enregistre le résultat
+    complet (cas remontés, verdict par requête, Hit@k) dans un fichier JSON :
+    `json_path`, ou à défaut un nom horodaté dans config.RETRIEVAL_RUNS_DIR.
+    """
     table = load_table(table_path)
     if not table:
         print(f"[✗] Table vide ou absente : {table_path} — lancer build_knowledge.py d'abord.")
@@ -97,6 +103,7 @@ def run_queries(table_path: str, top_k: int) -> None:
     print("Catégories présentes :", dict(categories_in_table.most_common()))
 
     hits, evaluable = 0, 0
+    query_reports = []
     for query in QUERIES:
         expected = query["expected_categories"]
         in_corpus = sum(categories_in_table.get(c, 0) for c in expected)
@@ -127,18 +134,56 @@ def run_queries(table_path: str, top_k: int) -> None:
             )
 
         if in_corpus == 0:
+            verdict = "out_of_corpus"
             print("    -> HORS CORPUS : aucun cas de cette famille dans la table, "
                   "raté attendu (limite de taille du corpus, pas du retrieval)")
-            continue
-        evaluable += 1
-        if n_good:
-            hits += 1
-            print(f"    -> OK : {n_good}/{len(results)} cas de la bonne famille dans le top-{top_k}")
         else:
-            print(f"    -> RATÉ : aucun cas de la bonne famille dans le top-{top_k}")
+            evaluable += 1
+            if n_good:
+                hits += 1
+                verdict = "hit"
+                print(f"    -> OK : {n_good}/{len(results)} cas de la bonne famille dans le top-{top_k}")
+            else:
+                verdict = "miss"
+                print(f"    -> RATÉ : aucun cas de la bonne famille dans le top-{top_k}")
+
+        best = results[0]["similarity_score"] if results else 0.0
+        query_reports.append({
+            "name": query["name"],
+            "attack_summary": query["attack_summary"],
+            "expected_categories": sorted(expected),
+            "cases_in_table": in_corpus,
+            "verdict": verdict,
+            "n_good_in_top_k": n_good,
+            "best_score": best,
+            "tier2_would_trigger": best < RETRIEVAL_SIMILARITY_THRESHOLD,
+            "results": [
+                {k: r.get(k) for k in (
+                    "record_id", "similarity_score", "category", "specificity",
+                    "source_paper", "attack_summary", "mitigation_type", "mitigation_summary",
+                )}
+                for r in results
+            ],
+        })
 
     print(f"\nHit@{top_k} : {hits}/{evaluable} requêtes évaluables "
           f"({len(QUERIES) - evaluable} hors corpus)")
+
+    payload = {
+        "run": {
+            "script": "test_retrieval.py",
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "table": table_path,
+            "n_records": len(table),
+            "top_k": top_k,
+            "threshold": RETRIEVAL_SIMILARITY_THRESHOLD,
+        },
+        "hit_at_k": {"hits": hits, "evaluable": evaluable,
+                     "out_of_corpus": len(QUERIES) - evaluable},
+        "queries": query_reports,
+    }
+    path = save_run_json(payload, RETRIEVAL_RUNS_DIR, f"test_top{top_k}", path=json_path)
+    print(f"[✓] Résultat JSON enregistré dans {path}")
 
 
 def check_attack_summary_forwarding() -> bool:
@@ -250,8 +295,14 @@ def main():
     parser.add_argument(
         "--output",
         default=None,
-        help="Enregistre aussi la sortie dans ce fichier texte UTF-8 "
+        help="Enregistre aussi la sortie du terminal dans ce fichier texte UTF-8 "
         "(ex: files/retrieval_top3.txt), dossier créé si besoin.",
+    )
+    parser.add_argument(
+        "--json",
+        default=None,
+        help="Nom du fichier JSON de résultat (par défaut : nom horodaté dans "
+        "files/retrieval/). Le JSON est enregistré à chaque lancement.",
     )
     args = parser.parse_args()
 
@@ -261,7 +312,7 @@ def main():
 
     if args.offline:
         raise SystemExit(0 if check_attack_summary_forwarding() else 1)
-    run_queries(args.table, args.top_k)
+    run_queries(args.table, args.top_k, args.json)
 
 
 if __name__ == "__main__":

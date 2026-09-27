@@ -17,17 +17,19 @@ La catégorie attendue dépend du domaine du corpus interrogé : AML.Txxxx
 catégorie du mauvais référentiel ne fait donc que ne matcher aucun
 enregistrement, sans casser la recherche.
 
---output enregistre le JSON en UTF-8 (une redirection PowerShell `>` écrit
-en UTF-16, illisible pour json.load) :
+Chaque lancement enregistre son résultat JSON (UTF-8) dans
+config.RETRIEVAL_RUNS_DIR (files/retrieval/), sous un nom horodaté qui
+reprend le début de la requête. --output choisit un nom précis à la place :
     python query_knowledge.py --attack-summary "..." --table
         results/knowledge_table_llm.jsonl --output files/retrieval_relevant_test.json
 """
 
 import argparse
 import json
-import os
+import time
 
-from config import KNOWLEDGE_TABLE_PATH
+from config import KNOWLEDGE_TABLE_PATH, RETRIEVAL_RUNS_DIR
+from jsonl_utils import save_run_json
 from knowledge_table import load_table, vector_paths_for
 from retrieval import retrieve
 
@@ -60,8 +62,8 @@ def main():
     parser.add_argument(
         "--output",
         default=None,
-        help="Enregistre aussi le résultat JSON dans ce fichier (UTF-8), "
-        "dossier créé si besoin.",
+        help="Nom du fichier JSON de résultat (par défaut : nom horodaté "
+        "dans files/retrieval/).",
     )
     args = parser.parse_args()
 
@@ -74,13 +76,19 @@ def main():
         table=load_table(args.table),
         attack_vectors_path=attack_vectors_path,
     )
-    output = json.dumps(result, indent=2, ensure_ascii=False)
-    print(output)
-    if args.output:
-        os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
-        with open(args.output, "w", encoding="utf-8") as f:
-            f.write(output + "\n")
-        print(f"\n[✓] Résultat enregistré dans {args.output}")
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+    payload = {
+        "run": {
+            "script": "query_knowledge.py",
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "table": args.table,
+        },
+        **result,
+    }
+    path = save_run_json(
+        payload, RETRIEVAL_RUNS_DIR, "query", label=args.attack_summary, path=args.output
+    )
+    print(f"\n[✓] Résultat enregistré dans {path}")
 
 
 if __name__ == "__main__":
