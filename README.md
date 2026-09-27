@@ -68,8 +68,15 @@ et al., AISec'23) avec la taxonomie `config.LLM_THREAT_ENTITY_LABELS` :
 liste doit être relue à la main avant d'être rapportée comme annotation
 manuelle.
 
+Une méthode par run (un run Mistral complet dure plusieurs heures sur CPU),
+chaque run enregistrant ses scores dans `eval_<méthode>.json`, puis
+assemblage de la Table I :
+
 ```bash
-python main.py --pdf files/Prompt-Injection.pdf --ground-truth ground_truth_prompt_injection.json --variants naive engineered custom topic --domain llm --user-need "..."
+python main.py --pdf files/Prompt-Injection.pdf --ground-truth ground_truth_prompt_injection.json --only gliner --output-dir results/rq1_prompt_injection
+python main.py --pdf files/Prompt-Injection.pdf --ground-truth ground_truth_prompt_injection.json --only topic --output-dir results/rq1_prompt_injection
+# ... idem pour naive, engineered, custom (--user-need "...")
+python rq1_table.py --dir results/rq1_prompt_injection
 ```
 
 ### 3. Avec évaluation F1 / hallucination
@@ -114,6 +121,7 @@ Le terminal affichera, pour chaque méthode :
 | `query_knowledge.py` | Orchestrateur CLI de retrieval sur la table de connaissance |
 | `remediation.py` | Step 7 : boucle Propose -> Verify -> Revise minimale (N=1), vérification de traçabilité en code |
 | `run_remediation.py` | Orchestrateur CLI du Step 7 : 3 modes (sans retrieval / retrieval / retrieval + boucle) -> Table IV |
+| `rq1_table.py` | Assemble la Table I (RQ1) à partir des `eval_<méthode>.json` écrits par `main.py --only` |
 | `test_retrieval.py` | Requêtes manuelles à famille ATLAS connue -> Hit@k du retrieval Tier 1 (+ contrôle hors ligne de Tier 2) |
 
 ## Pipeline méthodologie/mitigation (Layer 2)

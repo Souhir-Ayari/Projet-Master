@@ -29,6 +29,12 @@ Usage :
     # Ou sans --user-need : le programme vous le demandera à l'exécution.
     python main.py --pdf rapport.pdf --variants custom
 
+    # Une seule méthode par run (RQ1 : une ligne de la Table I à la fois),
+    # résultats et scores dans un dossier dédié, puis assemblage :
+    python main.py --pdf paper.pdf --ground-truth gt.json --only gliner --output-dir results/rq1
+    python main.py --pdf paper.pdf --ground-truth gt.json --only topic --output-dir results/rq1
+    python rq1_table.py --dir results/rq1
+
     # Prompt spécifique au sujet "attaques de chaîne d'approvisionnement / backdoors"
     # (utile pour un document type XZ Utils, SolarWinds, Log4Shell) :
     python main.py --pdf rapport.pdf --ground-truth ground_truth_xz_backdoor.json \\
@@ -89,6 +95,7 @@ def save_to_history(data: dict, filename: str):
 
 
 def main():
+    global OUTPUT_DIR
     parser = argparse.ArgumentParser(
         description="Expérience GLiNER vs Mistral 7B (prompt-based) - extraction cybersécurité"
     )
@@ -133,6 +140,22 @@ def main():
         "point de comparaison indépendant du sujet.",
     )
     parser.add_argument(
+        "--only",
+        default=None,
+        choices=["gliner", "naive", "naive_schema", "engineered", "custom", "topic"],
+        help="Lance UNE seule méthode (GLiNER ou une variante Mistral) au lieu "
+        "de GLiNER + toutes les --variants. Un run complet dure plusieurs "
+        "heures sur CPU : une méthode par run permet de les enchaîner "
+        "séparément, chacune enregistrant ses scores dans eval_<méthode>.json "
+        "(assemblés ensuite par rq1_table.py).",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default=OUTPUT_DIR,
+        help="Dossier des résultats (défaut : results). Un dossier par "
+        "expérience évite qu'un run écrase les fichiers d'un autre corpus.",
+    )
+    parser.add_argument(
         "--user-need",
         default=None,
         help="Besoin d'extraction spécifique en langage naturel, utilisé uniquement "
@@ -141,6 +164,10 @@ def main():
         "Si non fourni et que 'custom' est demandé, une saisie interactive sera proposée.",
     )
     args = parser.parse_args()
+
+    OUTPUT_DIR = args.output_dir
+    run_gliner = args.only in (None, "gliner")
+    variants = [] if args.only == "gliner" else ([args.only] if args.only else args.variants)
 
     # --- 1. Extraction du texte ---------------------------------------
     print(f"[1/4] Lecture du PDF : {args.pdf}")
@@ -156,21 +183,24 @@ def main():
     all_results = {}
 
     # --- 2. CAS 1 : GLiNER (NER pur) -----------------------------------
-    print("\n[2/4] CAS 1 : extraction NER pure (GLiNER)")
-    gliner = GLiNERExtractor()
-    gliner_output = gliner.extract_from_chunks(chunks)
-    save_json(gliner_output, "case1_gliner.json")
-    all_results["gliner_ner"] = gliner_output
+    gliner = None
+    if run_gliner:
+        print("\n[2/4] CAS 1 : extraction NER pure (GLiNER)")
+        gliner = GLiNERExtractor()
+        gliner_output = gliner.extract_from_chunks(chunks)
+        save_json(gliner_output, "case1_gliner.json")
+        all_results["gliner_ner"] = gliner_output
 
     # --- 3. CAS 2 : Mistral prompt-based (variantes choisies) ----------
-    print(
-        f"\n[3/4] CAS 2 : extraction prompt-based (Mistral 7B, backend={args.backend})"
-    )
-    mistral = MistralExtractor(backend=args.backend)
+    if variants:
+        print(
+            f"\n[3/4] CAS 2 : extraction prompt-based (Mistral 7B, backend={args.backend})"
+        )
+    mistral = MistralExtractor(backend=args.backend) if variants or args.hybrid else None
 
     # Récupère le besoin utilisateur une seule fois si la variante 'custom' est demandée
     user_need = args.user_need
-    if "custom" in args.variants and not user_need:
+    if "custom" in variants and not user_need:
         print("\n" + "-" * 70)
         user_need = input(
             "👉 Décrivez précisément ce que vous voulez extraire du document\n"
@@ -178,7 +208,7 @@ def main():
         ).strip()
         print("-" * 70)
 
-    for variant in args.variants:
+    for variant in variants:
         need = user_need if variant == "custom" else None
         result = mistral.extract_from_chunks(
             chunk_texts, prompt_variant=variant, user_need=need, domain=args.domain
@@ -196,7 +226,7 @@ def main():
         from hybrid_extractor import HybridExtractor
 
         print("\n[4/4] CAS HYBRIDE : GLiNER -> validation Mistral")
-        hybrid = HybridExtractor(gliner=gliner, mistral=mistral)
+        hybrid = HybridExtractor(gliner=gliner or GLiNERExtractor(), mistral=mistral)
         hybrid_output = hybrid.extract(
             text if len(chunk_texts) == 1 else chunk_texts[0]
         )
@@ -218,6 +248,20 @@ def main():
             print(f"\n--- {method_name} ---")
             ev_dict = ev.to_dict()
             print(json.dumps(ev_dict, indent=2, ensure_ascii=False))
+            # Scores de CHAQUE méthode dans leur propre fichier : avec --only,
+            # final_comparison.json ne contient que la méthode du dernier
+            # run ; ces fichiers permettent d'assembler la Table I ensuite.
+            save_json(
+                {
+                    **ev_dict,
+                    "pdf": os.path.basename(args.pdf),
+                    "ground_truth": args.ground_truth,
+                    "domain": args.domain,
+                    "n_chunks": len(chunks),
+                    "timestamp": datetime.datetime.now().isoformat(),
+                },
+                f"eval_{method_name}.json",
+            )
 
         comparison = compare_methods(eval_results)
         print(f"\n{'=' * 70}\nCLASSEMENT FINAL\n{'=' * 70}")
