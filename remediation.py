@@ -46,9 +46,12 @@ MODES = ("no_retrieval", "retrieval", "retrieval_loop")
 # 0.6 exige qu'une majorité nette du contenu vienne du cas cité.
 MIN_LEXICAL_SUPPORT = 0.6
 
-# Deux recommandations dont les mots porteurs de sens se recouvrent à ce
-# point (Jaccard) sont la même défense : la révision renvoie parfois une
-# variante d'une recommandation déjà acceptée.
+# Deux recommandations sont la même défense quand la plus courte est incluse
+# à ce point dans l'autre (coefficient de recouvrement |A∩B| / min(|A|,|B|)).
+# Pas de Jaccard : sur le run réel, la révision a renvoyé "Regular code review
+# and checking for subtle changes in documentation to detect this type of
+# attack", qui contient TOUS les mots d'une recommandation déjà acceptée —
+# Jaccard 0.78 (la fin ajoutée gonfle l'union), recouvrement 1.0.
 DUPLICATE_OVERLAP = 0.8
 
 # Mots vides ignorés dans le calcul d'ancrage : sans ça, "the/of/to" et le
@@ -270,11 +273,14 @@ def deduplicate(recommendations: list[dict]) -> tuple[list[dict], list[dict]]:
     kept, duplicates = [], []
     for rec in recommendations:
         words = content_words(rec.get("action"))
-        is_dup = any(
-            words and (len(words & content_words(k.get("action"))) /
-                       len(words | content_words(k.get("action")))) >= DUPLICATE_OVERLAP
-            for k in kept
-        )
+        is_dup = False
+        for k in kept:
+            other = content_words(k.get("action"))
+            if words and other and (
+                len(words & other) / min(len(words), len(other)) >= DUPLICATE_OVERLAP
+            ):
+                is_dup = True
+                break
         (duplicates if is_dup else kept).append(rec)
     return kept, duplicates
 
