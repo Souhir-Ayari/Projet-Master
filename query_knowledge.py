@@ -18,10 +18,10 @@ catégorie du mauvais référentiel ne fait donc que ne matcher aucun
 enregistrement, sans casser la recherche.
 
 Chaque lancement enregistre son résultat JSON (UTF-8) dans
-config.RETRIEVAL_RUNS_DIR (files/retrieval/), sous un nom horodaté qui
+config.RETRIEVAL_RUNS_DIR (results/retrieval/), sous un nom horodaté qui
 reprend le début de la requête. --output choisit un nom précis à la place :
     python query_knowledge.py --attack-summary "..." --table
-        results/knowledge_table_llm.jsonl --output files/retrieval_relevant_test.json
+        results/knowledge_table_llm.jsonl --output results/retrieval_relevant_test.json
 """
 
 import argparse
@@ -63,7 +63,7 @@ def main():
         "--output",
         default=None,
         help="Nom du fichier JSON de résultat (par défaut : nom horodaté "
-        "dans files/retrieval/).",
+        "dans results/retrieval/).",
     )
     args = parser.parse_args()
 

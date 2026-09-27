@@ -27,7 +27,7 @@ Usage :
     python test_retrieval.py                       # table par défaut, top-3
     python test_retrieval.py --table results/knowledge_table.jsonl --top-k 5
     python test_retrieval.py --offline             # contrôle du fix, sans Ollama
-    python test_retrieval.py --table results/knowledge_table_llm.jsonl --output files/retrieval_top3.txt
+    python test_retrieval.py --table results/knowledge_table_llm.jsonl --output results/retrieval_top3.txt
 """
 
 import argparse
@@ -296,13 +296,13 @@ def main():
         "--output",
         default=None,
         help="Enregistre aussi la sortie du terminal dans ce fichier texte UTF-8 "
-        "(ex: files/retrieval_top3.txt), dossier créé si besoin.",
+        "(ex: results/retrieval_top3.txt), dossier créé si besoin.",
     )
     parser.add_argument(
         "--json",
         default=None,
         help="Nom du fichier JSON de résultat (par défaut : nom horodaté dans "
-        "files/retrieval/). Le JSON est enregistré à chaque lancement.",
+        "results/retrieval/). Le JSON est enregistré à chaque lancement.",
     )
     args = parser.parse_args()
 

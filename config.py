@@ -987,4 +987,4 @@ TIER2_SUMMARY_MAX_WORDS = 20
 # résultat dans un fichier JSON horodaté de ce dossier (jamais écrasé) : les
 # chiffres cités dans le papier restent rattachés au run exact qui les a
 # produits, sans dépendre d'une copie manuelle du terminal.
-RETRIEVAL_RUNS_DIR = "files/retrieval"
+RETRIEVAL_RUNS_DIR = "results/retrieval"

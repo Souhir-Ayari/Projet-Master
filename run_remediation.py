@@ -21,7 +21,7 @@ montre — les chiffres de la Table IV ne sont comparables qu'à empreinte égal
 
 Usage :
     python run_remediation.py --table results/knowledge_table_llm.jsonl
-    python run_remediation.py --table results/knowledge_table_llm.jsonl --output-dir files/rq3
+    python run_remediation.py --table results/knowledge_table_llm.jsonl --output-dir results/rq3
     python run_remediation.py --table ... --modes retrieval_loop --queries mes_requetes.json
 
 Format de --queries : liste JSON de {"name": ..., "attack_summary": ..., "category": ... (optionnel)}.

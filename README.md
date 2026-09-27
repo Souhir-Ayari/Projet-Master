@@ -223,7 +223,7 @@ catégories d'attaque — un seul paper ne suffit pas.
 python query_knowledge.py --attack-summary "Une page web récupérée par l'agent contient des instructions cachées" --category AML.T0051.001
 python query_knowledge.py --attack-summary "Backdoor introduite via un mainteneur compromis" --category T1195
 ```
-Chaque lancement enregistre son résultat JSON (UTF-8) dans `files/retrieval/`,
+Chaque lancement enregistre son résultat JSON (UTF-8) dans `results/retrieval/`,
 sous un nom horodaté qui ne s'écrase jamais (`query_AAAAMMJJ-HHMMSS_<début de
 la requête>.json`) ; `--output` impose un nom précis. `test_retrieval.py` fait
 de même (`test_top<k>_AAAAMMJJ-HHMMSS.json` : cas remontés, verdict par
@@ -244,7 +244,7 @@ recherche ne ramène rien d'exploitable.
 python test_retrieval.py              # 4 requêtes, top-3, table par défaut
 python test_retrieval.py --top-k 5
 python test_retrieval.py --offline    # sans Ollama : attack_summary bien transmis à Tier 2
-python test_retrieval.py --table results/knowledge_table_llm.jsonl --output files/retrieval_top3.txt
+python test_retrieval.py --table results/knowledge_table_llm.jsonl --output results/retrieval_top3.txt
 ```
 Chaque requête décrit une attaque sans reprendre le nom de la technique
 (injection indirecte, fuite du prompt système, jailbreak, empoisonnement RAG)
@@ -282,7 +282,7 @@ Version minimale (`remediation.py`), lancée sur les requêtes du Bloc 1 :
   (et conservé dans `dropped`).
 
 ```bash
-python run_remediation.py --table results/knowledge_table_llm.jsonl --output-dir files/rq3
+python run_remediation.py --table results/knowledge_table_llm.jsonl --output-dir results/rq3
 ```
 
 Produit un JSON par requête (cas récupérés, propositions, verdicts, révision,
