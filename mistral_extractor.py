@@ -240,8 +240,16 @@ class MistralExtractor:
             )
         entities = parsed.get("entities", [])
 
-        # Filtre 1 : rejette les labels hors taxonomie (fix #2)
-        entities = self._filter_valid_labels(entities, labels_for_prompt)
+        # Filtre 1 : rejette les labels hors taxonomie (fix #2) — seulement si
+        # le prompt a MONTRÉ cette taxonomie au modèle. PROMPT_NAIVE ne liste
+        # volontairement aucune catégorie : le modèle y nomme librement ses
+        # labels ("product", "attack"...), que ce filtre rejetait TOUS. Sur
+        # Prompt-Injection.pdf, la variante naive sortait ainsi 0 entité
+        # (0 vrai positif, 0 faux positif) : une absence de mesure, pas une
+        # mesure basse. L'évaluation n'apparie que le texte, le label libre
+        # du naive ne fausse donc pas la comparaison.
+        if "{labels}" in template:
+            entities = self._filter_valid_labels(entities, labels_for_prompt)
 
         # Filtre 2 : pour "custom", restreint aux catégories que le modèle a
         # lui-même identifiées comme pertinentes pour user_need (fix #6) —
