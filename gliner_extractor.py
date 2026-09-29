@@ -8,10 +8,23 @@ Sortie : JSON structuré { "entities": [ {text, label, start, end, score} ] }
 """
 
 import json
+import re
+
 from gliner import GLiNER
 
 from config import CYBER_ENTITY_LABELS, GLINER_MODEL_NAME, GLINER_CONFIDENCE_THRESHOLD
 from pdf_extractor import is_glued_token
+
+# GLiNER tronque silencieusement toute entrée au-delà de 384 tokens (son
+# max_len) : "Sentence of length 636 has been truncated to 384". Les chunks
+# de pdf_extractor.chunk_text (3000 caractères) font 540 à 640 tokens GLiNER
+# sur Prompt-Injection.pdf — environ un tiers de chaque chunk n'était donc
+# JAMAIS lu, et aucune entité de cette fin de chunk ne pouvait être trouvée.
+# Chaque chunk est désormais découpé en fenêtres de WINDOW_WORDS mots (marge
+# pour la ponctuation, que GLiNER compte comme tokens séparés), avec un
+# chevauchement pour ne pas couper une entité à la frontière.
+WINDOW_WORDS = 200
+WINDOW_OVERLAP_WORDS = 30
 
 
 class GLiNERExtractor:
@@ -26,13 +39,40 @@ class GLiNERExtractor:
         self.model = GLiNER.from_pretrained(model_name)
         self.labels = labels or CYBER_ENTITY_LABELS
 
+    @staticmethod
+    def _windows(text: str) -> list[tuple[int, int]]:
+        """(début, fin) en caractères de fenêtres de WINDOW_WORDS mots qui se chevauchent."""
+        words = [m.span() for m in re.finditer(r"\S+", text)]
+        if len(words) <= WINDOW_WORDS:
+            return [(0, len(text))]
+        step = WINDOW_WORDS - WINDOW_OVERLAP_WORDS
+        spans = []
+        for i in range(0, len(words), step):
+            last = min(i + WINDOW_WORDS, len(words)) - 1
+            spans.append((words[i][0], words[last][1]))
+            if last == len(words) - 1:
+                break
+        return spans
+
+    def _predict(self, text: str, threshold: float) -> list[dict]:
+        """Prédiction fenêtre par fenêtre, offsets recalés sur `text`, doublons de chevauchement retirés."""
+        seen, merged = set(), []
+        for start, end in self._windows(text):
+            for e in self.model.predict_entities(
+                text[start:end], self.labels, threshold=threshold
+            ):
+                e = {**e, "start": e["start"] + start, "end": e["end"] + start}
+                key = (e["start"], e["end"], e["label"])
+                if key not in seen:
+                    seen.add(key)
+                    merged.append(e)
+        return merged
+
     def extract(
         self, text: str, threshold: float = GLINER_CONFIDENCE_THRESHOLD
     ) -> dict:
         """Lance la prédiction NER et renvoie un dict prêt à sérialiser en JSON."""
-        raw_entities = self.model.predict_entities(
-            text, self.labels, threshold=threshold
-        )
+        raw_entities = self._predict(text, threshold)
 
         entities = [
             {

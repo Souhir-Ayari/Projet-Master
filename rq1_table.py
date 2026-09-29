@@ -54,7 +54,8 @@ def main():
             print(f"    {method}: {e.get('pdf')}, {e.get('ground_truth')}, {e.get('n_chunks')} chunks")
         print("    Les lignes ne sont pas comparables : relancer les méthodes concernées.\n")
 
-    print(f"{'Méthode':24} {'P':>6} {'R':>6} {'F1':>6} {'Halluc.':>8} {'TP':>4} {'FP':>4} {'FN':>4}  run")
+    print(f"{'Méthode':24} {'P':>6} {'R':>6} {'F1':>6} {'Halluc.':>8} {'TP':>4} {'FP':>4} {'FN':>4}"
+          f" | {'F1 relâché':>10}  run")
     latex, table = [], []
     for method, label in ROWS:
         e = evals.get(method)
@@ -65,13 +66,16 @@ def main():
             continue
         print(f"{label:24} {e['precision']:>6.3f} {e['recall']:>6.3f} {e['f1']:>6.3f} "
               f"{e['hallucination_rate']:>8.3f} {e['true_positives']:>4} {e['false_positives']:>4} "
-              f"{e['false_negatives']:>4}  {e.get('timestamp', '')[:16]}")
+              f"{e['false_negatives']:>4} | {e.get('relaxed_f1', float('nan')):>10.3f}  "
+              f"{e.get('timestamp', '')[:16]}")
         latex.append(f"{label} & {e['precision']:.3f} & {e['recall']:.3f} & {e['f1']:.3f} "
                      f"& {e['hallucination_rate']:.3f} \\\\")
         table.append({"row": label, **{k: e[k] for k in (
             "method", "precision", "recall", "f1", "hallucination_rate",
             "true_positives", "false_positives", "false_negatives",
-            "n_predicted", "n_ground_truth")}, "timestamp": e.get("timestamp")})
+            "n_predicted", "n_ground_truth")},
+            **{k: e.get(k) for k in ("relaxed_precision", "relaxed_recall", "relaxed_f1")},
+            "timestamp": e.get("timestamp")})
 
     out = os.path.join(args.dir, "table_i.json")
     with open(out, "w", encoding="utf-8") as f:

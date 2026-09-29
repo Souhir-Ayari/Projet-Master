@@ -46,7 +46,7 @@ import datetime
 import json
 import os
 
-from config import DEFAULT_DOMAIN, TOPIC_DOMAINS
+from config import CYBER_ENTITY_LABELS, DEFAULT_DOMAIN, TOPIC_DOMAINS, topic_config
 from evaluator import compare_methods, evaluate
 from gliner_extractor import GLiNERExtractor
 from mistral_extractor import MistralExtractor
@@ -150,6 +150,17 @@ def main():
         "(assemblés ensuite par rq1_table.py).",
     )
     parser.add_argument(
+        "--gliner-taxonomy",
+        default="domain",
+        choices=["domain", "generic"],
+        help="Labels donnés à GLiNER : 'domain' (défaut) = taxonomie du "
+        "--domain, la même que la variante 'topic' ; 'generic' = labels cyber "
+        "classiques (IP, hash, CVE...), l'ancien comportement. Sur un papier "
+        "d'attaques LLM, les labels génériques ne décrivent presque aucune "
+        "entité du ground truth : GLiNER était évalué sur une tâche qu'on ne "
+        "lui avait pas demandée.",
+    )
+    parser.add_argument(
         "--output-dir",
         default=OUTPUT_DIR,
         help="Dossier des résultats (défaut : results). Un dossier par "
@@ -186,8 +197,15 @@ def main():
     gliner = None
     if run_gliner:
         print("\n[2/4] CAS 1 : extraction NER pure (GLiNER)")
-        gliner = GLiNERExtractor()
+        gliner_labels = (
+            topic_config(args.domain)["labels"]
+            if args.gliner_taxonomy == "domain"
+            else CYBER_ENTITY_LABELS
+        )
+        print(f"      labels GLiNER ({args.gliner_taxonomy}) : {len(gliner_labels)}")
+        gliner = GLiNERExtractor(labels=gliner_labels)
         gliner_output = gliner.extract_from_chunks(chunks)
+        gliner_output["taxonomy"] = args.gliner_taxonomy
         save_json(gliner_output, "case1_gliner.json")
         all_results["gliner_ner"] = gliner_output
 
