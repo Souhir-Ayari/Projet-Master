@@ -78,9 +78,109 @@ def _score_extraction(text: str) -> float:
 SCORE_ACCEPTABLE = 0.02
 
 
+# Mise en page sur deux colonnes : pdfplumber lit chaque ligne de gauche à
+# droite À TRAVERS les deux colonnes, et les phrases des deux colonnes se
+# retrouvent entrelacées ("...won a free Amazon Gift / to the attack (e.g., via
+# retrieval or email)... Card, which, to claim..."). Sur Prompt-Injection.pdf,
+# GLiNER et Mistral recevaient ce texte brouillé, et des entités justes
+# reconstituées par Mistral ("Amazon Gift Card", "markdown links") étaient
+# comptées comme hallucinées faute d'exister d'un seul tenant dans la source.
+# Une page est lue colonne par colonne quand une gouttière verticale proche du
+# milieu n'est traversée par presque aucun mot.
+_GOUTTIERE_ZONE = (0.40, 0.60)  # où chercher la gouttière, en fraction de largeur
+_LIGNES_DEUX_COLONNES_MIN = 0.50  # part minimale de lignes que la gouttière ne traverse pas
+_COLONNE_MIN_MOTS = 0.20  # chaque colonne doit porter au moins cette part des mots
+
+
+def _mots_reels(page) -> list[dict]:
+    # Seuls les vrais mots comptent : les figures en lettres éparpillées
+    # (figure 1 de Prompt-Injection.pdf, une lettre par mot) traversent la
+    # gouttière et masquaient la mise en page de la page entière.
+    return [m for m in page.extract_words() if len(m["text"]) >= 3]
+
+
+def _gouttiere(page) -> float | None:
+    """
+    Abscisse de la gouttière si la page est (au moins en partie) sur deux
+    colonnes, sinon None. Les blocs pleine largeur (titre, figure large)
+    traversent la gouttière sans empêcher la détection : on exige seulement
+    qu'une majorité de LIGNES ne la traversent pas.
+    """
+    mots = _mots_reels(page)
+    if len(mots) < 50:
+        return None
+    largeur = page.width
+    candidats = [
+        largeur * (_GOUTTIERE_ZONE[0] + (_GOUTTIERE_ZONE[1] - _GOUTTIERE_ZONE[0]) * i / 40)
+        for i in range(41)
+    ]
+    x = min(candidats, key=lambda c: sum(1 for m in mots if m["x0"] < c < m["x1"]))
+    lignes = _lignes(mots, x)
+    libres = sum(1 for _, traverse in lignes if not traverse)
+    gauche = sum(1 for m in mots if m["x1"] <= x)
+    droite = sum(1 for m in mots if m["x0"] >= x)
+    if (
+        libres >= _LIGNES_DEUX_COLONNES_MIN * len(lignes)
+        and gauche >= _COLONNE_MIN_MOTS * len(mots)
+        and droite >= _COLONNE_MIN_MOTS * len(mots)
+    ):
+        return x
+    return None
+
+
+def _lignes(mots: list[dict], x: float) -> list[tuple[float, bool]]:
+    """(ordonnée, traverse la gouttière ?) pour chaque ligne de mots, de haut en bas."""
+    par_ligne: dict[int, bool] = {}
+    for m in mots:
+        cle = round(m["top"] / 3)  # mots d'une même ligne : même ordonnée à 3 pt près
+        par_ligne[cle] = par_ligne.get(cle, False) or (m["x0"] < x < m["x1"])
+    return [(cle * 3, traverse) for cle, traverse in sorted(par_ligne.items())]
+
+
+def _texte_page(page, kwargs: dict) -> str:
+    """
+    Texte d'une page dans l'ordre de lecture. Sur deux colonnes, la page est
+    découpée en bandes horizontales : une bande dont les lignes traversent la
+    gouttière (titre, figure pleine largeur) est lue d'un bloc, une bande à
+    deux colonnes est lue colonne gauche puis colonne droite.
+    """
+    x = _gouttiere(page)
+    if x is None:
+        return page.extract_text(**kwargs) or ""
+
+    bandes = []  # (haut, bas, pleine_largeur)
+    for y, traverse in _lignes(_mots_reels(page), x):
+        if bandes and bandes[-1][2] == traverse:
+            bandes[-1][1] = y
+        else:
+            bandes.append([y, y, traverse])
+    morceaux = []
+    for i, (haut, _, pleine_largeur) in enumerate(bandes):
+        y0 = 0 if i == 0 else haut - 1
+        y1 = page.height if i == len(bandes) - 1 else bandes[i + 1][0] - 1
+        if y1 <= y0:
+            continue
+        zones = [(0, page.width)] if pleine_largeur else [(0, x), (x, page.width)]
+        for x0, x1 in zones:
+            morceaux.append(page.crop((x0, y0, x1, y1)).extract_text(**kwargs) or "")
+    return "\n".join(m for m in morceaux if m)
+
+
+def _recoller_cesures(text: str) -> str:
+    """
+    Recolle les mots coupés en fin de ligne : "informa-\ntion" -> "information",
+    "jail-\nbreaking" -> "jailbreaking". Le tiret n'est retiré que si les deux
+    côtés sont en minuscules (césure typographique) ; sinon c'est un vrai
+    composé ("LLM-\nintegrated" -> "LLM-integrated", "Chat-\nGPT" ->
+    "Chat-GPT") et seul le saut de ligne disparaît.
+    """
+    text = re.sub(r"(?<=[a-zà-ÿ])-[ \t]*\n[ \t]*(?=[a-zà-ÿ])", "", text)
+    return re.sub(r"(?<=\w)-[ \t]*\n[ \t]*(?=\w)", "-", text)
+
+
 def _extraire_pages(pdf, x_tolerance: float | None) -> str:
     kwargs = {} if x_tolerance is None else {"x_tolerance": x_tolerance}
-    return "\n".join((page.extract_text(**kwargs) or "") for page in pdf.pages)
+    return _recoller_cesures("\n".join(_texte_page(page, kwargs) for page in pdf.pages))
 
 
 def extract_text_from_pdf(pdf_path: str, verbose: bool = True) -> str:
