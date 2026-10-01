@@ -121,6 +121,7 @@ Le terminal affichera, pour chaque méthode :
 | `query_knowledge.py` | Orchestrateur CLI de retrieval sur la table de connaissance |
 | `remediation.py` | Step 7 : boucle Propose -> Verify -> Revise minimale (N=1), vérification de traçabilité en code |
 | `run_remediation.py` | Orchestrateur CLI du Step 7 : 3 modes (sans retrieval / retrieval / retrieval + boucle) -> Table IV |
+| `calibrate_retrieval.py` | Calibre α (bonus / filtre de catégorie) et dérive θ sur les requêtes étiquetées de `data/eval_queries.json` |
 | `rq1_table.py` | Assemble la Table I (RQ1) à partir des `eval_<méthode>.json` écrits par `main.py --only` |
 | `test_retrieval.py` | Requêtes manuelles à famille ATLAS connue -> Hit@k du retrieval Tier 1 (+ contrôle hors ligne de Tier 2) |
 
@@ -259,6 +260,17 @@ Scholar/arXiv, ingestion à la volée) est **désactivé par défaut**
 augmenté contrôlable, pas une réécriture. Chaque déclenchement de Tier 2 est
 journalisé dans `results/tier2_retrieval_log.jsonl`, y compris quand la
 recherche ne ramène rien d'exploitable.
+
+### Calibrer α et θ
+
+```bash
+python calibrate_retrieval.py --table results/knowledge_table_llm.jsonl
+```
+Évalue sur `data/eval_queries.json` (18 requêtes étiquetées : 13 couvertes par
+la table, 5 hors corpus) plusieurs bonus α, et le filtrage par catégorie
+(`score_cases(category_filter=True)`), en Hit@1 / Hit@3 / MRR, puis dérive θ
+du cosinus brut du meilleur cas (exactitude équilibrée couverte / hors corpus,
+avec contrôle leave-one-out). Les embeddings ne sont calculés qu'une fois.
 
 ### Tester le retrieval sur des requêtes manuelles
 ```bash

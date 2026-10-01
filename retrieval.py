@@ -97,12 +97,62 @@ def check_vector_store(table: list[dict], attack_vectors_path: str) -> dict:
     return report
 
 
+def score_cases(
+    similarities,
+    ids,
+    record_by_id: dict,
+    query_category: str = None,
+    category_bonus: float = RETRIEVAL_CATEGORY_BONUS,
+    category_filter: bool = False,
+    top_k: int = 3,
+) -> list[dict]:
+    """
+    Classe les cas à partir des similarités cosinus déjà calculées.
+
+    Séparé de tier1_retrieve pour que la calibration (calibrate_retrieval.py)
+    puisse comparer plusieurs réglages de α et du filtre sur les MÊMES
+    embeddings, sans rappeler Ollama pour chaque réglage.
+
+    category_bonus : α, ajouté au cosinus quand la catégorie du cas est
+        exactement query_category (score plafonné à 1).
+    category_filter : si vrai et query_category connue, ne garde que les cas
+        de cette catégorie — avec repli sur tous les cas si la table n'en
+        contient aucun, pour ne pas confondre "catégorie absente du corpus"
+        et "aucun cas proche".
+    Chaque résultat porte similarity_score (avec bonus, utilisé pour le
+    classement et le seuil) ET cosine_score (brut), pour pouvoir dériver θ
+    de l'historique sans l'effet du bonus.
+    """
+    scored = []
+    for record_id, cosine in zip(ids, similarities):
+        record = record_by_id.get(record_id)
+        if record is None:
+            continue  # vecteur orphelin (rare : table_path et vectors_path désynchronisés)
+        cosine = float(cosine)
+        score = cosine
+        if query_category and record.get("category") == query_category:
+            score = min(1.0, cosine + category_bonus)
+        scored.append((score, cosine, record))
+
+    if category_filter and query_category:
+        same = [t for t in scored if t[2].get("category") == query_category]
+        scored = same or scored
+
+    scored.sort(key=lambda t: t[0], reverse=True)
+    return [
+        {**record, "similarity_score": round(score, 4), "cosine_score": round(cosine, 4)}
+        for score, cosine, record in scored[:top_k]
+    ]
+
+
 def tier1_retrieve(
     query_attack_summary: str,
     query_category: str = None,
     table: list[dict] = None,
     attack_vectors_path: str = KNOWLEDGE_ATTACK_VECTORS_PATH,
     top_k: int = 3,
+    category_bonus: float = RETRIEVAL_CATEGORY_BONUS,
+    category_filter: bool = False,
 ) -> list[dict]:
     """
     Similarité cosinus, calculée vectoriellement (vector_store.
@@ -110,8 +160,8 @@ def tier1_retrieve(
     Python par enregistrement, entre l'embedding de query_attack_summary et
     TOUS les attack_embedding stockés dans attack_vectors_path (voir
     knowledge_table.py : les embeddings ne sont plus inline dans le JSONL).
-    Un léger bonus est ajouté si query_category correspond exactement (même
-    ID MITRE validé) — la similarité sémantique seule peut confondre deux
+    La catégorie de la requête, si connue, intervient via score_cases
+    (bonus α ou filtre) — la similarité sémantique seule peut confondre deux
     attaques de la même famille conceptuelle mais de catégorie différente.
     """
     table = table if table is not None else load_table()
@@ -125,22 +175,10 @@ def tier1_retrieve(
 
     query_embedding = embed_text(query_attack_summary)
     similarities = cosine_similarities(query_embedding, matrix)
-
-    scored = []
-    for record_id, similarity in zip(ids, similarities):
-        record = record_by_id.get(record_id)
-        if record is None:
-            continue  # vecteur orphelin (rare : table_path et vectors_path désynchronisés)
-        similarity = float(similarity)
-        if query_category and record.get("category") == query_category:
-            similarity = min(1.0, similarity + RETRIEVAL_CATEGORY_BONUS)
-        scored.append((similarity, record))
-
-    scored.sort(key=lambda pair: pair[0], reverse=True)
-    return [
-        {**record, "similarity_score": round(score, 4)}
-        for score, record in scored[:top_k]
-    ]
+    return score_cases(
+        similarities, ids, record_by_id, query_category,
+        category_bonus=category_bonus, category_filter=category_filter, top_k=top_k,
+    )
 
 
 def _log_tier2_trigger(query: dict, outcome: str, n_ingested: int = 0) -> None:
