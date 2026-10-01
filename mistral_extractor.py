@@ -175,8 +175,8 @@ class MistralExtractor:
         prompt_variant = "naive" | "engineered" | "custom" | "topic".
 
         - "naive"/"engineered" : taxonomie générique CYBER_ENTITY_LABELS.
-        - "custom"  : besoin de l'utilisateur (voir user_need), taxonomie
-          générique en référence secondaire.
+        - "custom"  : besoin de l'utilisateur (voir user_need), catégories
+          choisies dans la taxonomie du domaine.
         - "topic"   : taxonomie ET prompt spécialisés sur le DOMAINE analysé
           (voir config.TOPIC_DOMAINS) — à utiliser quand le document porte
           précisément sur ce sujet, pour comparer la précision d'un prompt
@@ -207,10 +207,22 @@ class MistralExtractor:
             # besoin ne porte que sur 2-3 d'entre elles (ex: CVE + logiciels).
             # Complète le fix #6 (auto-identification + post-filtre a posteriori)
             # en réduisant le problème à la source.
+            # Les catégories candidates sont celles du DOMAINE analysé, pas la
+            # liste cyber générique : sur Prompt-Injection.pdf, un besoin
+            # portant sur les modèles, applications, vecteurs, mécanismes,
+            # impacts et défenses ne retenait dans CYBER_ENTITY_LABELS que
+            # "secteur d'activité ciblé" et "vecteur d'attaque initial" ;
+            # tout ce que le modèle extrayait était ensuite filtré, et la
+            # variante sortait 0 entité.
+            topic = topic_config(domain)
             labels_for_prompt = self._select_relevant_labels(
-                user_need, CYBER_ENTITY_LABELS
+                user_need, topic["labels"]
             )
-            descriptions_for_prompt = None
+            descriptions_for_prompt = {
+                label: topic["descriptions"][label]
+                for label in labels_for_prompt
+                if label in topic["descriptions"]
+            }
         else:
             labels_for_prompt = CYBER_ENTITY_LABELS
             descriptions_for_prompt = (
