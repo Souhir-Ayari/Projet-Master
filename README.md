@@ -122,6 +122,7 @@ Le terminal affichera, pour chaque méthode :
 | `remediation.py` | Step 7 : boucle Propose -> Verify -> Revise minimale (N=1), vérification de traçabilité en code |
 | `run_remediation.py` | Orchestrateur CLI du Step 7 : 3 modes (sans retrieval / retrieval / retrieval + boucle) -> Table IV |
 | `calibrate_retrieval.py` | Calibre α (bonus / filtre de catégorie) et dérive θ sur les requêtes étiquetées de `data/eval_queries.json` |
+| `ablation_filters.py` | Table II (RQ1) : ablation des filtres Layer 1 rejouée sur les réponses brutes enregistrées, sans relancer Mistral |
 | `rq1_table.py` | Assemble la Table I (RQ1) à partir des `eval_<méthode>.json` écrits par `main.py --only` |
 | `test_retrieval.py` | Requêtes manuelles à famille ATLAS connue -> Hit@k du retrieval Tier 1 (+ contrôle hors ligne de Tier 2) |
 

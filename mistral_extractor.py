@@ -80,10 +80,30 @@ class MistralGenerationError(Exception):
     que l'échec d'UN chunk n'arrête pas tout le run — voir extract()."""
 
 
+# Filtres appliqués aux entités renvoyées par le modèle, dans l'ordre de
+# extract(). Nommés pour l'ablation de la Table II (ablation_filters.py), qui
+# les active un par un sur les MÊMES réponses brutes du modèle.
+FILTER_NAMES = (
+    "label_whitelist",      # 1. label hors de la taxonomie montrée au modèle
+    "relevant_categories",  # 2. custom : hors des catégories jugées pertinentes
+    "format",               # 3. format attendu du label (CVE, IP...)
+    "template_leak",        # 4. valeur d'exemple recopiée depuis le prompt
+    "span_length",          # 5. span trop long (clause plutôt qu'entité)
+    "filler",               # 6. valeur de remplissage ("non spécifié"...)
+    "citation_noise",       # 7. bruit bibliographique (URL, [12], dates)
+)
+
+
 class MistralExtractor:
     def __init__(self, backend: str = MISTRAL_BACKEND):
         self.backend = backend
         self._hf_pipeline = None
+        # None = tous les filtres actifs (comportement normal) ; sinon,
+        # ensemble de noms de FILTER_NAMES à appliquer (ablation).
+        self.enabled_filters = None
+
+    def _on(self, name: str) -> bool:
+        return self.enabled_filters is None or name in self.enabled_filters
 
         if backend == "transformers":
             self._load_transformers_model()
@@ -260,13 +280,13 @@ class MistralExtractor:
         # (0 vrai positif, 0 faux positif) : une absence de mesure, pas une
         # mesure basse. L'évaluation n'apparie que le texte, le label libre
         # du naive ne fausse donc pas la comparaison.
-        if "{labels}" in template:
+        if "{labels}" in template and self._on("label_whitelist"):
             entities = self._filter_valid_labels(entities, labels_for_prompt)
 
         # Filtre 2 : pour "custom", restreint aux catégories que le modèle a
         # lui-même identifiées comme pertinentes pour user_need (fix #6) —
         # rend vérifiable côté code la consigne "n'utilise QUE ces catégories"
-        if prompt_variant == "custom":
+        if prompt_variant == "custom" and self._on("relevant_categories"):
             entities = self._filter_by_relevant_categories(
                 entities, parsed.get("relevant_categories")
             )
@@ -275,7 +295,8 @@ class MistralExtractor:
         # pattern attendu pour leur label (ex: "CVE-not found" ou
         # "CVE-[0-9]{4}" pour un label "identifiant CVE") — applique
         # is_format_valid, jusqu'ici défini dans config.py mais jamais branché.
-        entities = self._filter_by_format(entities)
+        if self._on("format"):
+            entities = self._filter_by_format(entities)
 
         # Filtre 4 : rejette les valeurs d'exemple FICTIVES recopiées depuis
         # le prompt (ex: "CVE-0000-00000", "0.0.0.0") — remplacer les
@@ -283,7 +304,8 @@ class MistralExtractor:
         # suffit pas, le modèle les recopie parfois quand même malgré la
         # consigne. Ce filtre attrape la fuite après coup, quelle que soit
         # la valeur d'exemple choisie (voir config.TEMPLATE_LEAK_VALUES).
-        entities = self._drop_template_leaks(entities)
+        if self._on("template_leak"):
+            entities = self._drop_template_leaks(entities)
 
         # Filtre 5 : rejette les entités trop longues (phrases/clauses
         # descriptives plutôt que des entités nommées). Constaté en conditions
@@ -295,7 +317,8 @@ class MistralExtractor:
         # être des hallucinations (le texte existe bien dans la source, il
         # n'est juste pas une entité). max_words=6 est calé sur le maximum
         # réellement observé dans ground_truth_backdoor.json.
-        entities = self._filter_by_length(entities)
+        if self._on("span_length"):
+            entities = self._filter_by_length(entities)
 
         # Filtre 6 : rejette les valeurs de remplissage ("non spécifié",
         # "N/A"...). La règle anti-remplissage écrite dans le prompt (voir
@@ -303,7 +326,8 @@ class MistralExtractor:
         # respectée par le modèle en pratique — ce filtre l'applique de
         # façon garantie, indépendamment de l'obéissance du modèle à la
         # consigne.
-        entities = self._filter_filler_values(entities)
+        if self._on("filler"):
+            entities = self._filter_filler_values(entities)
 
         # Filtre 7 : rejette le bruit bibliographique résiduel (URL, numéro
         # de citation entre crochets, date au format bibliographique type
@@ -313,7 +337,8 @@ class MistralExtractor:
         # dans le texte extrait (lignes de la colonne de droite intercalées
         # avec le corps de la colonne de gauche), donc hors de portée d'une
         # simple coupure en un seul point.
-        entities = self._filter_citation_noise(entities)
+        if self._on("citation_noise"):
+            entities = self._filter_citation_noise(entities)
 
         method_name = f"mistral_prompt_{prompt_variant}"
 
