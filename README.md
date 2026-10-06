@@ -79,6 +79,18 @@ python main.py --pdf files/Prompt-Injection.pdf --ground-truth ground_truth_prom
 python rq1_table.py --dir results/rq1_prompt_injection
 ```
 
+Audit manuel des faux positifs (la précision rapportée est une borne
+inférieure si une partie des faux positifs sont des entités légitimes
+absentes de l'annotation) : tirage reproductible de 30 faux positifs dans un
+CSV à juger à la main (`valide` = o / n), puis calcul de la part valide
+(intervalle de Wilson à 95 %) et de la précision corrigée estimée :
+
+```bash
+python audit_false_positives.py sample --pdf files/Prompt-Injection.pdf --ground-truth ground_truth_prompt_injection.json --case results/rq1_prompt_injection/case2_mistral_topic.json
+# ... remplir la colonne "valide" de results/rq1_prompt_injection/audit_fp_topic.csv ...
+python audit_false_positives.py score --audit results/rq1_prompt_injection/audit_fp_topic.csv
+```
+
 ### 3. Avec évaluation F1 / hallucination
 
 Copiez `ground_truth_template.json`, annotez-le à la main pour VOTRE PDF
@@ -124,6 +136,7 @@ Le terminal affichera, pour chaque méthode :
 | `calibrate_retrieval.py` | Calibre α (bonus / filtre de catégorie) et dérive θ sur les requêtes étiquetées de `data/eval_queries.json` |
 | `ablation_filters.py` | Table II (RQ1) : ablation des filtres Layer 1 rejouée sur les réponses brutes enregistrées, sans relancer Mistral |
 | `rq1_table.py` | Assemble la Table I (RQ1) à partir des `eval_<méthode>.json` écrits par `main.py --only` |
+| `audit_false_positives.py` | Audit manuel RQ1 : tirage de faux positifs à juger, part d'entités valides absentes de l'annotation, précision corrigée |
 | `test_retrieval.py` | Requêtes manuelles à famille ATLAS connue -> Hit@k du retrieval Tier 1 (+ contrôle hors ligne de Tier 2) |
 
 ## Pipeline méthodologie/mitigation (Layer 2)

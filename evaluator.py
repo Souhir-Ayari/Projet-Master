@@ -187,6 +187,47 @@ def compute_hallucination_rate(
     return rate, hallucinated
 
 
+def greedy_match(predicted_entities: list[dict], ground_truth_entities: list[dict], *matchers):
+    """
+    Appariement glouton prédictions -> ground truth, chaque entité annotée ne
+    pouvant être retrouvée qu'une fois. Les critères sont essayés dans l'ordre
+    pour chaque prédiction : en relâché, une correspondance stricte est
+    toujours préférée à une simple inclusion, pour qu'une inclusion ne "vole"
+    pas une entité qu'une autre prédiction retrouve exactement.
+    Renvoie (prédiction appariée ?, entité annotée retrouvée ?).
+    """
+    gt_matched = [False] * len(ground_truth_entities)
+    pred_matched = []
+    for pred in predicted_entities:
+        pred_text = pred.get("text", "")
+        hit = next(
+            (
+                i
+                for matches in matchers
+                for i, gt in enumerate(ground_truth_entities)
+                if not gt_matched[i] and matches(pred_text, gt["text"])
+            ),
+            None,
+        )
+        if hit is not None:
+            gt_matched[hit] = True
+        pred_matched.append(hit is not None)
+    return pred_matched, gt_matched
+
+
+def strict_matcher(fuzzy: bool = True):
+    """Critère strict du F1 : fuzzy match (0.85) sur les textes normalisés."""
+    return (lambda a, b: _fuzzy_match(a, b)) if fuzzy else (lambda a, b: _normalize(a) == _normalize(b))
+
+
+def false_positive_entities(predicted_entities: list[dict], ground_truth_entities: list[dict],
+                            fuzzy: bool = True) -> list[dict]:
+    """Prédictions comptées faux positifs par le F1 strict (après dédoublonnage par texte)."""
+    preds = _dedupe_by_text(predicted_entities)
+    matched, _ = greedy_match(preds, ground_truth_entities, strict_matcher(fuzzy))
+    return [p for p, m in zip(preds, matched) if not m]
+
+
 def evaluate(
     method_name: str,
     predicted_entities: list[dict],
@@ -202,36 +243,16 @@ def evaluate(
     predicted_entities = _dedupe_by_text(predicted_entities)
 
     def score(*matchers) -> tuple[int, int, int, float, float, float]:
-        # Les critères sont essayés dans l'ordre pour chaque prédiction : en
-        # relâché, une correspondance stricte est toujours préférée à une
-        # simple inclusion, pour qu'une inclusion ne "vole" pas une entité
-        # qu'une autre prédiction retrouve exactement.
-        gt_matched = [False] * len(ground_truth_entities)
-        tp = fp = 0
-        for pred in predicted_entities:
-            pred_text = pred.get("text", "")
-            hit = next(
-                (
-                    i
-                    for matches in matchers
-                    for i, gt in enumerate(ground_truth_entities)
-                    if not gt_matched[i] and matches(pred_text, gt["text"])
-                ),
-                None,
-            )
-            if hit is None:
-                fp += 1
-            else:
-                gt_matched[hit] = True
-                tp += 1
+        pred_matched, gt_matched = greedy_match(predicted_entities, ground_truth_entities, *matchers)
+        tp = sum(pred_matched)
+        fp = len(pred_matched) - tp
         fn = gt_matched.count(False)
         p = tp / (tp + fp) if (tp + fp) > 0 else 0.0
         r = tp / (tp + fn) if (tp + fn) > 0 else 0.0
         f = 2 * p * r / (p + r) if (p + r) > 0 else 0.0
         return tp, fp, fn, p, r, f
 
-    def strict(a, b):
-        return _fuzzy_match(a, b) if fuzzy else _normalize(a) == _normalize(b)
+    strict = strict_matcher(fuzzy)
 
     tp, fp, fn, precision, recall, f1 = score(strict)
     _, _, _, r_precision, r_recall, r_f1 = score(strict, _relaxed_match)
