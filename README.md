@@ -254,6 +254,21 @@ l'attaque décrite.
 Pour un retrieval significatif, viser **15-30+ papers** couvrant plusieurs
 catégories d'attaque — un seul paper ne suffit pas.
 
+Élargir le corpus en un lot : `fetch_corpus.py` télécharge depuis arXiv
+12 papers sur l'injection, le jailbreak et l'empoisonnement, avec leurs
+défenses. Le titre de chaque identifiant est vérifié avant téléchargement.
+Aucun paper ne porte sur les attaques réservées aux requêtes hors corpus de
+`data/eval_queries.json`. `build_knowledge.py` accepte ensuite plusieurs
+PDF ou un dossier : les modèles ne sont chargés qu'une fois, un PDF en échec
+n'arrête pas le lot, `--skip-existing` permet de reprendre un lot
+interrompu, et un résumé de la table s'affiche à la fin (cas par technique
+et par paper) :
+
+```bash
+python fetch_corpus.py
+python build_knowledge.py --pdf files/corpus_llm --table results/knowledge_table_llm.jsonl --skip-existing
+```
+
 ### Chercher dans la table de connaissance
 ```bash
 python query_knowledge.py --attack-summary "Une page web récupérée par l'agent contient des instructions cachées" --category AML.T0051.001
