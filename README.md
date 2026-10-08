@@ -137,6 +137,7 @@ Le terminal affichera, pour chaque méthode :
 | `ablation_filters.py` | Table II (RQ1) : ablation des filtres Layer 1 rejouée sur les réponses brutes enregistrées, sans relancer Mistral |
 | `rq1_table.py` | Assemble la Table I (RQ1) à partir des `eval_<méthode>.json` écrits par `main.py --only` |
 | `audit_false_positives.py` | Audit manuel RQ1 : tirage de faux positifs à juger, part d'entités valides absentes de l'annotation, précision corrigée |
+| `review_cases.py` | Relecture manuelle de la knowledge table : justesse de la technique ATLAS, validité des mitigations, table corrigée |
 | `test_retrieval.py` | Requêtes manuelles à famille ATLAS connue -> Hit@k du retrieval Tier 1 (+ contrôle hors ligne de Tier 2) |
 
 ## Pipeline méthodologie/mitigation (Layer 2)
@@ -267,6 +268,25 @@ et par paper) :
 ```bash
 python fetch_corpus.py
 python build_knowledge.py --pdf files/corpus_llm --table results/knowledge_table_llm.jsonl --skip-existing
+```
+
+### Relire la table (justesse ATLAS + nettoyage)
+
+`review_cases.py` exporte un cas par ligne dans un CSV à juger à la main :
+technique ATLAS correcte ou non, vraie mitigation ou non, cas à garder ou
+non. `score` mesure ensuite la justesse de classification et la validité des
+mitigations sur la sortie **brute** du pipeline (pour le papier).
+`apply` écrit la table corrigée : catégories corrigées, mitigations
+invalides mises à null, cas retirés du JSONL et des deux `.npz`, avec une
+sauvegarde `*.before_review`. Pas besoin d'Ollama. À faire avant la
+calibration de θ/α, parce qu'un cas mal catégorisé change le statut
+« couverte / hors corpus » des requêtes d'évaluation.
+
+```bash
+python review_cases.py export --table results/knowledge_table_llm.jsonl
+# ... remplir results/review_knowledge_table_llm.csv ...
+python review_cases.py score --review results/review_knowledge_table_llm.csv
+python review_cases.py apply --review results/review_knowledge_table_llm.csv
 ```
 
 ### Chercher dans la table de connaissance
