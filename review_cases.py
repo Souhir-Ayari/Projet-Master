@@ -79,6 +79,12 @@ def read_review(path: str) -> tuple[dict, list[dict]]:
     with open(os.path.splitext(path)[0] + "_meta.json", encoding="utf-8") as f:
         meta = json.load(f)
     rows = read_csv_rows(path)
+    required = {"n", "record_id", "categorie", "mitigation", "categorie_ok", "bonne_categorie", "mitigation_ok", "garder"}
+    missing = required - set(rows[0] if rows else ())
+    if missing:
+        raise SystemExit(f"[✗] Colonnes introuvables dans {path} : {', '.join(sorted(missing))}.\n"
+                         f"    Colonnes lues : {', '.join(rows[0]) if rows else '(fichier vide)'}\n"
+                         "    Réenregistrer le fichier depuis Excel au format « CSV UTF-8 ».")
     return meta, rows
 
 

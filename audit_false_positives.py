@@ -72,17 +72,21 @@ def context_of(entity: str, text: str, width: int = CONTEXT_CHARS) -> str:
 def read_csv_rows(path: str) -> list[dict]:
     """
     Relit un CSV annoté à la main. Excel peut le réenregistrer en UTF-8 ou en
-    Windows-1252 (« CSV (séparateur : point-virgule) »), avec ; ou , : on
-    accepte les deux encodages et les deux séparateurs.
+    Windows-1252, avec ; , ou une tabulation comme séparateur, et laisser une
+    marque BOM devant le premier nom de colonne : on accepte tous ces cas, et
+    les noms de colonnes sont normalisés (espaces, BOM, casse).
     """
     raw = open(path, "rb").read()
     try:
         text = raw.decode("utf-8-sig")
     except UnicodeDecodeError:
         text = raw.decode("cp1252")
+    text = text.lstrip("\ufeff").removeprefix("ï»¿")
     header = text.splitlines()[0] if text else ""
-    delimiter = ";" if header.count(";") >= header.count(",") else ","
-    return list(csv.DictReader(io.StringIO(text, newline=""), delimiter=delimiter))
+    delimiter = max(";,\t", key=header.count)
+    rows = csv.DictReader(io.StringIO(text, newline=""), delimiter=delimiter)
+    return [{(k or "").strip().strip("\ufeff").lower(): (v or "").strip() if isinstance(v, str) else v
+             for k, v in r.items()} for r in rows]
 
 
 def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
