@@ -52,7 +52,7 @@ import time
 from collections import Counter
 
 import attack_taxonomy
-from audit_false_positives import wilson
+from audit_false_positives import read_csv_rows, wilson
 from config import DEFAULT_DOMAIN
 from jsonl_utils import write_jsonl
 from knowledge_table import load_table, vector_paths_for
@@ -78,8 +78,7 @@ def default_review_path(table_path: str) -> str:
 def read_review(path: str) -> tuple[dict, list[dict]]:
     with open(os.path.splitext(path)[0] + "_meta.json", encoding="utf-8") as f:
         meta = json.load(f)
-    with open(path, encoding="utf-8-sig", newline="") as f:
-        rows = list(csv.DictReader(f, delimiter=";"))
+    rows = read_csv_rows(path)
     return meta, rows
 
 

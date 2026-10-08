@@ -35,6 +35,7 @@ Table I reste la mesure de référence, et devient une borne inférieure.
 
 import argparse
 import csv
+import io
 import json
 import math
 import os
@@ -66,6 +67,22 @@ def context_of(entity: str, text: str, width: int = CONTEXT_CHARS) -> str:
     after = re.sub(r"\s+", " ", text[m.end():end])
     found = re.sub(r"\s+", " ", m.group(0))
     return f"...{before}[[{found}]]{after}..."
+
+
+def read_csv_rows(path: str) -> list[dict]:
+    """
+    Relit un CSV annoté à la main. Excel peut le réenregistrer en UTF-8 ou en
+    Windows-1252 (« CSV (séparateur : point-virgule) »), avec ; ou , : on
+    accepte les deux encodages et les deux séparateurs.
+    """
+    raw = open(path, "rb").read()
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = raw.decode("cp1252")
+    header = text.splitlines()[0] if text else ""
+    delimiter = ";" if header.count(";") >= header.count(",") else ","
+    return list(csv.DictReader(io.StringIO(text, newline=""), delimiter=delimiter))
 
 
 def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
@@ -120,8 +137,7 @@ def cmd_sample(args):
 def cmd_score(args):
     with open(os.path.splitext(args.audit)[0] + "_meta.json", encoding="utf-8") as f:
         meta = json.load(f)
-    with open(args.audit, encoding="utf-8-sig", newline="") as f:
-        rows = list(csv.DictReader(f, delimiter=";"))
+    rows = read_csv_rows(args.audit)
 
     valid, invalid, missing = [], [], []
     for r in rows:
