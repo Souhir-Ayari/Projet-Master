@@ -9,10 +9,12 @@ choses à la fois :
       passé la validation, combien portent la BONNE technique ? Combien de
       mitigations extraites sont de vraies mitigations ? Ces chiffres sont
       calculés sur la sortie BRUTE du pipeline, avant toute correction ;
-  (b) NETTOYER la table avant la calibration de θ/α et la RQ3 : un cas mal
-      catégorisé fausse le bonus α et le statut "couverte / hors corpus" des
-      requêtes de data/eval_queries.json (ex. un cas de jailbreak classé
-      AML.T0024.000 rend "couverte" la requête d'inférence d'appartenance).
+  (b) construire une table CURÉE, qui ne sert que de BORNE SUPÉRIEURE : ce
+      que donnerait le système si la classification était parfaite. Les
+      expériences (calibration, Table IV) tournent sur la table BRUTE, sortie
+      réelle du pipeline : corriger à la main la table utilisée ferait perdre
+      le caractère automatique de la construction, qui distingue ce travail
+      des bases curées à la main (LVD/ATAG).
 
 1. export — un CSV (Excel, séparateur ;) avec un cas par ligne :
        python review_cases.py export --table results/knowledge_table_llm.jsonl
@@ -41,6 +43,12 @@ choses à la fois :
    modifié) : aucun appel à Ollama n'est nécessaire.
 
 Faire 2 AVANT 3 : le score doit porter sur la sortie brute du pipeline.
+
+4. split — après apply, sépare les deux versions en deux tables nommées,
+   chacune avec ses deux stores vectoriels :
+       python review_cases.py split --table results/knowledge_table_llm.jsonl
+   -> knowledge_table_llm_raw.jsonl     (sortie du pipeline, avant relecture)
+   -> knowledge_table_llm_curated.jsonl (après relecture, borne supérieure)
 """
 
 import argparse
@@ -249,6 +257,29 @@ def cmd_apply(args):
         print(f"    {n:4}  {c}")
 
 
+def cmd_split(args):
+    table_path = args.table
+    stem = os.path.splitext(table_path)[0]
+    src_npz = vector_paths_for(table_path)
+    backup = [table_path + ".before_review"] + [p + ".before_review" for p in src_npz]
+    missing = [p for p in backup if not os.path.exists(p)]
+    if missing:
+        raise SystemExit(f"[✗] Sauvegarde absente : {', '.join(missing)} — lancer apply d'abord.")
+    if not any("review" in r for r in load_table(table_path)):
+        raise SystemExit(f"[✗] {table_path} n'est pas la table corrigée (aucun champ 'review').")
+
+    for variant, sources in (("raw", backup), ("curated", [table_path, *src_npz])):
+        target = f"{stem}_{variant}.jsonl"
+        if os.path.exists(target) and not args.force:
+            raise SystemExit(f"[✗] {target} existe déjà — --force pour l'écraser.")
+        for src, dst in zip(sources, [target, *vector_paths_for(target)]):
+            shutil.copy2(src, dst)
+        table = load_table(target)
+        cats = Counter(r.get("category") or "non validée" for r in table)
+        print(f"[✓] {target} : {len(table)} cas, {len(cats)} technique(s)")
+    print("    Expériences (calibration, Table IV) : table _raw ; borne supérieure : table _curated.")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Relecture manuelle de la knowledge table.")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -265,6 +296,10 @@ def main():
     a.add_argument("--review", required=True)
     a.add_argument("--force", action="store_true")
     a.set_defaults(func=cmd_apply)
+    sp = sub.add_parser("split", help="sépare table brute (_raw) et table curée (_curated)")
+    sp.add_argument("--table", required=True)
+    sp.add_argument("--force", action="store_true")
+    sp.set_defaults(func=cmd_split)
     args = parser.parse_args()
     args.func(args)
 
