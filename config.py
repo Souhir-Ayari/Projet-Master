@@ -804,6 +804,22 @@ METHODOLOGY_DOMAIN_CONTEXT = {
         ),
         "taxonomy_name": "MITRE ATLAS",
         "id_format": "AML.Txxxx ou AML.Txxxx.xxx",
+        "disambiguation": """
+4quater. Distinctions à respecter pour "mitre_technique_id" :
+   - JAILBREAK (AML.T0054) : l'attaque vise le MODÈLE lui-même, pour lui faire
+     contourner ses règles de sécurité ou d'alignement et produire un contenu
+     qu'il devrait refuser (jeu de rôle, suffixe adverse optimisé, prompt
+     encodé...), même si le texte emploie le mot "prompt".
+   - INJECTION DE PROMPT (AML.T0051 et sous-techniques) : l'attaque vise une
+     APPLICATION intégrant un LLM, pour détourner ses instructions et lui
+     faire exécuter celles de l'attaquant. Directe (AML.T0051) si l'attaquant
+     saisit lui-même l'entrée ; indirecte (AML.T0051.001) si les instructions
+     arrivent par des données externes (page web, e-mail, document, sortie
+     d'outil) ; déclenchée (AML.T0051.002) SEULEMENT si le texte décrit une
+     activation par un événement ou une action de l'utilisateur.
+   - EMPOISONNEMENT (AML.T0020) : l'attaquant modifie les données
+     d'ENTRAÎNEMENT ou de fine-tuning, pas l'entrée au moment de l'inférence.
+""",
     },
     DOMAIN_SUPPLY_CHAIN: {
         "role": (
@@ -812,6 +828,7 @@ METHODOLOGY_DOMAIN_CONTEXT = {
         ),
         "taxonomy_name": "MITRE ATT&CK",
         "id_format": "Txxxx ou Txxxx.xxx",
+        "disambiguation": "",
     },
 }
 
@@ -851,7 +868,7 @@ Règles strictes (mêmes principes anti-hallucination que pour l'extraction d'en
    "LLM Prompt Injection: Indirect" est une étiquette, pas un résumé de ce que
    fait l'attaque décrite dans CE texte. Si tu ne peux pas décrire l'attaque
    autrement qu'en reprenant le nom de la catégorie, c'est que le texte n'en
-   décrit pas une — mets "attack_present": false.
+   décrit pas une — mets "attack_present": false.{disambiguation}
 4ter. "mitigation_summary" doit décrire ce que CE texte propose, avec les
    termes de CE texte. Une recommandation générale de bonne pratique que tu
    connais par ailleurs n'est pas une mitigation extraite : si le texte
@@ -879,6 +896,41 @@ Texte à analyser :
 JSON :"""
 
 
+# Reclassification seule (reclassify_cases.py) : redemande UNIQUEMENT la
+# technique d'un cas déjà extrait, à partir du même extrait et du même résumé,
+# pour mesurer l'effet du prompt de classification sans refaire les résumés.
+PROMPT_CLASSIFY = """Tu es {role}. Voici un extrait de document et le résumé d'une attaque
+qui y est décrite.
+
+Ta tâche : choisir la technique {taxonomy_name} qui correspond à CETTE attaque.
+
+Techniques {taxonomy_name} autorisées (choisis UNIQUEMENT dans cette liste, ou
+mets null si aucune ne correspond clairement) :
+{mitre_labels}
+{disambiguation}
+Réponds UNIQUEMENT avec un JSON valide, sans texte avant/après :
+{{"mitre_technique_id": "<{id_format}, ou null>"}}
+
+Résumé de l'attaque : {summary}
+
+Extrait :
+\"\"\"
+{text}
+\"\"\"
+
+JSON :"""
+
+
+def classify_prompt(domain: str, mitre_labels: str, summary: str, text: str,
+                    disambiguation: bool = True) -> str:
+    context = METHODOLOGY_DOMAIN_CONTEXT[domain]
+    return PROMPT_CLASSIFY.format(
+        role=context["role"], taxonomy_name=context["taxonomy_name"], id_format=context["id_format"],
+        mitre_labels=mitre_labels, summary=summary, text=text,
+        disambiguation=context["disambiguation"].replace("4quater. ", "") if disambiguation else "",
+    )
+
+
 def methodology_prompt(
     domain: str = DEFAULT_DOMAIN,
     entities: str = "",
@@ -899,6 +951,7 @@ def methodology_prompt(
             f"{', '.join(sorted(METHODOLOGY_DOMAIN_CONTEXT))}"
         ) from None
     return PROMPT_METHODOLOGY.format(
+        disambiguation=context["disambiguation"] if TAXONOMY_PROMPT_DEFINITIONS else "",
         role=context["role"],
         taxonomy_name=context["taxonomy_name"],
         id_format=context["id_format"],
@@ -932,6 +985,18 @@ MITRE_ATLAS_STIX_URL = (
 MITRE_ATLAS_CACHE_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "data", "mitre_atlas_techniques.json"
 )
+
+# Définitions officielles (début de la description STIX) des techniques de la
+# short-list ATLAS, extraites du bundle ci-dessus et versionnées dans data/.
+# Données au modèle À CÔTÉ des noms : avec les seuls noms, la Layer 2 confondait
+# massivement jailbreak et injection de prompt (relecture des 119 cas : 47,5 %
+# d'identifiants corrects, voir review_cases.py).
+MITRE_ATLAS_DESCRIPTIONS_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "data", "mitre_atlas_descriptions.json"
+)
+# False -> prompt historique (noms seuls, sans règle de distinction), gardé
+# pour l'ablation de reclassify_cases.py.
+TAXONOMY_PROMPT_DEFINITIONS = True
 
 MITRE_ATTACK_STIX_URL = (
     "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/"

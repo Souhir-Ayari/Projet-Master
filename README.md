@@ -138,6 +138,7 @@ Le terminal affichera, pour chaque méthode :
 | `rq1_table.py` | Assemble la Table I (RQ1) à partir des `eval_<méthode>.json` écrits par `main.py --only` |
 | `audit_false_positives.py` | Audit manuel RQ1 : tirage de faux positifs à juger, part d'entités valides absentes de l'annotation, précision corrigée |
 | `review_cases.py` | Relecture manuelle de la knowledge table : justesse de la technique ATLAS, validité des mitigations, table corrigée |
+| `reclassify_cases.py` | Reclasse la technique ATLAS des cas existants (noms seuls / avec définitions) et mesure la justesse contre la relecture |
 | `test_retrieval.py` | Requêtes manuelles à famille ATLAS connue -> Hit@k du retrieval Tier 1 (+ contrôle hors ligne de Tier 2) |
 
 ## Pipeline méthodologie/mitigation (Layer 2)
@@ -287,6 +288,26 @@ python review_cases.py export --table results/knowledge_table_llm.jsonl
 # ... remplir results/review_knowledge_table_llm.csv ...
 python review_cases.py score --review results/review_knowledge_table_llm.csv
 python review_cases.py apply --review results/review_knowledge_table_llm.csv
+python review_cases.py split --table results/knowledge_table_llm.jsonl
+```
+
+La relecture **mesure** la Layer 2 ; la table corrigée ne sert que de
+borne supérieure. `split` écrit `knowledge_table_llm_raw.jsonl` (sortie du
+pipeline, utilisée pour la calibration et la Table IV) et
+`knowledge_table_llm_curated.jsonl` (après relecture).
+
+### Reclasser les cas avec les définitions ATLAS
+
+Le prompt de la Layer 2 donne maintenant, pour chaque technique de la
+short-list, sa définition officielle ATLAS (`data/mitre_atlas_descriptions.json`)
+et une règle pour distinguer jailbreak, injection de prompt et empoisonnement
+(`config.TAXONOMY_PROMPT_DEFINITIONS`). `reclassify_cases.py` redemande
+seulement la technique des cas existants, avec et sans définitions, et
+mesure la justesse contre la relecture, sans refaire les résumés. Le script
+reprend là où il s'est arrêté s'il est interrompu.
+
+```bash
+python reclassify_cases.py --table results/knowledge_table_llm_raw.jsonl --review results/review_knowledge_table_llm.csv --pdf-dir files --write-table
 ```
 
 ### Chercher dans la table de connaissance

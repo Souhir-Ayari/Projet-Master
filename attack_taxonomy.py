@@ -42,6 +42,7 @@ from config import (
     DOMAIN_LLM,
     DOMAIN_SUPPLY_CHAIN,
     MITRE_ATLAS_CACHE_PATH,
+    MITRE_ATLAS_DESCRIPTIONS_PATH,
     MITRE_ATLAS_STIX_URL,
     MITRE_ATTACK_CACHE_PATH,
     MITRE_ATTACK_STIX_URL,
@@ -128,6 +129,7 @@ _TAXONOMIES = {
         "source_name": "mitre-atlas",
         "id_regex": re.compile(r"^AML\.T\d{4}(\.\d{3})?$", re.IGNORECASE),
         "shortlist": LLM_THREAT_TECHNIQUE_IDS,
+        "descriptions_path": MITRE_ATLAS_DESCRIPTIONS_PATH,
     },
     DOMAIN_SUPPLY_CHAIN: {
         "label": "MITRE ATT&CK (Enterprise)",
@@ -293,17 +295,41 @@ def _display_name(technique_id: str, techniques: dict) -> str:
     return name
 
 
-def shortlist_labels_block(domain: str = DEFAULT_DOMAIN, techniques: dict = None) -> str:
+def load_descriptions(domain: str = DEFAULT_DOMAIN) -> dict:
+    """{technique_id: définition officielle courte} ; {} si le domaine n'en a pas."""
+    path = _taxonomy(domain).get("descriptions_path")
+    if not path or not os.path.exists(path):
+        return {}
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def shortlist_labels_block(
+    domain: str = DEFAULT_DOMAIN, techniques: dict = None, with_descriptions: bool = None
+) -> str:
     """
     Construit le bloc "ID : nom" injecté dans PROMPT_METHODOLOGY, pour que le
     modèle choisisse dans une liste fermée de techniques plausibles au lieu
     d'inventer un ID parmi les centaines du référentiel complet.
+
+    Avec with_descriptions (défaut : config.TAXONOMY_PROMPT_DEFINITIONS),
+    chaque ligne porte aussi la définition officielle de la technique : les
+    noms seuls ("LLM Prompt Injection", "LLM Jailbreak") ne suffisaient pas au
+    modèle pour distinguer des techniques voisines.
     """
+    from config import TAXONOMY_PROMPT_DEFINITIONS
+
+    if with_descriptions is None:
+        with_descriptions = TAXONOMY_PROMPT_DEFINITIONS
     techniques = techniques if techniques is not None else load_techniques(domain)
+    descriptions = load_descriptions(domain) if with_descriptions else {}
     lines = []
     for technique_id in sorted(_taxonomy(domain)["shortlist"]):
         name = _display_name(technique_id, techniques)
-        lines.append(f"- {technique_id} : {name}" if name else f"- {technique_id}")
+        line = f"- {technique_id} : {name}" if name else f"- {technique_id}"
+        if descriptions.get(technique_id):
+            line += f" — {descriptions[technique_id]}"
+        lines.append(line)
     return "\n".join(lines)
 
 
