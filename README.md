@@ -139,6 +139,7 @@ Le terminal affichera, pour chaque méthode :
 | `audit_false_positives.py` | Audit manuel RQ1 : tirage de faux positifs à juger, part d'entités valides absentes de l'annotation, précision corrigée |
 | `review_cases.py` | Relecture manuelle de la knowledge table : justesse de la technique ATLAS, validité des mitigations, table corrigée |
 | `reclassify_cases.py` | Reclasse la technique ATLAS des cas existants (noms seuls / avec définitions) et mesure la justesse contre la relecture |
+| `causal.py` | Adaptation causale des cas récupérés et vérificateur sémantique + causal (variantes rule / labels / llm) |
 | `test_retrieval.py` | Requêtes manuelles à famille ATLAS connue -> Hit@k du retrieval Tier 1 (+ contrôle hors ligne de Tier 2) |
 
 ## Pipeline méthodologie/mitigation (Layer 2)
@@ -407,6 +408,26 @@ table est figée, les chiffres ne sont comparables qu'à empreinte égale.
 Traçable ne veut pas dire pertinent : une défense fidèlement recopiée d'un cas
 récupéré peut ne pas s'appliquer à l'attaque (typiquement sur la requête hors
 domaine). La pertinence relève de l'évaluation humaine (5 cas, Likert 1-5).
+
+### Adaptation causale et vérificateur sémantique (Table IV)
+
+`causal.py` remplace la copie de mitigation par une **adaptation** : la
+nouvelle attaque est décrite en chaîne causale (vecteur d'entrée ->
+mécanisme de contournement -> impact), Propose indique quel maillon chaque
+mesure casse (« none » = rejetée) et la reformule pour cette attaque. Le
+vérificateur n'exige plus de recopier les mots : l'ancrage est
+**sémantique** (cosinus nomic-embed-text ≥ 0,70 avec la mitigation citée)
+et **causal** (maillon présent dans la chaîne, mesure proche de ce maillon,
+cosinus ≥ 0,50). Seuils fixés a priori. Trois variantes pour l'ablation :
+`rule` (la règle seule), `labels` (le modèle étiquette, la règle décide —
+principal), `llm` (le modèle juge tout) ; `lexical` = ancien vérificateur.
+Métriques ajoutées : taux d'adaptation et adéquation causale. `--unanchored`
+active la branche non ancrée (mesures marquées quand aucun cas ne passe θ).
+
+```bash
+python run_remediation.py --table results/knowledge_table_llm_raw.jsonl --queries data/eval_queries.json --verifiers labels lexical rule llm --unanchored --output-dir results/rq3_raw
+python run_remediation.py --table results/knowledge_table_llm_curated.jsonl --queries data/eval_queries.json --verifiers labels --unanchored --output-dir results/rq3_curated
+```
 
 ### Ce qui n'est PAS implémenté
 

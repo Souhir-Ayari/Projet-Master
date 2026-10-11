@@ -28,14 +28,23 @@ Trois modes, qui sont les trois lignes de la Table IV (RQ3) :
   - "retrieval_loop" : Propose + Verify + Revise (N=1).
 Verify est calculé dans les TROIS modes, contre les MÊMES cas récupérés :
 c'est ce qui rend le taux de traçabilité comparable d'une ligne à l'autre.
+
+Vérificateur (paramètre `verifier` de Remediator.run) :
+  - "lexical" : vérification historique ci-dessous (ancrage lexical), gardée
+    comme ablation — elle récompense la copie de la mitigation ;
+  - "rule" / "labels" / "llm" : adaptation causale et vérification
+    sémantique + causale (voir causal.py), "labels" étant la configuration
+    principale.
 """
 
 import re
 
+import causal
 from config import MITIGATION_TYPES
 from mistral_extractor import MistralExtractor, MistralGenerationError
 
 MODES = ("no_retrieval", "retrieval", "retrieval_loop")
+VERIFIERS = ("lexical",) + causal.VERIFIERS
 
 # Part minimale des mots porteurs de sens d'une recommandation qui doivent se
 # retrouver dans la mitigation du cas cité. Mesuré sur le premier run réel :
@@ -326,10 +335,70 @@ def traceability_rate(verified: list[dict]) -> float | None:
 # Propose / Revise
 # --------------------------------------------------------------------------- #
 class Remediator:
-    def __init__(self, mistral: MistralExtractor = None):
+    def __init__(self, mistral: MistralExtractor = None, embed=None):
         self.mistral = mistral or MistralExtractor()
         self.n_llm_calls = 0
         self.n_parse_errors = 0
+        if embed is None:
+            from knowledge_table import embed_text as embed
+        self._embed_fn = embed
+        self._embed_cache = {}
+
+    def embed(self, text: str) -> list[float]:
+        if text not in self._embed_cache:
+            self._embed_cache[text] = self._embed_fn(text)
+        return self._embed_cache[text]
+
+    def _call_json(self, prompt: str) -> tuple[dict, str]:
+        """Un appel LLM dont la réponse attendue est un objet JSON simple."""
+        self.n_llm_calls += 1
+        try:
+            raw = self.mistral._generate(prompt)
+        except MistralGenerationError as e:
+            self.n_parse_errors += 1
+            return {}, f"<échec de génération : {e}>"
+        parsed = self.mistral._parse_json_full(raw)
+        if not isinstance(parsed, dict) or not parsed:
+            self.n_parse_errors += 1
+            parsed = {}
+        return parsed, raw
+
+    def chain(self, attack: str) -> tuple[dict, str]:
+        """Chaîne causale de la requête, extraite UNE fois par attaque (même chaîne pour tous les modes)."""
+        if not hasattr(self, "_chains"):
+            self._chains = {}
+        if attack not in self._chains:
+            parsed, raw = self._call_json(causal.PROMPT_CHAIN.format(attack=attack))
+            self._chains[attack] = (causal.parse_chain(parsed), raw)
+        return self._chains[attack]
+
+    def propose_adapt(self, attack: str, cases: list[dict], chain: dict):
+        prompt = causal.PROMPT_ADAPT.format(attack=attack, cases=format_cases(cases),
+                                            types=_TYPES_BLOCK, **causal.format_chain(chain))
+        return self._call(prompt)
+
+    def revise_causal(self, attack: str, cases: list[dict], chain: dict, rejected: list[dict]):
+        rejected_block = "\n".join(
+            f"- \"{r.get('action')}\" (cas cités : {r.get('cited_cases')}, maillon : "
+            f"{r.get('broken_link')}) -> rejet : {r['reason']}" for r in rejected
+        )
+        prompt = causal.PROMPT_REVISE_CAUSAL.format(attack=attack, cases=format_cases(cases),
+                                                    rejected=rejected_block, **causal.format_chain(chain))
+        return self._call(prompt)
+
+    def judge(self, attack: str, chain: dict):
+        def _judge(rec: dict, case: dict, case_id: str) -> dict:
+            parsed, _ = self._call_json(causal.PROMPT_JUDGE.format(
+                attack=attack, case_id=case_id, mitigation=case.get("mitigation_summary"),
+                action=rec.get("action"), **causal.format_chain(chain)))
+            return parsed
+        return _judge
+
+    def _verify(self, recs, cases, attack, chain, verifier):
+        if verifier == "lexical":
+            return verify(recs, cases)
+        return causal.verify_causal(recs, cases, attack, chain, verifier, self.embed,
+                                    judge=self.judge(attack, chain) if verifier == "llm" else None)
 
     def _call(self, prompt: str) -> tuple[list[dict], str]:
         """
@@ -374,7 +443,8 @@ class Remediator:
         return self._call(prompt)
 
     def run(
-        self, attack: str, cases: list[dict], mode: str, min_similarity: float = 0.0
+        self, attack: str, cases: list[dict], mode: str, min_similarity: float = 0.0,
+        verifier: str = "lexical", unanchored_branch: bool = False,
     ) -> dict:
         """
         Exécute un mode de la Table IV sur une attaque et ses cas récupérés.
@@ -384,6 +454,9 @@ class Remediator:
         """
         if mode not in MODES:
             raise ValueError(f"Mode inconnu : {mode} (attendu : {MODES})")
+        if verifier not in VERIFIERS:
+            raise ValueError(f"Vérificateur inconnu : {verifier} (attendu : {VERIFIERS})")
+        causal_mode = verifier != "lexical"
         self.n_llm_calls = 0
         self.n_parse_errors = 0
 
@@ -404,19 +477,36 @@ class Remediator:
             "revised": None,
             "raw_revise": None,
             "revision_triggered": False,
+            "verifier": verifier,
+            "chain": None,
+            "unanchored": False,
         }
+        chain = {}
+        if causal_mode:
+            chain, result["raw_chain"] = self.chain(attack)
+            result["chain"] = chain
 
         if mode != "no_retrieval" and not eligible:
-            # Abstention motivée, sans appel LLM : aucun cas assez proche,
-            # donc aucune défense traçable possible.
+            # Aucun cas assez proche, donc aucune défense traçable possible.
+            # Par défaut : abstention motivée, sans appel LLM. Avec la branche
+            # non ancrée : des mesures sont proposées quand même, marquées
+            # NON ANCRÉES et jamais comptées comme traçables.
             result["abstained_no_case"] = True
             proposed, raw_propose = [], None
+            if unanchored_branch:
+                result["unanchored"] = True
+                proposed, raw_propose = self.propose(attack, [], use_retrieval=False)
+        elif causal_mode and mode != "no_retrieval":
+            proposed, raw_propose = self.propose_adapt(attack, eligible, chain)
         else:
             proposed, raw_propose = self.propose(
                 attack, eligible, use_retrieval=mode != "no_retrieval"
             )
         cases = eligible
-        verified = verify(proposed, cases)
+        verified = self._verify(proposed, cases, attack, chain, verifier)
+        if result["unanchored"]:
+            for r in verified:
+                r["unanchored"] = True
         result["proposed"] = verified
         result["raw_propose"] = raw_propose
 
@@ -427,19 +517,22 @@ class Remediator:
         final = verified
         result["dropped"] = []
         if mode == "retrieval_loop":
-            rejected = [r for r in verified if not r["traceable"]]
+            rejected = [r for r in verified if not r["traceable"] and not r.get("unanchored")]
             if rejected:
                 result["revision_triggered"] = True
-                revised, raw_revise = self.revise(attack, cases, rejected)
-                revised_verified = verify(revised, cases)
+                if causal_mode:
+                    revised, raw_revise = self.revise_causal(attack, cases, chain, rejected)
+                else:
+                    revised, raw_revise = self.revise(attack, cases, rejected)
+                revised_verified = self._verify(revised, cases, attack, chain, verifier)
                 result["revised"] = revised_verified
                 result["raw_revise"] = raw_revise
                 accepted = [r for r in verified if r["traceable"]]
                 final = accepted + revised_verified
             # N=1 : ce qui reste non traçable après l'unique révision est
             # écarté du plan final, mais conservé pour l'analyse.
-            result["dropped"] = [r for r in final if not r["traceable"]]
-            final = [r for r in final if r["traceable"]]
+            result["dropped"] = [r for r in final if not r["traceable"] and not r.get("unanchored")]
+            final = [r for r in final if r["traceable"] or r.get("unanchored")]
 
         final, duplicates = deduplicate(final)
         result["duplicates"] = duplicates
@@ -447,10 +540,12 @@ class Remediator:
         result["n_recommendations"] = len(final)
         result["traceability_rate"] = traceability_rate(final)
         result["supported_rate"] = (
-            round(sum(r["supported_by_any_case"] for r in final) / len(final), 3)
-            if final
+            round(sum(r.get("supported_by_any_case", False) for r in final) / len(final), 3)
+            if final and not causal_mode
             else None
         )
+        result["adaptation_rate"] = causal.rate(final, "adapted") if causal_mode else None
+        result["causal_adequacy_rate"] = causal.rate(final, "causally_adequate") if causal_mode else None
         result["n_llm_calls"] = self.n_llm_calls
         result["n_parse_errors"] = self.n_parse_errors
         return result
