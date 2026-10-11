@@ -49,12 +49,21 @@ Faire 2 AVANT 3 : le score doit porter sur la sortie brute du pipeline.
        python review_cases.py split --table results/knowledge_table_llm.jsonl
    -> knowledge_table_llm_raw.jsonl     (sortie du pipeline, avant relecture)
    -> knowledge_table_llm_curated.jsonl (après relecture, borne supérieure)
+
+5. iaa-export / iaa-score — accord inter-annotateurs : tire N cas au hasard
+   (graine fixe) dans un CSV VIERGE pour une seconde personne, qui le remplit
+   sans voir la première relecture, puis calcule le kappa de Cohen sur la
+   technique correcte, la validité de la mitigation et la décision de garder :
+       python review_cases.py iaa-export --review results/review_knowledge_table_llm.csv
+       python review_cases.py iaa-score --review results/review_knowledge_table_llm.csv \
+           --second results/review_knowledge_table_llm_iaa.csv
 """
 
 import argparse
 import csv
 import json
 import os
+import random
 import shutil
 import time
 from collections import Counter
@@ -108,6 +117,25 @@ def gold_labels(review_rows: list[dict]) -> dict:
             good = r["bonne_categorie"].strip()
             gold[r["record_id"]] = None if good.lower() == NONE_LABEL else good
     return gold
+
+
+def _technique(row: dict) -> str:
+    """Technique jugée correcte par l'annotateur sur une ligne ("aucune" si aucune)."""
+    if _flag(row["categorie_ok"]):
+        return NONE_LABEL if row["categorie"] == "non validée" else row["categorie"]
+    good = (row.get("bonne_categorie") or "").strip()
+    return NONE_LABEL if not good or good.lower() == NONE_LABEL else good
+
+
+def cohen_kappa(a: list, b: list) -> float:
+    """Kappa de Cohen entre deux listes d'étiquettes de même longueur."""
+    n = len(a)
+    if n == 0:
+        return float("nan")
+    po = sum(x == y for x, y in zip(a, b)) / n
+    ca, cb = Counter(a), Counter(b)
+    pe = sum(ca[k] * cb[k] for k in set(ca) | set(cb)) / (n * n)
+    return 1.0 if pe == 1 else (po - pe) / (1 - pe)
 
 
 def check_rows(rows: list[dict], domain: str) -> list[str]:
@@ -294,6 +322,51 @@ def cmd_split(args):
     print("    Expériences (calibration, Table IV) : table _raw ; borne supérieure : table _curated.")
 
 
+def cmd_iaa_export(args):
+    _, rows = read_review(args.review)
+    sample = random.Random(args.seed).sample(rows, min(args.n, len(rows)))
+    out = args.output or os.path.splitext(args.review)[0] + "_iaa.csv"
+    if os.path.exists(out) and not args.force:
+        raise SystemExit(f"[✗] {out} existe déjà — --force pour l'écraser.")
+    with open(out, "w", encoding="utf-8-sig", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=FIELDS, delimiter=";", extrasaction="ignore")
+        w.writeheader()
+        for i, r in enumerate(sorted(sample, key=lambda r: int(r["n"])), 1):
+            w.writerow({**{k: r.get(k, "") for k in FIELDS}, "n": i,
+                        "categorie_ok": "", "bonne_categorie": "", "mitigation_ok": "", "garder": "", "remarque": ""})
+    shutil.copy2(os.path.splitext(args.review)[0] + "_meta.json", os.path.splitext(out)[0] + "_meta.json")
+    print(f"[✓] {len(sample)} cas tirés au hasard (graine {args.seed}) -> {out}")
+    print("    À remplir par une seconde personne, SANS voir la première relecture "
+          "(mêmes consignes ; garder = o / n).")
+
+
+def cmd_iaa_score(args):
+    _, first = read_review(args.review)
+    meta, second = read_review(args.second)
+    problems = check_rows(second, meta["domain"])
+    if problems:
+        raise SystemExit("[✗] Seconde annotation incomplète :\n    " + "\n    ".join(problems))
+    by_id = {r["record_id"]: r for r in first}
+    pairs = [(by_id[r["record_id"]], r) for r in second if r["record_id"] in by_id]
+    both_kept = [(a, b) for a, b in pairs if _flag(a["garder"]) and _flag(b["garder"])]
+    with_mit = [(a, b) for a, b in both_kept if a["mitigation"]]
+    results = {}
+    for name, items, key in (
+        ("garder", pairs, lambda r: _flag(r["garder"])),
+        ("technique", both_kept, _technique),
+        ("mitigation_ok", with_mit, lambda r: _flag(r["mitigation_ok"])),
+    ):
+        a, b = [key(x) for x, _ in items], [key(y) for _, y in items]
+        agree = sum(x == y for x, y in zip(a, b))
+        results[name] = {"n": len(items), "agreement": agree, "kappa": round(cohen_kappa(a, b), 3)}
+        print(f"  {name:14} n={len(items):3}  accord {agree}/{len(items)}"
+              f" = {agree / max(len(items), 1):.0%}   kappa de Cohen = {results[name]['kappa']:.2f}")
+    out = os.path.splitext(args.second)[0] + "_score.json"
+    with open(out, "w", encoding="utf-8") as f:
+        json.dump({"first": args.review, "second": args.second, "results": results}, f, indent=2, ensure_ascii=False)
+    print(f"[✓] {out}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Relecture manuelle de la knowledge table.")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -314,6 +387,17 @@ def main():
     sp.add_argument("--table", required=True)
     sp.add_argument("--force", action="store_true")
     sp.set_defaults(func=cmd_split)
+    ie = sub.add_parser("iaa-export", help="CSV vierge de N cas pour une seconde annotation")
+    ie.add_argument("--review", required=True)
+    ie.add_argument("--n", type=int, default=25)
+    ie.add_argument("--seed", type=int, default=7)
+    ie.add_argument("--output", default=None)
+    ie.add_argument("--force", action="store_true")
+    ie.set_defaults(func=cmd_iaa_export)
+    isc = sub.add_parser("iaa-score", help="kappa de Cohen entre les deux annotations")
+    isc.add_argument("--review", required=True)
+    isc.add_argument("--second", required=True)
+    isc.set_defaults(func=cmd_iaa_score)
     args = parser.parse_args()
     args.func(args)
 
