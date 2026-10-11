@@ -35,6 +35,7 @@ from config import (
     ARXIV_API_URL,
     KNOWLEDGE_ATTACK_VECTORS_PATH,
     RETRIEVAL_CATEGORY_BONUS,
+    RETRIEVAL_CATEGORY_FILTER,
     RETRIEVAL_SIMILARITY_THRESHOLD,
     SEMANTIC_SCHOLAR_API_URL,
     TIER2_ENABLED,
@@ -152,7 +153,7 @@ def tier1_retrieve(
     attack_vectors_path: str = KNOWLEDGE_ATTACK_VECTORS_PATH,
     top_k: int = 3,
     category_bonus: float = RETRIEVAL_CATEGORY_BONUS,
-    category_filter: bool = False,
+    category_filter: bool = RETRIEVAL_CATEGORY_FILTER,
 ) -> list[dict]:
     """
     Similarité cosinus, calculée vectoriellement (vector_store.

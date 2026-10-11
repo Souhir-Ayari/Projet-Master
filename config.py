@@ -1038,6 +1038,13 @@ RETRIEVAL_SIMILARITY_THRESHOLD = 0.6
 # remonter un cas sémantiquement éloigné.
 RETRIEVAL_CATEGORY_BONUS = 0.05
 
+# Step 6 - Tier 1 : ne garder que les cas de la technique de la requête (repli
+# sur toute la table si elle n'en contient aucun). Choix de conception retenu
+# pour le papier (avis de l'encadrante, 09/10), α étant rapporté en analyse
+# de sensibilité (calibrate_retrieval.py). Sur la table brute, filtre et bonus
+# donnent le même Hit@1 (0,571) : la limite vient de la classification.
+RETRIEVAL_CATEGORY_FILTER = True
+
 # Step 6 - Tier 2 : flag de config dès le départ (demandé explicitement) pour
 # que "statique vs augmenté" soit une ablation contrôlée, pas une réécriture.
 TIER2_ENABLED = False
