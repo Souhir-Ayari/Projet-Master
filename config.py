@@ -994,9 +994,12 @@ MITRE_ATLAS_CACHE_PATH = os.path.join(
 MITRE_ATLAS_DESCRIPTIONS_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "data", "mitre_atlas_descriptions.json"
 )
-# False -> prompt historique (noms seuls, sans règle de distinction), gardé
-# pour l'ablation de reclassify_cases.py.
-TAXONOMY_PROMPT_DEFINITIONS = True
+# Désactivé : mesuré par reclassify_cases.py sur les 108 cas relus, le prompt
+# avec définitions et règle de distinction n'a PAS amélioré la justesse
+# (39,8 % contre 41,1 % avec les noms seuls et 47,5 % pour la Layer 2
+# d'origine) — Mistral-7B se replie alors sur la technique parente AML.T0051.
+# Gardé pour l'ablation ; le pipeline reste dans l'état qui a été mesuré.
+TAXONOMY_PROMPT_DEFINITIONS = False
 
 MITRE_ATTACK_STIX_URL = (
     "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/"

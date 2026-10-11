@@ -55,23 +55,9 @@ from knowledge_table import load_table, vector_paths_for
 from methodology_extractor import _normalize_technique_id
 from mistral_extractor import MistralExtractor, MistralGenerationError
 from pdf_extractor import chunk_text, extract_text_from_pdf
-from review_cases import NONE_LABEL, _flag, read_review
+from review_cases import gold_labels, read_review
 
 MODES = ("names", "definitions")
-
-
-def gold_labels(review_rows: list[dict]) -> dict:
-    """record_id -> technique correcte (None = aucune), pour les cas gardés à la relecture."""
-    gold = {}
-    for r in review_rows:
-        if not _flag(r["garder"]):
-            continue
-        if _flag(r["categorie_ok"]):
-            gold[r["record_id"]] = None if r["categorie"] == "non validée" else r["categorie"]
-        else:
-            good = r["bonne_categorie"].strip()
-            gold[r["record_id"]] = None if good.lower() == NONE_LABEL else good
-    return gold
 
 
 def find_pdf(name: str, pdf_dirs: list[str]) -> str | None:

@@ -25,8 +25,20 @@ Limite à garder en tête (et à écrire) : calibrer et évaluer sur les mêmes
 18 requêtes surestime la qualité du réglage. Le script rapporte donc aussi
 l'exactitude de θ en leave-one-out (θ choisi sans la requête évaluée).
 
+Pertinence et couverture : par défaut, lues dans les catégories de la table
+elle-même. Sur une table BRUTE (sortie du pipeline), ces catégories sont
+fausses une fois sur deux : un cas de jailbreak classé "inférence
+d'appartenance" serait compté pertinent pour la requête d'inférence
+d'appartenance. Avec --gold-review, le retrieval utilise toujours les
+catégories de la table (bonus α, filtre), mais la pertinence d'un cas
+retrouvé et la couverture d'une requête sont jugées sur les catégories
+correctes de la relecture : on mesure ainsi le coût réel des erreurs de
+classification. Un cas écarté à la relecture n'est jamais pertinent.
+
 Usage :
     python calibrate_retrieval.py --table results/knowledge_table_llm.jsonl
+    python calibrate_retrieval.py --table results/knowledge_table_llm_raw.jsonl \
+        --gold-review results/review_knowledge_table_llm.csv
 """
 
 import argparse
@@ -38,22 +50,21 @@ from config import RETRIEVAL_CATEGORY_BONUS, RETRIEVAL_SIMILARITY_THRESHOLD
 from jsonl_utils import save_run_json
 from knowledge_table import embed_text, load_table, vector_paths_for
 from retrieval import VectorStoreError, check_vector_store, score_cases
+from review_cases import gold_labels, read_review
 from vector_store import cosine_similarities, load_vectors
 
 ALPHAS = [0.0, 0.05, 0.10, 0.15, 0.20, 0.30]
 THETAS = [round(0.40 + 0.01 * i, 2) for i in range(51)]  # 0.40 .. 0.90
 
 
-def rank_metrics(ranked: list[dict], expected: set) -> tuple[int, int, float]:
-    """(hit@1, hit@3, reciprocal rank) d'une liste classée de cas."""
-    rr = 0.0
-    for rank, case in enumerate(ranked, 1):
-        if case.get("category") in expected:
-            rr = 1.0 / rank
-            break
-    hit1 = int(bool(ranked) and ranked[0].get("category") in expected)
-    hit3 = int(any(c.get("category") in expected for c in ranked[:3]))
-    return hit1, hit3, rr
+def rank_metrics(ranked: list[dict], expected: set, relevance_category=None) -> tuple[int, int, float]:
+    """(hit@1, hit@3, reciprocal rank) d'une liste classée de cas.
+    relevance_category(case) donne la catégorie qui juge la pertinence
+    (défaut : celle de la table)."""
+    cat = relevance_category or (lambda c: c.get("category"))
+    relevant = [cat(c) in expected for c in ranked]
+    rr = next((1.0 / rank for rank, ok in enumerate(relevant, 1) if ok), 0.0)
+    return int(bool(relevant) and relevant[0]), int(any(relevant[:3])), rr
 
 
 def balanced_accuracy(theta: float, items: list[tuple[float, bool]]) -> float:
@@ -76,6 +87,8 @@ def main():
     parser.add_argument("--table", required=True)
     parser.add_argument("--queries", default="data/eval_queries.json")
     parser.add_argument("--output-dir", default="results/calibration")
+    parser.add_argument("--gold-review", default=None,
+                        help="CSV de relecture : pertinence et couverture jugées sur les catégories correctes")
     args = parser.parse_args()
 
     table = load_table(args.table)
@@ -89,6 +102,14 @@ def main():
     record_by_id = {r["record_id"]: r for r in table}
     ids, matrix = load_vectors(attack_vectors_path)
     table_categories = {r.get("category") for r in table if r.get("category")}
+    relevance_category = None
+    if args.gold_review:
+        gold = gold_labels(read_review(args.gold_review)[1])
+        unknown = [r["record_id"] for r in table if r["record_id"] not in gold]
+        print(f"Pertinence jugée sur la relecture ({len(gold)} cas relus ; "
+              f"{len(unknown)} cas de la table écartés ou non relus, jamais pertinents)")
+        table_categories = {c for c in gold.values() if c}
+        relevance_category = lambda c: gold.get(c.get("record_id"))  # noqa: E731
 
     with open(args.queries, encoding="utf-8") as f:
         queries = json.load(f)["queries"]
@@ -114,7 +135,7 @@ def main():
         for q in covered:
             ranked = score_cases(q["similarities"], ids, record_by_id, q["category"],
                                  category_bonus=alpha, category_filter=filt, top_k=len(table))
-            a, b, c = rank_metrics(ranked, set(q["expected"]))
+            a, b, c = rank_metrics(ranked, set(q["expected"]), relevance_category)
             h1, h3, rr = h1 + a, h3 + b, rr + c
             per_query[q["name"]][label] = {
                 "top3": [(c_["category"], c_["similarity_score"]) for c_ in ranked[:3]],
@@ -150,7 +171,8 @@ def main():
 
     payload = {
         "run": {"script": "calibrate_retrieval.py", "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-                "table": args.table, "n_cases": len(table), "queries": args.queries},
+                "table": args.table, "n_cases": len(table), "queries": args.queries,
+                "gold_review": args.gold_review},
         "alpha_filter": config_rows,
         "per_query": per_query,
         "theta": {"best_balanced_accuracy": top, "best_range": [thetas[0], thetas[-1]],

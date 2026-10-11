@@ -96,6 +96,20 @@ def read_review(path: str) -> tuple[dict, list[dict]]:
     return meta, rows
 
 
+def gold_labels(review_rows: list[dict]) -> dict:
+    """record_id -> technique correcte (None = aucune), pour les cas gardés à la relecture."""
+    gold = {}
+    for r in review_rows:
+        if not _flag(r["garder"]):
+            continue
+        if _flag(r["categorie_ok"]):
+            gold[r["record_id"]] = None if r["categorie"] == "non validée" else r["categorie"]
+        else:
+            good = r["bonne_categorie"].strip()
+            gold[r["record_id"]] = None if good.lower() == NONE_LABEL else good
+    return gold
+
+
 def check_rows(rows: list[dict], domain: str) -> list[str]:
     """Liste des problèmes de saisie ; vide si le CSV est complet et cohérent."""
     problems = []
