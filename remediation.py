@@ -335,8 +335,12 @@ def traceability_rate(verified: list[dict]) -> float | None:
 # Propose / Revise
 # --------------------------------------------------------------------------- #
 class Remediator:
-    def __init__(self, mistral: MistralExtractor = None, embed=None):
+    def __init__(self, mistral: MistralExtractor = None, embed=None,
+                 semantic_min: float | None = None, link_min: float | None = None):
         self.mistral = mistral or MistralExtractor()
+        # Seuils du vérificateur causal (None = valeurs a priori de causal.py)
+        self.semantic_min = causal.SEMANTIC_MIN if semantic_min is None else semantic_min
+        self.link_min = causal.LINK_MIN if link_min is None else link_min
         self.n_llm_calls = 0
         self.n_parse_errors = 0
         if embed is None:
@@ -418,7 +422,8 @@ class Remediator:
             return verify(recs, cases)
         return causal.verify_causal(recs, cases, attack, chain, verifier, self.embed,
                                     judge=self.judge(attack, chain) if verifier == "llm" else None,
-                                    infer_citation=infer_citation)
+                                    infer_citation=infer_citation,
+                                    semantic_min=self.semantic_min, link_min=self.link_min)
 
     def _call(self, prompt: str) -> tuple[list[dict], str]:
         """

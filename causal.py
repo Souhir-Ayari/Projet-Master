@@ -49,6 +49,8 @@ Métriques :
 
 Les seuils ci-dessous sont fixés A PRIORI, avant tout run sur les requêtes
 d'évaluation ; leur sensibilité est à rapporter, pas à ajuster sur le test.
+Ils peuvent être remplacés par des seuils CALIBRÉS sur des données de
+développement distinctes des requêtes de test (calibrate_causal.py).
 """
 
 import re
@@ -221,7 +223,8 @@ def is_adapted(action: str, mitigation: str | None, attack: str, chain: dict) ->
 
 
 def verify_causal(recs: list[dict], cases: list[dict], attack: str, chain: dict, verifier: str,
-                  embed, judge=None, infer_citation: bool = False) -> list[dict]:
+                  embed, judge=None, infer_citation: bool = False,
+                  semantic_min: float | None = None, link_min: float | None = None) -> list[dict]:
     """
     Annote chaque recommandation : traceable, reason, cited (index du cas
     retenu), semantic_support, broken_link (étiqueté ou déduit),
@@ -235,6 +238,8 @@ def verify_causal(recs: list[dict], cases: list[dict], attack: str, chain: dict,
         raise ValueError(f"Vérificateur inconnu : {verifier} (attendu : {VERIFIERS})")
     from remediation import _cited_indexes  # import local : évite l'import circulaire
 
+    semantic_min = SEMANTIC_MIN if semantic_min is None else semantic_min
+    link_min = LINK_MIN if link_min is None else link_min
     present_links = {k: v for k, v in chain.items() if v}
     out = []
     for rec in recs:
@@ -264,12 +269,12 @@ def verify_causal(recs: list[dict], cases: list[dict], attack: str, chain: dict,
         link_sims = {k: _cosine(embed(action), embed(v)) for k, v in present_links.items()} if action else {}
         if verifier == "rule":
             link = max(link_sims, key=link_sims.get, default=None)
-            link = link if link and link_sims[link] >= LINK_MIN else "none"
+            link = link if link and link_sims[link] >= link_min else "none"
         else:
             link = a["broken_link_label"]
         a["broken_link"] = link
         a["link_similarity"] = round(link_sims.get(link, 0.0), 3) if link in LINKS else 0.0
-        a["causally_adequate"] = bool(link in present_links and a["link_similarity"] >= LINK_MIN)
+        a["causally_adequate"] = bool(link in present_links and a["link_similarity"] >= link_min)
         mitigation = cases[best]["mitigation_summary"] if best is not None else None
         a["adapted"] = bool(action) and is_adapted(action, mitigation, attack, chain)
 
@@ -288,19 +293,19 @@ def verify_causal(recs: list[dict], cases: list[dict], attack: str, chain: dict,
             if jl in LINKS:
                 a["broken_link"] = jl
                 a["link_similarity"] = round(link_sims.get(jl, 0.0), 3)
-                a["causally_adequate"] = bool(jl in present_links and a["link_similarity"] >= LINK_MIN)
+                a["causally_adequate"] = bool(jl in present_links and a["link_similarity"] >= link_min)
             reason = None if verdict.get("accept") is True else f"rejet du juge LLM : {verdict.get('reason') or 'sans raison'}"
-        elif support < SEMANTIC_MIN:
-            reason = f"mitigation citée trop éloignée sémantiquement ({support:.2f} < {SEMANTIC_MIN})"
+        elif support < semantic_min:
+            reason = f"mitigation citée trop éloignée sémantiquement ({support:.2f} < {semantic_min})"
         elif link == "none":
             reason = "ne casse aucun maillon de la nouvelle attaque"
         elif link is None:
             reason = f"maillon non reconnu : {rec.get('broken_link')!r}"
         elif link not in present_links:
             reason = f"le maillon {link} n'existe pas dans la chaîne de cette attaque"
-        elif a["link_similarity"] < LINK_MIN:
+        elif a["link_similarity"] < link_min:
             reason = (f"la mesure ne parle pas du maillon {link} "
-                      f"({a['link_similarity']:.2f} < {LINK_MIN})")
+                      f"({a['link_similarity']:.2f} < {link_min})")
         else:
             reason = None
 

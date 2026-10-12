@@ -99,6 +99,11 @@ def main():
     parser.add_argument("--queries", default=None, help="Fichier JSON de requêtes (sinon les 3 requêtes du Bloc 1).")
     parser.add_argument("--top-k", type=int, default=3)
     parser.add_argument("--verifiers", nargs="+", choices=VERIFIERS, default=["labels"])
+    parser.add_argument("--calibration", default=None,
+                        help="JSON produit par calibrate_causal.py : seuils sémantique et maillon calibrés "
+                             "sur des données de développement (sinon : seuils a priori de causal.py)")
+    parser.add_argument("--semantic-min", type=float, default=None, help="force le seuil sémantique")
+    parser.add_argument("--link-min", type=float, default=None, help="force le seuil maillon")
     parser.add_argument("--unanchored", action="store_true",
                         help="branche non ancrée : proposer quand même (marqué) quand aucun cas ne passe θ")
     args = parser.parse_args()
@@ -127,7 +132,19 @@ def main():
     print(f"Table : {args.table} ({len(table)} enregistrements, sha256 {table_hash[:12]}…)")
     print(f"Modèle : {OLLAMA_MODEL_NAME} — modes : {', '.join(args.modes)}\n")
 
-    remediator = Remediator()
+    semantic_min, link_min, threshold_source = SEMANTIC_MIN, LINK_MIN, "a priori (causal.py)"
+    if args.calibration:
+        with open(args.calibration, encoding="utf-8") as f:
+            calib = json.load(f)
+        semantic_min, link_min = calib["semantic_min"], calib["link_min"]
+        threshold_source = f"calibrés ({args.calibration})"
+    if args.semantic_min is not None:
+        semantic_min, threshold_source = args.semantic_min, "forcés en ligne de commande"
+    if args.link_min is not None:
+        link_min, threshold_source = args.link_min, "forcés en ligne de commande"
+    print(f"Seuils du vérificateur causal : sémantique={semantic_min}, maillon={link_min} — {threshold_source}\n")
+
+    remediator = Remediator(semantic_min=semantic_min, link_min=link_min)
     summary_rows = []
     for qi, query in enumerate(queries, 1):
         print(f"=== [{qi}/{len(queries)}] {query['name']}  ({time.strftime('%H:%M:%S')})")
@@ -148,8 +165,9 @@ def main():
             "model": OLLAMA_MODEL_NAME,
             "tier2_enabled": TIER2_ENABLED,
             "min_lexical_support": MIN_LEXICAL_SUPPORT,
-            "semantic_min": SEMANTIC_MIN,
-            "link_min": LINK_MIN,
+            "semantic_min": semantic_min,
+            "link_min": link_min,
+            "threshold_source": threshold_source,
             "unanchored_branch": args.unanchored,
             "retrieval": {
                 "best_score": retrieval_result["best_score"],
@@ -222,6 +240,9 @@ def main():
         print(f"    -> {path}\n")
 
     summary = {
+        "semantic_min": semantic_min,
+        "link_min": link_min,
+        "threshold_source": threshold_source,
         "table": args.table,
         "table_sha256": table_hash,
         "model": OLLAMA_MODEL_NAME,
