@@ -449,6 +449,16 @@ python calibrate_causal.py --table results/knowledge_table_llm_curated.jsonl --n
 python run_remediation.py ... --calibration results/causal_calibration.json
 ```
 
+**Sensibilité aux seuils** (`rescore_causal.py`) : redécide, sans relancer
+Mistral, l'acceptation des mesures du vérificateur `labels` pour une grille
+de seuils, à partir des cosinus enregistrés. Il ne choisit aucun seuil.
+Exact pour « retrieval » ; approximation pour la boucle (la révision a été
+déclenchée par les rejets au seuil d'origine).
+
+```bash
+python rescore_causal.py --results results/rq3_raw --semantic 0.5 0.55 0.6 0.65 0.7 --link 0.4 0.5
+```
+
 ### Ce qui n'est PAS implémenté
 
 - **Tier 2** (recherche live) : travail futur. Le champ `tier2_would_trigger`
