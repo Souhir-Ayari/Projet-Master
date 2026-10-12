@@ -343,17 +343,36 @@ class Remediator:
             from knowledge_table import embed_text as embed
         self._embed_fn = embed
         self._embed_cache = {}
+        # Réponses de Mistral mises en cache par prompt. Les vérificateurs
+        # rule / labels / llm envoient EXACTEMENT les mêmes prompts de
+        # proposition (et no_retrieval est identique pour tous) : sans cache,
+        # chaque vérificateur relançait les mêmes générations — lent sur CPU,
+        # et l'ablation ne comparait pas les vérificateurs sur les mêmes
+        # propositions (température 0.1, pas 0). n_llm_calls compte les appels
+        # d'une configuration comme si elle tournait seule (coût rapporté dans
+        # la Table IV) ; n_cache_hits ceux qui ont été évités.
+        self._generation_cache = {}
+        self.n_cache_hits = 0
 
     def embed(self, text: str) -> list[float]:
         if text not in self._embed_cache:
             self._embed_cache[text] = self._embed_fn(text)
         return self._embed_cache[text]
 
+    def _generate(self, prompt: str) -> str:
+        """Génération avec cache par prompt (voir __init__) ; un échec n'est pas mis en cache."""
+        if prompt in self._generation_cache:
+            self.n_cache_hits += 1
+            return self._generation_cache[prompt]
+        raw = self.mistral._generate(prompt)
+        self._generation_cache[prompt] = raw
+        return raw
+
     def _call_json(self, prompt: str) -> tuple[dict, str]:
         """Un appel LLM dont la réponse attendue est un objet JSON simple."""
         self.n_llm_calls += 1
         try:
-            raw = self.mistral._generate(prompt)
+            raw = self._generate(prompt)
         except MistralGenerationError as e:
             self.n_parse_errors += 1
             return {}, f"<échec de génération : {e}>"
@@ -410,7 +429,7 @@ class Remediator:
         """
         self.n_llm_calls += 1
         try:
-            raw = self.mistral._generate(prompt)
+            raw = self._generate(prompt)
         except MistralGenerationError as e:
             print(f"[⚠] Échec de génération : {e}")
             self.n_parse_errors += 1

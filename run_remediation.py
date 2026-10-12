@@ -129,8 +129,8 @@ def main():
 
     remediator = Remediator()
     summary_rows = []
-    for query in queries:
-        print(f"=== {query['name']}")
+    for qi, query in enumerate(queries, 1):
+        print(f"=== [{qi}/{len(queries)}] {query['name']}  ({time.strftime('%H:%M:%S')})")
         retrieval_result = retrieve(
             query_attack_summary=query["attack_summary"],
             query_category=query.get("category"),
@@ -272,6 +272,8 @@ def main():
         json.dump(summary, f, indent=2, ensure_ascii=False)
     print("cas = cas récupérés au-dessus du seuil de similarité (seuls citables) ; "
           "JSON✗ = réponses invalides, récupérées recommandation par recommandation")
+    print(f"Appels Mistral évités grâce au cache (prompts identiques entre vérificateurs) : "
+          f"{remediator.n_cache_hits}")
     print(f"\n[✓] Résumé : {summary_path}")
 
 
