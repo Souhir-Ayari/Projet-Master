@@ -435,6 +435,20 @@ python run_remediation.py --table results/knowledge_table_llm_raw.jsonl --querie
 python run_remediation.py --table results/knowledge_table_llm_curated.jsonl --queries data/eval_queries.json --verifiers labels --unanchored --output-dir results/rq3_curated
 ```
 
+**Calibrage des seuils** (`calibrate_causal.py`) : les seuils a priori
+(0,70 / 0,50) rejetaient toutes les mesures adaptées. Plutôt que de les
+baisser au vu du test, on les calibre sur la base de cas : Mistral adapte la
+mitigation d'un cas à l'attaque d'un autre cas de même technique ; positifs =
+cosinus avec la mitigation adaptée (ou le maillon visé), négatifs = cosinus
+avec un cas d'une autre technique. Seuil = maximum de Youden, avec IC
+bootstrap. Les 18 requêtes de test ne sont jamais utilisées. Reprise
+automatique via `--cache` (≈ 3 appels Mistral par paire).
+
+```bash
+python calibrate_causal.py --table results/knowledge_table_llm_curated.jsonl --n 20
+python run_remediation.py ... --calibration results/causal_calibration.json
+```
+
 ### Ce qui n'est PAS implémenté
 
 - **Tier 2** (recherche live) : travail futur. Le champ `tier2_would_trigger`
