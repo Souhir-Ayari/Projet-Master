@@ -413,11 +413,12 @@ class Remediator:
             return parsed
         return _judge
 
-    def _verify(self, recs, cases, attack, chain, verifier):
+    def _verify(self, recs, cases, attack, chain, verifier, infer_citation=False):
         if verifier == "lexical":
             return verify(recs, cases)
         return causal.verify_causal(recs, cases, attack, chain, verifier, self.embed,
-                                    judge=self.judge(attack, chain) if verifier == "llm" else None)
+                                    judge=self.judge(attack, chain) if verifier == "llm" else None,
+                                    infer_citation=infer_citation)
 
     def _call(self, prompt: str) -> tuple[list[dict], str]:
         """
@@ -522,7 +523,9 @@ class Remediator:
                 attack, eligible, use_retrieval=mode != "no_retrieval"
             )
         cases = eligible
-        verified = self._verify(proposed, cases, attack, chain, verifier)
+        # Citation inférée seulement si le modèle a vu les cas (voir causal.py).
+        infer = mode != "no_retrieval" and not result["unanchored"]
+        verified = self._verify(proposed, cases, attack, chain, verifier, infer)
         if result["unanchored"]:
             for r in verified:
                 r["unanchored"] = True
@@ -543,7 +546,7 @@ class Remediator:
                     revised, raw_revise = self.revise_causal(attack, cases, chain, rejected)
                 else:
                     revised, raw_revise = self.revise(attack, cases, rejected)
-                revised_verified = self._verify(revised, cases, attack, chain, verifier)
+                revised_verified = self._verify(revised, cases, attack, chain, verifier, infer)
                 result["revised"] = revised_verified
                 result["raw_revise"] = raw_revise
                 accepted = [r for r in verified if r["traceable"]]
@@ -565,6 +568,7 @@ class Remediator:
         )
         result["adaptation_rate"] = causal.rate(final, "adapted") if causal_mode else None
         result["causal_adequacy_rate"] = causal.rate(final, "causally_adequate") if causal_mode else None
+        result["citation_inferred_rate"] = causal.rate(final, "citation_inferred") if causal_mode else None
         result["n_llm_calls"] = self.n_llm_calls
         result["n_parse_errors"] = self.n_parse_errors
         return result

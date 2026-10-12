@@ -182,6 +182,7 @@ def main():
                     f"traçabilité={_fmt(run['traceability_rate'])}, "
                     f"adaptation={_fmt(run.get('adaptation_rate'))}, "
                     f"adéquation causale={_fmt(run.get('causal_adequacy_rate'))}, "
+                    f"citations inférées={_fmt(run.get('citation_inferred_rate'))}, "
                     f"appels LLM={run['n_llm_calls']}"
                     + (", révision déclenchée" if run["revision_triggered"] else "")
                     + (", NON ANCRÉ" if run.get("unanchored") else
@@ -191,7 +192,7 @@ def main():
                 for rec in run["final_plan"]:
                     mark = "~" if rec.get("unanchored") else "✓" if rec["traceable"] else "✗"
                     print(f"        {mark} [{rec.get('broken_link', '-')}] {rec.get('action')} "
-                          f"<- {rec.get('cited_cases')}")
+                          f"<- {rec.get('cited_cases')}" + (" (citation inférée)" if rec.get("citation_inferred") else ""))
                 summary_rows.append({
                     "query": query["name"],
                     "in_corpus": query.get("in_corpus"),
@@ -202,6 +203,7 @@ def main():
                     "supported_rate": run["supported_rate"],
                     "adaptation_rate": run.get("adaptation_rate"),
                     "causal_adequacy_rate": run.get("causal_adequacy_rate"),
+                    "citation_inferred_rate": run.get("citation_inferred_rate"),
                     "unanchored": run.get("unanchored", False),
                     "revision_triggered": run["revision_triggered"],
                     "n_rejected_initial": run["n_rejected_initial"],
@@ -259,12 +261,14 @@ def main():
         agg = {"mode": mode, "verifier": verifier, "n_recommendations": n,
                "traceability": pooled("traceability_rate"), "adaptation": pooled("adaptation_rate"),
                "causal_adequacy": pooled("causal_adequacy_rate"),
+               "citation_inferred": pooled("citation_inferred_rate"),
                "ood_abstained": sum(r["abstained_no_case"] and not r["unanchored"] for r in ood),
                "ood_unanchored": sum(r["unanchored"] for r in ood), "n_ood": len(ood),
                "llm_calls": sum(r["n_llm_calls"] for r in rows)}
         aggregates.append(agg)
         print(f"  {mode:15} {verifier:7} reco={n:3} traçab.={_fmt(agg['traceability'])} "
               f"adapt.={_fmt(agg['adaptation'])} causal={_fmt(agg['causal_adequacy'])} "
+              f"cit. inférées={_fmt(agg['citation_inferred'])} "
               f"hors corpus : {agg['ood_abstained']} abstention(s), {agg['ood_unanchored']} non ancré(s) "
               f"sur {len(ood)} ; appels={agg['llm_calls']}")
     summary["aggregates"] = aggregates

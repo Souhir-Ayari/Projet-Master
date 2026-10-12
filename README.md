@@ -424,6 +424,12 @@ principal), `llm` (le modèle juge tout) ; `lexical` = ancien vérificateur.
 Métriques ajoutées : taux d'adaptation et adéquation causale. `--unanchored`
 active la branche non ancrée (mesures marquées quand aucun cas ne passe θ).
 
+Citation obligatoire : le prompt exige `cited_cases` pour chaque mesure.
+Quand le modèle, qui a vu les cas, n'en cite aucun, le cas dont la
+mitigation est la plus proche est attribué automatiquement ; la mesure est
+marquée `citation_inferred`, passe les mêmes contrôles, et le taux de
+citations inférées est rapporté à part (jamais en `no_retrieval`).
+
 ```bash
 python run_remediation.py --table results/knowledge_table_llm_raw.jsonl --queries data/eval_queries.json --verifiers labels lexical rule llm --unanchored --output-dir results/rq3_raw
 python run_remediation.py --table results/knowledge_table_llm_curated.jsonl --queries data/eval_queries.json --verifiers labels --unanchored --output-dir results/rq3_curated

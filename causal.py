@@ -29,6 +29,12 @@ Principe :
      les embeddings (nomic-embed-text, déjà utilisé par le retrieval) de la
      recommandation et de la mitigation citée. Une reformulation adaptée garde
      un sens proche sans recopier les mots.
+     Citation inférée : Mistral omet souvent "cited_cases" (sauf sur la
+     première mesure, en recopiant l'exemple du prompt). Quand le modèle a vu
+     les cas et n'en cite aucun, le cas cité est attribué automatiquement :
+     celui dont la mitigation est la plus proche de la mesure. La mesure est
+     marquée "citation_inferred" et passe ensuite les MÊMES contrôles ; le
+     taux de citations inférées est rapporté à part.
   4. Branche non ancrée : quand aucun cas ne passe le seuil θ, le système
      propose quand même des mesures, explicitement marquées NON ANCRÉES et
      jamais comptées comme traçables (au lieu d'une abstention muette).
@@ -111,9 +117,11 @@ Cas similaires extraits d'articles scientifiques (base de connaissance) :
 
 Propose au plus 3 mesures de défense contre la NOUVELLE attaque, en respectant
 STRICTEMENT ces règles :
-1. Chaque mesure part de la mitigation d'un cas ci-dessus et cite son
-   identifiant dans "cited_cases". N'invente aucune défense absente des cas.
-   Un cas marqué "aucune mitigation" ne peut pas être cité.
+1. Chaque mesure part de la mitigation d'un cas ci-dessus. "cited_cases" est
+   OBLIGATOIRE pour CHAQUE mesure (pas seulement la première) et contient
+   l'identifiant du cas adapté : une mesure sans cas cité est rejetée.
+   N'invente aucune défense absente des cas. Un cas marqué "aucune
+   mitigation" ne peut pas être cité.
 2. ADAPTE la mitigation à la nouvelle attaque : nomme ce qu'elle protège dans
    CETTE attaque (son vecteur, son mécanisme ou son impact), au lieu de
    recopier le texte du cas.
@@ -130,6 +138,12 @@ Réponds UNIQUEMENT avec un objet JSON, sans texte autour :
       "broken_link": "<input_vector | bypass_mechanism | impact | none>",
       "mitigation_type": "<un des types ci-dessous, ou null>",
       "cited_cases": ["C1"]
+    }},
+    {{
+      "action": "<autre mesure adaptée>",
+      "broken_link": "<...>",
+      "mitigation_type": "<...>",
+      "cited_cases": ["C2"]
     }}
   ]
 }}
@@ -155,8 +169,9 @@ Un vérificateur a REJETÉ les mesures suivantes :
 
 Pour chaque mesure rejetée, soit tu la réécris pour qu'elle reste fidèle à la
 mitigation du cas cité ET casse un maillon de la chaîne ci-dessus (en le
-nommant), soit tu la retires. Ne renvoie QUE les mesures corrigées ; liste vide
-si aucune ne peut l'être. Même format JSON que précédemment :
+nommant), soit tu la retires. Chaque mesure corrigée DOIT citer son cas dans
+"cited_cases". Ne renvoie QUE les mesures corrigées ; liste vide si aucune ne
+peut l'être. Même format JSON que précédemment :
 {{"recommendations": [{{"action": "...", "broken_link": "...", "mitigation_type": "...", "cited_cases": ["C1"]}}]}}
 JSON :"""
 
@@ -206,13 +221,15 @@ def is_adapted(action: str, mitigation: str | None, attack: str, chain: dict) ->
 
 
 def verify_causal(recs: list[dict], cases: list[dict], attack: str, chain: dict, verifier: str,
-                  embed, judge=None) -> list[dict]:
+                  embed, judge=None, infer_citation: bool = False) -> list[dict]:
     """
     Annote chaque recommandation : traceable, reason, cited (index du cas
     retenu), semantic_support, broken_link (étiqueté ou déduit),
     link_similarity, causally_adequate, adapted.
     `embed(text) -> vecteur` (mis en cache par l'appelant) ; `judge(rec, case,
-    case_id) -> dict` pour la variante "llm".
+    case_id) -> dict` pour la variante "llm". `infer_citation` : attribuer le
+    cas le plus proche quand le modèle (qui a vu les cas) n'en cite aucun
+    valide ; jamais en no_retrieval, où le modèle ne voit pas les cas.
     """
     if verifier not in VERIFIERS:
         raise ValueError(f"Vérificateur inconnu : {verifier} (attendu : {VERIFIERS})")
@@ -225,6 +242,13 @@ def verify_causal(recs: list[dict], cases: list[dict], attack: str, chain: dict,
         a = {**rec, "broken_link_label": normalize_link(rec.get("broken_link"))}
         indexes = [i for i in _cited_indexes(rec.get("cited_cases")) if 0 <= i < len(cases)]
         with_mit = [i for i in indexes if cases[i].get("mitigation_summary")]
+        a["citation_inferred"] = False
+        if infer_citation and action and not with_mit:
+            candidates = [i for i, c in enumerate(cases) if c.get("mitigation_summary")]
+            if candidates:
+                inferred = max(candidates, key=lambda i: _cosine(embed(action), embed(cases[i]["mitigation_summary"])))
+                indexes = with_mit = [inferred]
+                a["citation_inferred"] = True
 
         # Support sémantique sur le meilleur cas cité
         best, support = None, 0.0
