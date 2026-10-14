@@ -449,6 +449,10 @@ python calibrate_causal.py --table results/knowledge_table_llm_curated.jsonl --n
 python run_remediation.py ... --calibration results/causal_calibration.json
 ```
 
+`--resume` reprend un run interrompu : une requête dont le fichier
+`remediation_<nom>.json` existe déjà avec la même configuration (table,
+seuils, modes, vérificateurs) n'est pas relancée.
+
 **Sensibilité aux seuils** (`rescore_causal.py`) : redécide, sans relancer
 Mistral, l'acceptation des mesures du vérificateur `labels` pour une grille
 de seuils, à partir des cosinus enregistrés. Il ne choisit aucun seuil.

@@ -89,6 +89,35 @@ def _fmt(value) -> str:
     return "—" if value is None else f"{value:.2f}"
 
 
+def summary_row(query: dict, mode: str, verifier: str, run: dict) -> dict:
+    return {
+        "query": query["name"],
+        "in_corpus": query.get("in_corpus"),
+        "mode": mode,
+        "verifier": verifier,
+        "n_recommendations": run["n_recommendations"],
+        "traceability_rate": run["traceability_rate"],
+        "supported_rate": run["supported_rate"],
+        "adaptation_rate": run.get("adaptation_rate"),
+        "causal_adequacy_rate": run.get("causal_adequacy_rate"),
+        "citation_inferred_rate": run.get("citation_inferred_rate"),
+        "unanchored": run.get("unanchored", False),
+        "revision_triggered": run["revision_triggered"],
+        "n_rejected_initial": run["n_rejected_initial"],
+        "n_dropped": len(run.get("dropped") or []),
+        "n_duplicates": len(run.get("duplicates") or []),
+        "n_eligible_cases": run["n_eligible_cases"],
+        "abstained_no_case": run["abstained_no_case"],
+        "n_parse_errors": run["n_parse_errors"],
+        "n_llm_calls": run["n_llm_calls"],
+        "seconds": run["seconds"],
+    }
+
+
+def run_key(mode: str, verifier: str, verifiers: list[str]) -> str:
+    return mode if verifier == "lexical" and len(verifiers) == 1 else f"{mode}|{verifier}"
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Boucle Propose-Verify-Revise (Step 7) sur les requêtes du Bloc 1 -> Table IV."
@@ -104,6 +133,9 @@ def main():
                              "sur des données de développement (sinon : seuils a priori de causal.py)")
     parser.add_argument("--semantic-min", type=float, default=None, help="force le seuil sémantique")
     parser.add_argument("--link-min", type=float, default=None, help="force le seuil maillon")
+    parser.add_argument("--resume", action="store_true",
+                        help="reprendre un run interrompu : une requête dont le fichier de sortie existe déjà "
+                             "(même table, mêmes seuils, mêmes modes et vérificateurs) n'est pas relancée")
     parser.add_argument("--unanchored", action="store_true",
                         help="branche non ancrée : proposer quand même (marqué) quand aucun cas ne passe θ")
     args = parser.parse_args()
@@ -147,6 +179,19 @@ def main():
     remediator = Remediator(semantic_min=semantic_min, link_min=link_min)
     summary_rows = []
     for qi, query in enumerate(queries, 1):
+        path = os.path.join(args.output_dir, f"remediation_{query['name']}.json")
+        if args.resume and os.path.exists(path):
+            with open(path, encoding="utf-8") as f:
+                previous = json.load(f)
+            keys = [(m, v, run_key(m, v, args.verifiers)) for v in args.verifiers for m in args.modes]
+            if (previous.get("table_sha256") == table_hash
+                    and previous.get("semantic_min") == semantic_min and previous.get("link_min") == link_min
+                    and previous.get("unanchored_branch") == args.unanchored
+                    and all(k in previous["runs"] for _, _, k in keys)):
+                print(f"=== [{qi}/{len(queries)}] {query['name']} : déjà fait ({path}), repris")
+                summary_rows += [summary_row(query, m, v, previous["runs"][k]) for m, v, k in keys]
+                continue
+            print(f"[⚠] {path} ne correspond pas à cette configuration : requête relancée")
         print(f"=== [{qi}/{len(queries)}] {query['name']}  ({time.strftime('%H:%M:%S')})")
         retrieval_result = retrieve(
             query_attack_summary=query["attack_summary"],
@@ -193,7 +238,7 @@ def main():
                     verifier=verifier, unanchored_branch=args.unanchored,
                 )
                 run["seconds"] = round(time.time() - start, 1)
-                key = mode if verifier == "lexical" and len(args.verifiers) == 1 else f"{mode}|{verifier}"
+                key = run_key(mode, verifier, args.verifiers)
                 record["runs"][key] = run
                 print(
                     f"    [{mode:15} {verifier:7}] {run['n_recommendations']} recommandation(s), "
@@ -211,30 +256,8 @@ def main():
                     mark = "~" if rec.get("unanchored") else "✓" if rec["traceable"] else "✗"
                     print(f"        {mark} [{rec.get('broken_link', '-')}] {rec.get('action')} "
                           f"<- {rec.get('cited_cases')}" + (" (citation inférée)" if rec.get("citation_inferred") else ""))
-                summary_rows.append({
-                    "query": query["name"],
-                    "in_corpus": query.get("in_corpus"),
-                    "mode": mode,
-                    "verifier": verifier,
-                    "n_recommendations": run["n_recommendations"],
-                    "traceability_rate": run["traceability_rate"],
-                    "supported_rate": run["supported_rate"],
-                    "adaptation_rate": run.get("adaptation_rate"),
-                    "causal_adequacy_rate": run.get("causal_adequacy_rate"),
-                    "citation_inferred_rate": run.get("citation_inferred_rate"),
-                    "unanchored": run.get("unanchored", False),
-                    "revision_triggered": run["revision_triggered"],
-                    "n_rejected_initial": run["n_rejected_initial"],
-                    "n_dropped": len(run.get("dropped") or []),
-                    "n_duplicates": len(run.get("duplicates") or []),
-                    "n_eligible_cases": run["n_eligible_cases"],
-                    "abstained_no_case": run["abstained_no_case"],
-                    "n_parse_errors": run["n_parse_errors"],
-                    "n_llm_calls": run["n_llm_calls"],
-                    "seconds": run["seconds"],
-                })
+                summary_rows.append(summary_row(query, mode, verifier, run))
 
-        path = os.path.join(args.output_dir, f"remediation_{query['name']}.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump(record, f, indent=2, ensure_ascii=False)
         print(f"    -> {path}\n")
