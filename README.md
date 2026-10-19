@@ -500,3 +500,19 @@ python rescore_causal.py --results results/rq3_raw --semantic 0.5 0.55 0.6 0.65 
   seuil selon la sévérité d'évaluation souhaitée.
 - Pour des résultats statistiquement solides, répétez l'expérience sur
   **plusieurs PDF** (au moins 5-10) et moyennez les F1-scores par méthode.
+
+### Intervalles de confiance bootstrap (Tables 2 et 3)
+
+`bootstrap.py` rééchantillonne les requêtes avec remise (10 000 tirages,
+graine fixe) et donne des IC 95 % par percentiles, sans appeler Mistral.
+`table2` relit la sortie de `calibrate_retrieval.py` (Hit@1, Hit@3, MRR ;
+relancer le calibrage pour avoir hit@1 et rr par requête) ; `table3` relit
+un ou plusieurs `table_iv_summary.json` (groundedness, hallucination,
+adaptation, adéquation causale, requêtes servies, recommandations ancrées
+par sonde hors corpus).
+
+```bash
+python calibrate_retrieval.py --table results/knowledge_table_llm_raw.jsonl --gold-review results/review_knowledge_table_llm.csv
+python bootstrap.py table2 --calibration results/calibration/calibration_XXXX.json --output results/bootstrap_table2_raw.json
+python bootstrap.py table3 --summary results/rq3_raw/table_iv_summary.json results/rq3_raw_calib/table_iv_summary.json results/rq3_curated/table_iv_summary.json results/rq3_selfrefine/table_iv_summary.json results/rq3_ablation_N/table_iv_summary.json
+```

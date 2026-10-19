@@ -139,7 +139,7 @@ def main():
             h1, h3, rr = h1 + a, h3 + b, rr + c
             per_query[q["name"]][label] = {
                 "top3": [(c_["category"], c_["similarity_score"]) for c_ in ranked[:3]],
-                "hit@3": b,
+                "hit@1": a, "hit@3": b, "rr": round(c, 4),
             }
         n = len(covered)
         row = {"config": label, "alpha": alpha, "filter": filt,
