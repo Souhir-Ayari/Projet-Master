@@ -44,7 +44,7 @@ from config import MITIGATION_TYPES
 from mistral_extractor import MistralExtractor, MistralGenerationError
 
 MODES = ("no_retrieval", "retrieval", "retrieval_loop")
-VERIFIERS = ("lexical",) + causal.VERIFIERS
+VERIFIERS = ("lexical",) + causal.VERIFIERS + ("selfrefine",)
 
 # Part minimale des mots porteurs de sens d'une recommandation qui doivent se
 # retrouver dans la mitigation du cas cité. Mesuré sur le premier run réel :
@@ -391,7 +391,12 @@ class Remediator:
         if not hasattr(self, "_chains"):
             self._chains = {}
         if attack not in self._chains:
+            # Non compté dans n_llm_calls : une seule extraction par requête,
+            # partagée par toutes les configurations (sinon seule la première
+            # configuration lancée en paierait le coût).
+            calls = self.n_llm_calls
             parsed, raw = self._call_json(causal.PROMPT_CHAIN.format(attack=attack))
+            self.n_llm_calls = calls
             self._chains[attack] = (causal.parse_chain(parsed), raw)
         return self._chains[attack]
 
@@ -407,6 +412,17 @@ class Remediator:
         )
         prompt = causal.PROMPT_REVISE_CAUSAL.format(attack=attack, cases=format_cases(cases),
                                                     rejected=rejected_block, **causal.format_chain(chain))
+        return self._call(prompt)
+
+    def critique(self, attack: str, cases: list[dict], chain: dict, plan: list[dict]) -> dict:
+        parsed, _ = self._call_json(causal.PROMPT_CRITIQUE.format(
+            attack=attack, cases=format_cases(cases), plan=causal.format_plan(plan), **causal.format_chain(chain)))
+        return parsed
+
+    def self_revise(self, attack: str, cases: list[dict], chain: dict, plan: list[dict], critique: str):
+        prompt = causal.PROMPT_SELF_REVISE.format(
+            attack=attack, cases=format_cases(cases), plan=causal.format_plan(plan),
+            critique=critique, **causal.format_chain(chain))
         return self._call(prompt)
 
     def judge(self, attack: str, chain: dict):
@@ -469,7 +485,7 @@ class Remediator:
 
     def run(
         self, attack: str, cases: list[dict], mode: str, min_similarity: float = 0.0,
-        verifier: str = "lexical", unanchored_branch: bool = False,
+        verifier: str = "lexical", unanchored_branch: bool = False, max_iterations: int = 1,
     ) -> dict:
         """
         Exécute un mode de la Table IV sur une attaque et ses cas récupérés.
@@ -530,7 +546,28 @@ class Remediator:
         cases = eligible
         # Citation inférée seulement si le modèle a vu les cas (voir causal.py).
         infer = mode != "no_retrieval" and not result["unanchored"]
-        verified = self._verify(proposed, cases, attack, chain, verifier, infer)
+        result["max_iterations"] = max_iterations
+        result["iterations"] = 0
+        # self-refine : le modèle critique et révise son propre plan ; rien
+        # n'est filtré. Le plan final est seulement MESURÉ avec la règle
+        # « labels », pour être comparable aux autres lignes.
+        selfrefine = verifier == "selfrefine"
+        measure_with = "labels" if selfrefine else verifier
+        if selfrefine and mode == "retrieval_loop" and proposed and not result["unanchored"]:
+            result["critiques"] = []
+            for it in range(max_iterations):
+                verdict = self.critique(attack, cases, chain, proposed)
+                result["critiques"].append(verdict)
+                if verdict.get("ok") is True:
+                    break
+                result["revision_triggered"] = True
+                revised, raw_revise = self.self_revise(attack, cases, chain, proposed,
+                                                       str(verdict.get("critique") or ""))
+                result["raw_revise"] = raw_revise
+                if revised:
+                    proposed = revised
+                result["iterations"] = it + 1
+        verified = self._verify(proposed, cases, attack, chain, measure_with, infer)
         if result["unanchored"]:
             for r in verified:
                 r["unanchored"] = True
@@ -543,23 +580,33 @@ class Remediator:
 
         final = verified
         result["dropped"] = []
-        if mode == "retrieval_loop":
-            rejected = [r for r in verified if not r["traceable"] and not r.get("unanchored")]
-            if rejected:
+        if mode == "retrieval_loop" and not selfrefine:
+            # Jusqu'à N révisions : à chaque tour, seules les mesures encore
+            # rejetées sont renvoyées au modèle. N=0 = proposer puis filtrer.
+            accepted = [r for r in verified if r["traceable"] or r.get("unanchored")]
+            pending = [r for r in verified if not r["traceable"] and not r.get("unanchored")]
+            revised_all, raws = [], []
+            for it in range(max_iterations):
+                if not pending:
+                    break
                 result["revision_triggered"] = True
                 if causal_mode:
-                    revised, raw_revise = self.revise_causal(attack, cases, chain, rejected)
+                    revised, raw_revise = self.revise_causal(attack, cases, chain, pending)
                 else:
-                    revised, raw_revise = self.revise(attack, cases, rejected)
+                    revised, raw_revise = self.revise(attack, cases, pending)
                 revised_verified = self._verify(revised, cases, attack, chain, verifier, infer)
-                result["revised"] = revised_verified
-                result["raw_revise"] = raw_revise
-                accepted = [r for r in verified if r["traceable"]]
-                final = accepted + revised_verified
-            # N=1 : ce qui reste non traçable après l'unique révision est
-            # écarté du plan final, mais conservé pour l'analyse.
-            result["dropped"] = [r for r in final if not r["traceable"] and not r.get("unanchored")]
-            final = [r for r in final if r["traceable"] or r.get("unanchored")]
+                revised_all += revised_verified
+                raws.append(raw_revise)
+                accepted += [r for r in revised_verified if r["traceable"]]
+                pending = [r for r in revised_verified if not r["traceable"]]
+                result["iterations"] = it + 1
+            if raws:
+                result["revised"] = revised_all
+                result["raw_revise"] = raws[0] if len(raws) == 1 else raws
+            # Ce qui reste non traçable après la dernière révision est écarté
+            # du plan final, mais conservé pour l'analyse.
+            result["dropped"] = pending
+            final = accepted
 
         final, duplicates = deduplicate(final)
         result["duplicates"] = duplicates

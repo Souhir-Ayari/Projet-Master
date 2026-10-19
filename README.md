@@ -449,6 +449,18 @@ python calibrate_causal.py --table results/knowledge_table_llm_curated.jsonl --n
 python run_remediation.py ... --calibration results/causal_calibration.json
 ```
 
+**Ablation sur N** : `--iterations 0 1 2 3` lance la boucle avec chaque
+budget de révisions (N=0 : proposer puis filtrer). Les générations communes
+sont en cache, donc N=3 coûte à peine plus que N=1.
+
+**Référence self-refine** : `--verifiers selfrefine` — le même Mistral
+critique son plan en texte libre puis le révise ; rien n'est filtré. Le
+plan final est seulement mesuré avec la règle `labels`, pour être
+comparable aux autres lignes.
+
+L'extraction de la chaîne causale (un appel par requête, partagé) n'est
+pas comptée dans les appels LLM des configurations.
+
 `--resume` reprend un run interrompu : une requête dont le fichier
 `remediation_<nom>.json` existe déjà avec la même configuration (table,
 seuils, modes, vérificateurs) n'est pas relancée.

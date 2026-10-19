@@ -195,6 +195,52 @@ maillon de la chaîne de la nouvelle attaque ? Réponds UNIQUEMENT avec un JSON 
 JSON :"""
 
 
+# Référence « self-refine » (Madaan et al., 2023) : le MÊME modèle critique
+# son plan en texte libre puis le révise ; aucune règle ne filtre le résultat.
+PROMPT_CRITIQUE = """Tu es un critique en sécurité des systèmes d'IA.
+
+Nouvelle attaque :
+"{attack}"
+Chaîne causale : input_vector = {input_vector} ; bypass_mechanism = {bypass_mechanism} ; impact = {impact}
+
+Cas similaires extraits d'articles scientifiques :
+{cases}
+
+Plan de défense proposé :
+{plan}
+
+Critique ce plan : chaque mesure est-elle fidèle à la mitigation du cas
+qu'elle cite, adaptée à CETTE attaque, et capable de casser un maillon de la
+chaîne ? Réponds UNIQUEMENT avec un JSON :
+{{"ok": true ou false, "critique": "<problèmes à corriger, ou vide si ok>"}}
+JSON :"""
+
+PROMPT_SELF_REVISE = """Tu es un analyste en sécurité des systèmes d'IA.
+
+Nouvelle attaque :
+"{attack}"
+Chaîne causale : input_vector = {input_vector} ; bypass_mechanism = {bypass_mechanism} ; impact = {impact}
+
+Cas similaires extraits d'articles scientifiques :
+{cases}
+
+Ton plan de défense précédent :
+{plan}
+
+Critique reçue :
+"{critique}"
+
+Réécris le plan complet en tenant compte de la critique (au plus 3 mesures).
+Chaque mesure cite son cas dans "cited_cases". Même format JSON :
+{{"recommendations": [{{"action": "...", "broken_link": "...", "mitigation_type": "...", "cited_cases": ["C1"]}}]}}
+JSON :"""
+
+
+def format_plan(recs: list[dict]) -> str:
+    return "\n".join(f"{i}. {r.get('action')} (maillon : {r.get('broken_link')}, cas cités : {r.get('cited_cases')})"
+                     for i, r in enumerate(recs, 1)) or "(plan vide)"
+
+
 def format_chain(chain: dict) -> dict:
     return {k: (chain.get(k) or "inconnu") for k in LINKS}
 

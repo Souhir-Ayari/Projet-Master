@@ -95,6 +95,8 @@ def summary_row(query: dict, mode: str, verifier: str, run: dict) -> dict:
         "in_corpus": query.get("in_corpus"),
         "mode": mode,
         "verifier": verifier,
+        "max_iterations": run.get("max_iterations", 1),
+        "iterations": run.get("iterations"),
         "n_recommendations": run["n_recommendations"],
         "traceability_rate": run["traceability_rate"],
         "supported_rate": run["supported_rate"],
@@ -114,8 +116,18 @@ def summary_row(query: dict, mode: str, verifier: str, run: dict) -> dict:
     }
 
 
-def run_key(mode: str, verifier: str, verifiers: list[str]) -> str:
-    return mode if verifier == "lexical" and len(verifiers) == 1 else f"{mode}|{verifier}"
+def run_key(mode: str, verifier: str, verifiers: list[str], n: int = 1, iterations: list[int] = (1,)) -> str:
+    key = mode if verifier == "lexical" and len(verifiers) == 1 else f"{mode}|{verifier}"
+    # Ablation sur N : une clé par budget de révisions (seulement si plusieurs N)
+    return f"{key}|N{n}" if len(iterations) > 1 and mode == "retrieval_loop" else key
+
+
+def configurations(modes: list[str], verifiers: list[str], iterations: list[int]):
+    """(mode, vérificateur, N) ; N ne varie que pour la boucle."""
+    for v in verifiers:
+        for m in modes:
+            for n in (iterations if m == "retrieval_loop" else [1]):
+                yield m, v, n
 
 
 def main():
@@ -136,6 +148,8 @@ def main():
     parser.add_argument("--resume", action="store_true",
                         help="reprendre un run interrompu : une requête dont le fichier de sortie existe déjà "
                              "(même table, mêmes seuils, mêmes modes et vérificateurs) n'est pas relancée")
+    parser.add_argument("--iterations", nargs="+", type=int, default=[1],
+                        help="budget(s) de révisions N de la boucle ; plusieurs valeurs = ablation (ex. 0 1 2 3)")
     parser.add_argument("--unanchored", action="store_true",
                         help="branche non ancrée : proposer quand même (marqué) quand aucun cas ne passe θ")
     args = parser.parse_args()
@@ -183,7 +197,8 @@ def main():
         if args.resume and os.path.exists(path):
             with open(path, encoding="utf-8") as f:
                 previous = json.load(f)
-            keys = [(m, v, run_key(m, v, args.verifiers)) for v in args.verifiers for m in args.modes]
+            keys = [(m, v, run_key(m, v, args.verifiers, n, args.iterations))
+                    for m, v, n in configurations(args.modes, args.verifiers, args.iterations)]
             if (previous.get("table_sha256") == table_hash
                     and previous.get("semantic_min") == semantic_min and previous.get("link_min") == link_min
                     and previous.get("unanchored_branch") == args.unanchored
@@ -229,34 +244,34 @@ def main():
             "runs": {},
         }
 
-        for verifier in args.verifiers:
-            for mode in args.modes:
-                start = time.time()
-                run = remediator.run(
-                    query["attack_summary"], cases, mode,
-                    min_similarity=retrieval_result["threshold"],
-                    verifier=verifier, unanchored_branch=args.unanchored,
-                )
-                run["seconds"] = round(time.time() - start, 1)
-                key = run_key(mode, verifier, args.verifiers)
-                record["runs"][key] = run
-                print(
-                    f"    [{mode:15} {verifier:7}] {run['n_recommendations']} recommandation(s), "
-                    f"traçabilité={_fmt(run['traceability_rate'])}, "
-                    f"adaptation={_fmt(run.get('adaptation_rate'))}, "
-                    f"adéquation causale={_fmt(run.get('causal_adequacy_rate'))}, "
-                    f"citations inférées={_fmt(run.get('citation_inferred_rate'))}, "
-                    f"appels LLM={run['n_llm_calls']}"
-                    + (", révision déclenchée" if run["revision_triggered"] else "")
-                    + (", NON ANCRÉ" if run.get("unanchored") else
-                       ", ABSTENTION : aucun cas au-dessus du seuil" if run["abstained_no_case"] else "")
-                    + (f", {run['n_parse_errors']} JSON invalide(s)" if run["n_parse_errors"] else "")
-                )
-                for rec in run["final_plan"]:
-                    mark = "~" if rec.get("unanchored") else "✓" if rec["traceable"] else "✗"
-                    print(f"        {mark} [{rec.get('broken_link', '-')}] {rec.get('action')} "
-                          f"<- {rec.get('cited_cases')}" + (" (citation inférée)" if rec.get("citation_inferred") else ""))
-                summary_rows.append(summary_row(query, mode, verifier, run))
+        for mode, verifier, n_iter in configurations(args.modes, args.verifiers, args.iterations):
+            start = time.time()
+            run = remediator.run(
+                query["attack_summary"], cases, mode,
+                min_similarity=retrieval_result["threshold"],
+                verifier=verifier, unanchored_branch=args.unanchored, max_iterations=n_iter,
+            )
+            run["seconds"] = round(time.time() - start, 1)
+            key = run_key(mode, verifier, args.verifiers, n_iter, args.iterations)
+            record["runs"][key] = run
+            label = f"{verifier}" + (f" N={n_iter}" if len(args.iterations) > 1 and mode == "retrieval_loop" else "")
+            print(
+                f"    [{mode:15} {label:10}] {run['n_recommendations']} recommandation(s), "
+                f"traçabilité={_fmt(run['traceability_rate'])}, "
+                f"adaptation={_fmt(run.get('adaptation_rate'))}, "
+                f"adéquation causale={_fmt(run.get('causal_adequacy_rate'))}, "
+                f"citations inférées={_fmt(run.get('citation_inferred_rate'))}, "
+                f"appels LLM={run['n_llm_calls']}"
+                + (", révision déclenchée" if run["revision_triggered"] else "")
+                + (", NON ANCRÉ" if run.get("unanchored") else
+                   ", ABSTENTION : aucun cas au-dessus du seuil" if run["abstained_no_case"] else "")
+                + (f", {run['n_parse_errors']} JSON invalide(s)" if run["n_parse_errors"] else "")
+            )
+            for rec in run["final_plan"]:
+                mark = "~" if rec.get("unanchored") else "✓" if rec["traceable"] else "✗"
+                print(f"        {mark} [{rec.get('broken_link', '-')}] {rec.get('action')} "
+                      f"<- {rec.get('cited_cases')}" + (" (citation inférée)" if rec.get("citation_inferred") else ""))
+            summary_rows.append(summary_row(query, mode, verifier, run))
 
         with open(path, "w", encoding="utf-8") as f:
             json.dump(record, f, indent=2, ensure_ascii=False)
@@ -292,9 +307,9 @@ def main():
     print("\nAgrégats (requêtes couvertes ; recommandations poolées) :")
     groups = {}
     for row in summary_rows:
-        groups.setdefault((row["mode"], row["verifier"]), []).append(row)
+        groups.setdefault((row["mode"], row["verifier"], row["max_iterations"]), []).append(row)
     aggregates = []
-    for (mode, verifier), rows in groups.items():
+    for (mode, verifier, n_iter), rows in groups.items():
         cov = [r for r in rows if r["in_corpus"] is not False]
         ood = [r for r in rows if r["in_corpus"] is False]
         n = sum(r["n_recommendations"] for r in cov)
@@ -302,7 +317,9 @@ def main():
             vals = [(r[key], r["n_recommendations"]) for r in cov if r[key] is not None and r["n_recommendations"]]
             tot = sum(w for _, w in vals)
             return round(sum(v * w for v, w in vals) / tot, 3) if tot else None
-        agg = {"mode": mode, "verifier": verifier, "n_recommendations": n,
+        agg = {"mode": mode, "verifier": verifier, "max_iterations": n_iter, "n_recommendations": n,
+               "queries_served": sum(r["n_recommendations"] > 0 for r in cov), "n_in_corpus": len(cov),
+               "ood_recommendations": sum(r["n_recommendations"] for r in ood if not r["unanchored"]),
                "traceability": pooled("traceability_rate"), "adaptation": pooled("adaptation_rate"),
                "causal_adequacy": pooled("causal_adequacy_rate"),
                "citation_inferred": pooled("citation_inferred_rate"),
@@ -310,10 +327,12 @@ def main():
                "ood_unanchored": sum(r["unanchored"] for r in ood), "n_ood": len(ood),
                "llm_calls": sum(r["n_llm_calls"] for r in rows)}
         aggregates.append(agg)
-        print(f"  {mode:15} {verifier:7} reco={n:3} traçab.={_fmt(agg['traceability'])} "
+        print(f"  {mode:15} {verifier:10} N={n_iter} reco={n:3} servies={agg['queries_served']}/{len(cov)} "
+              f"traçab.={_fmt(agg['traceability'])} "
               f"adapt.={_fmt(agg['adaptation'])} causal={_fmt(agg['causal_adequacy'])} "
               f"cit. inférées={_fmt(agg['citation_inferred'])} "
-              f"hors corpus : {agg['ood_abstained']} abstention(s), {agg['ood_unanchored']} non ancré(s) "
+              f"hors corpus : {agg['ood_recommendations']} reco ancrée(s), {agg['ood_abstained']} abstention(s), "
+              f"{agg['ood_unanchored']} non ancré(s) "
               f"sur {len(ood)} ; appels={agg['llm_calls']}")
     summary["aggregates"] = aggregates
     with open(summary_path, "w", encoding="utf-8") as f:
