@@ -1,4 +1,4 @@
-# Lance, dans le bon ordre, toutes les commandes AUTOMATIQUES des consignes du 17/10.
+﻿# Lance, dans le bon ordre, toutes les commandes AUTOMATIQUES des consignes du 17/10.
 # Usage (dans le venv, à la racine du projet) :
 #     powershell -ExecutionPolicy Bypass -File .\lancer_consignes_17-10.ps1
 # Durée : environ 1 h 30 (surtout l'étape 2, avec Mistral). Ne pas fermer la fenêtre.
