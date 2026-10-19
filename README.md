@@ -531,3 +531,20 @@ python bootstrap.py table3 --summary results/rq3_raw/table_iv_summary.json resul
 - `review_cases.py iaa-export` tire maintenant 30 cas stratifiés par
   technique × mitigation nulle / non nulle (`--no-stratify` : ancien tirage) ;
   `iaa-score` écrit en plus le CSV des désaccords à trancher (adjudication).
+
+### Évaluation humaine des recommandations (Table 3)
+
+`human_eval.py export` tire au plus 10 recommandations finales par
+configuration (requêtes couvertes), dédoublonne celles que plusieurs
+configurations partagent, et écrit une fiche par évaluateur dans un ordre
+aléatoire, sans la configuration (attaque, recommandation, mitigation citée).
+`key.json` garde la correspondance : ne pas le montrer aux évaluateurs.
+`human_eval.py score` donne moyenne ± écart-type par configuration
+(utilité, justesse, applicabilité, « would act »), l'alpha de Krippendorff,
+les tests de Wilcoxon (par requête, contre une référence) et de Friedman
+(scipy requis), et la colonne Human en LaTeX.
+
+```bash
+python human_eval.py export --raters 3 --config "No retrieval=results/rq3_raw:no_retrieval|lexical" "Retrieval, no verify-revise=results/rq3_raw:retrieval|lexical" "Loop, lexical=results/rq3_raw:retrieval_loop|lexical" "Loop, rule=results/rq3_raw:retrieval_loop|rule" "Loop, labels=results/rq3_raw:retrieval_loop|labels" "Loop, LLM judge=results/rq3_raw:retrieval_loop|llm" "Self-refine=results/rq3_selfrefine:retrieval_loop|selfrefine" "Curated, labels cal.=results/rq3_curated:retrieval_loop|labels" "Loop, labels cal. (ours)=results/rq3_raw_calib:retrieval_loop|labels"
+python human_eval.py score --key results/human_eval/key.json --sheets results/human_eval/sheet_rater1.csv results/human_eval/sheet_rater2.csv results/human_eval/sheet_rater3.csv
+```
