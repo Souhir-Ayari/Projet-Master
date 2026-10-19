@@ -391,6 +391,9 @@ def cmd_flow(args):
         print(f"  attaque confirmée (avant déduplication)     {confirmed}")
     else:
         print(f"  [⚠] fichiers methodology absents ({len(missing)}) : compte avant déduplication non disponible")
+        for m in missing:
+            print(f"      - {m}")
+        print("      (indiquer leur dossier avec --methodology-dir, ou relancer build_knowledge.py sur ces papiers)")
     print(f"  cas construits (après déduplication)        {len(rows)}"
           f"   [identifiant validé {len(val_all)} | abstention {len(abst_all)}]"
           f"   [mitigation non nulle {len(mit_all)} | nulle {len(null_all)}]")
