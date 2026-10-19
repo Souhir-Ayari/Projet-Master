@@ -415,8 +415,15 @@ class Remediator:
         return self._call(prompt)
 
     def critique(self, attack: str, cases: list[dict], chain: dict, plan: list[dict]) -> dict:
-        parsed, _ = self._call_json(causal.PROMPT_CRITIQUE.format(
+        parsed, raw = self._call_json(causal.PROMPT_CRITIQUE.format(
             attack=attack, cases=format_cases(cases), plan=causal.format_plan(plan), **causal.format_chain(chain)))
+        if not parsed:
+            # Mistral écrit parfois {"ok": True} (Python) : JSON invalide, mais
+            # le verdict est lisible. Sans ce repli, un accord du critique
+            # était pris pour un rejet et déclenchait une révision.
+            m = re.search(r'"ok"\s*:\s*(true|false)', raw or "", re.IGNORECASE)
+            if m:
+                parsed = {"ok": m.group(1).lower() == "true", "critique": ""}
         return parsed
 
     def self_revise(self, attack: str, cases: list[dict], chain: dict, plan: list[dict], critique: str):
