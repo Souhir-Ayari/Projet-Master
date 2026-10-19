@@ -322,9 +322,166 @@ def cmd_split(args):
     print("    Expériences (calibration, Table IV) : table _raw ; borne supérieure : table _curated.")
 
 
+# --------------------------------------------------------------------------- #
+# Flux des cas (consigne du 17/10 : dénominateurs explicites et uniques)
+# --------------------------------------------------------------------------- #
+def count_confirmed_before_dedup(papers: set, methodology_dir: str):
+    """Chunks où Layer 2 confirme une attaque, AVANT déduplication (results/methodology_<stem>.jsonl)."""
+    total, chunks, missing = 0, 0, []
+    for paper in sorted(papers):
+        path = os.path.join(methodology_dir, f"methodology_{os.path.splitext(os.path.basename(paper))[0]}.jsonl")
+        if not os.path.exists(path):
+            missing.append(path)
+            continue
+        with open(path, encoding="utf-8") as f:
+            recs = [json.loads(line) for line in f if line.strip()]
+        chunks += len(recs)
+        total += sum(bool(r.get("attack_present")) for r in recs)
+    return (None, None, missing) if missing else (chunks, total, missing)
+
+
+def _null_review(path: str) -> dict:
+    """record_id -> o/n (nulle justifiée ?) depuis le CSV de null-export, s'il existe."""
+    if not path or not os.path.exists(path):
+        return {}
+    return {r["record_id"]: _flag(r.get("null_ok", "")) for r in read_csv_rows(path)}
+
+
+def cmd_flow(args):
+    meta, rows = read_review(args.review)
+    problems = check_rows(rows, meta["domain"])
+    if problems:
+        raise SystemExit("[✗] CSV incomplet :\n    " + "\n    ".join(problems))
+    nulls = _null_review(args.nulls)
+    chunks, confirmed, missing = count_confirmed_before_dedup({r["paper"] for r in rows}, args.methodology_dir)
+
+    def split(rs):
+        val = [r for r in rs if r["categorie"] != "non validée"]
+        mit = [r for r in rs if r["mitigation"]]
+        return val, [r for r in rs if r["categorie"] == "non validée"], mit, [r for r in rs if not r["mitigation"]]
+
+    kept = [r for r in rows if _flag(r["garder"])]
+    val_all, abst_all, mit_all, null_all = split(rows)
+    val, abst, mit, null = split(kept)
+    correct = [r for r in val if _flag(r["categorie_ok"])]
+    abst_ok = [r for r in abst if _flag(r["categorie_ok"])]
+    counter = [r for r in mit if _flag(r["mitigation_ok"])]
+    null_judged = [r for r in null if r["record_id"] in nulls and nulls[r["record_id"]] is not None]
+    null_ok = [r for r in null_judged if nulls[r["record_id"]]]
+
+    flow = {
+        "chunks_processed": chunks, "attack_confirmed_before_dedup": confirmed,
+        "constructed_after_dedup": len(rows),
+        "constructed": {"validated_id": len(val_all), "abstention": len(abst_all),
+                        "non_null_mitigation": len(mit_all), "null_mitigation": len(null_all)},
+        "reviewed": len(rows), "removed_not_an_attack": len(rows) - len(kept), "retained": len(kept),
+        "retained_detail": {
+            "validated_id": len(val), "technique_correct": len(correct),
+            "technique_incorrect": len(val) - len(correct),
+            "abstention": len(abst), "abstention_justified": len(abst_ok),
+            "abstention_unjustified": len(abst) - len(abst_ok),
+            "non_null_mitigation": len(mit), "countermeasure": len(counter),
+            "not_a_countermeasure": len(mit) - len(counter),
+            "null_mitigation": len(null), "null_judged": len(null_judged), "null_justified": len(null_ok),
+        },
+    }
+    print("Flux des cas (dénominateurs fixes) :")
+    if confirmed is not None:
+        print(f"  chunks traités par Layer 2                  {chunks}")
+        print(f"  attaque confirmée (avant déduplication)     {confirmed}")
+    else:
+        print(f"  [⚠] fichiers methodology absents ({len(missing)}) : compte avant déduplication non disponible")
+    print(f"  cas construits (après déduplication)        {len(rows)}"
+          f"   [identifiant validé {len(val_all)} | abstention {len(abst_all)}]"
+          f"   [mitigation non nulle {len(mit_all)} | nulle {len(null_all)}]")
+    print(f"  relus                                       {len(rows)}")
+    print(f"  retirés (ne décrivent pas une attaque)      {len(rows) - len(kept)}")
+    print(f"  retenus                                     {len(kept)}")
+    print(f"    identifiant validé                        {len(val)} -> technique correcte {_rate(len(correct), len(val))}")
+    print(f"    abstention (⊥)                            {len(abst)} -> abstention justifiée {_rate(len(abst_ok), len(abst))}")
+    print(f"    mitigation non nulle                      {len(mit)} -> vraie contre-mesure {_rate(len(counter), len(mit))}")
+    print(f"    mitigation nulle                          {len(null)} -> nulle justifiée "
+          + (_rate(len(null_ok), len(null_judged)) if null_judged else "non relue (lancer null-export)"))
+
+    def r(x):
+        return "--" if x is None else str(x)
+    latex = "\n".join([
+        r"\begin{table}[h]", r"\centering",
+        r"\caption{Case flow. Every rate in the paper uses one of these denominators.}",
+        r"\label{tab:case_flow}", r"\begin{tabular}{lr}", r"\toprule", r"Stage & Cases \\", r"\midrule",
+        rf"Chunks processed by Layer~2 & {r(chunks)} \\",
+        rf"Attack confirmed (before deduplication) & {r(confirmed)} \\",
+        rf"Constructed (after deduplication) & {len(rows)} \\",
+        rf"\quad validated identifier / abstention & {len(val_all)} / {len(abst_all)} \\",
+        rf"\quad non-null / null mitigation & {len(mit_all)} / {len(null_all)} \\",
+        rf"Reviewed & {len(rows)} \\",
+        rf"Removed (not an attack) & {len(rows) - len(kept)} \\",
+        rf"Retained & {len(kept)} \\",
+        rf"\quad validated identifier: correct / incorrect & {len(correct)} / {len(val) - len(correct)} \\",
+        rf"\quad abstention: justified / unjustified & {len(abst_ok)} / {len(abst) - len(abst_ok)} \\",
+        rf"\quad non-null mitigation: countermeasure / not & {len(counter)} / {len(mit) - len(counter)} \\",
+        rf"\quad null mitigation: justified / unjustified & "
+        + (f"{len(null_ok)} / {len(null_judged) - len(null_ok)}" if null_judged else f"-- ({len(null)})") + r" \\",
+        r"\bottomrule", r"\end{tabular}", r"\end{table}"])
+    out = os.path.splitext(args.review)[0] + "_flow.json"
+    with open(out, "w", encoding="utf-8") as f:
+        json.dump({"review": args.review, "nulls": args.nulls, **flow, "latex": latex}, f, indent=2, ensure_ascii=False)
+    print(f"\n{latex}\n\n[✓] {out}")
+
+
+def cmd_null_export(args):
+    """CSV des cas retenus à mitigation nulle : la nulle est-elle justifiée (le texte ne donne aucune contre-mesure) ?"""
+    _, rows = read_review(args.review)
+    nulls = [r for r in rows if _flag(r["garder"]) and not r["mitigation"]]
+    out = args.output or os.path.splitext(args.review)[0] + "_nulls.csv"
+    if os.path.exists(out) and not args.force:
+        raise SystemExit(f"[✗] {out} existe déjà — --force pour l'écraser.")
+    fields = ["n", "record_id", "paper", "categorie", "resume_attaque", "null_ok", "remarque"]
+    with open(out, "w", encoding="utf-8-sig", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=fields, delimiter=";", extrasaction="ignore")
+        w.writeheader()
+        for r in nulls:
+            w.writerow({**r, "null_ok": "", "remarque": ""})
+    print(f"[✓] {len(nulls)} cas à mitigation nulle -> {out}")
+    print("    null_ok = o si le passage du papier ne propose AUCUNE contre-mesure à cette attaque "
+          "(nulle justifiée), n sinon. Puis : python review_cases.py flow --review ... --nulls " + out)
+
+
+def stratified_sample(rows: list[dict], n: int, seed: int) -> list[dict]:
+    """Tirage stratifié par technique proposée × mitigation nulle / non nulle,
+    allocation proportionnelle (plus forts restes), au moins un cas par strate
+    tant que n le permet."""
+    rng = random.Random(seed)
+    strata = {}
+    for r in rows:
+        strata.setdefault((r["categorie"], bool(r["mitigation"])), []).append(r)
+    for members in strata.values():
+        rng.shuffle(members)
+    n = min(n, len(rows))
+    keys = sorted(strata, key=lambda k: (-len(strata[k]), str(k)))
+    alloc = {k: 0 for k in keys}
+    for k in keys[:n]:  # une place par strate, des plus grandes aux plus petites
+        alloc[k] = 1
+    left = n - sum(alloc.values())
+    if left > 0:
+        quotas = {k: len(strata[k]) * n / len(rows) - alloc[k] for k in keys}
+        for k in keys:
+            extra = min(max(int(quotas[k]), 0), len(strata[k]) - alloc[k], left)
+            alloc[k] += extra
+            left -= extra
+        for k in sorted(keys, key=lambda k: -(quotas[k] - int(quotas[k]))):
+            if left == 0:
+                break
+            if alloc[k] < len(strata[k]):
+                alloc[k] += 1
+                left -= 1
+    return [r for k in keys for r in strata[k][:alloc[k]]]
+
+
 def cmd_iaa_export(args):
     _, rows = read_review(args.review)
-    sample = random.Random(args.seed).sample(rows, min(args.n, len(rows)))
+    sample = (random.Random(args.seed).sample(rows, min(args.n, len(rows))) if args.no_stratify
+              else stratified_sample(rows, args.n, args.seed))
     out = args.output or os.path.splitext(args.review)[0] + "_iaa.csv"
     if os.path.exists(out) and not args.force:
         raise SystemExit(f"[✗] {out} existe déjà — --force pour l'écraser.")
@@ -335,7 +492,11 @@ def cmd_iaa_export(args):
             w.writerow({**{k: r.get(k, "") for k in FIELDS}, "n": i,
                         "categorie_ok": "", "bonne_categorie": "", "mitigation_ok": "", "garder": "", "remarque": ""})
     shutil.copy2(os.path.splitext(args.review)[0] + "_meta.json", os.path.splitext(out)[0] + "_meta.json")
-    print(f"[✓] {len(sample)} cas tirés au hasard (graine {args.seed}) -> {out}")
+    strata = Counter((r["categorie"], "mitigation" if r["mitigation"] else "nulle") for r in sample)
+    print(f"[✓] {len(sample)} cas tirés au hasard (graine {args.seed}"
+          f"{', sans stratification' if args.no_stratify else ', stratifiés par technique × mitigation nulle'}) -> {out}")
+    for (cat, m), c in sorted(strata.items()):
+        print(f"    {c:2} × {cat} / {m}")
     print("    À remplir par une seconde personne, SANS voir la première relecture "
           "(mêmes consignes ; garder = o / n).")
 
@@ -365,6 +526,28 @@ def cmd_iaa_score(args):
     with open(out, "w", encoding="utf-8") as f:
         json.dump({"first": args.review, "second": args.second, "results": results}, f, indent=2, ensure_ascii=False)
     print(f"[✓] {out}")
+    # Désaccords à trancher (adjudication) : une ligne par cas et par label en désaccord.
+    disagreements = []
+    for a, b in pairs:
+        for label, key in (("garder", lambda r: _flag(r["garder"])), ("technique", _technique),
+                           ("mitigation_ok", lambda r: _flag(r["mitigation_ok"]))):
+            if label != "garder" and not (_flag(a["garder"]) and _flag(b["garder"])):
+                continue
+            if label == "mitigation_ok" and not a["mitigation"]:
+                continue
+            if key(a) != key(b):
+                disagreements.append({"record_id": a["record_id"], "paper": a["paper"], "label": label,
+                                      "annotateur_1": key(a), "annotateur_2": key(b),
+                                      "resume_attaque": a["resume_attaque"], "mitigation": a["mitigation"],
+                                      "decision_finale": "", "justification": ""})
+    adj = os.path.splitext(args.second)[0] + "_adjudication.csv"
+    with open(adj, "w", encoding="utf-8-sig", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=["record_id", "paper", "label", "annotateur_1", "annotateur_2",
+                                          "resume_attaque", "mitigation", "decision_finale", "justification"],
+                           delimiter=";")
+        w.writeheader()
+        w.writerows(disagreements)
+    print(f"[✓] {len(disagreements)} désaccord(s) à trancher ensemble -> {adj}")
 
 
 def main():
@@ -389,7 +572,8 @@ def main():
     sp.set_defaults(func=cmd_split)
     ie = sub.add_parser("iaa-export", help="CSV vierge de N cas pour une seconde annotation")
     ie.add_argument("--review", required=True)
-    ie.add_argument("--n", type=int, default=25)
+    ie.add_argument("--n", type=int, default=30)
+    ie.add_argument("--no-stratify", action="store_true", help="tirage simple (ancienne version)")
     ie.add_argument("--seed", type=int, default=7)
     ie.add_argument("--output", default=None)
     ie.add_argument("--force", action="store_true")
@@ -398,6 +582,16 @@ def main():
     isc.add_argument("--review", required=True)
     isc.add_argument("--second", required=True)
     isc.set_defaults(func=cmd_iaa_score)
+    fl = sub.add_parser("flow", help="table du flux des cas (dénominateurs fixes)")
+    fl.add_argument("--review", required=True)
+    fl.add_argument("--nulls", default=None, help="CSV de null-export rempli (null_ok)")
+    fl.add_argument("--methodology-dir", default="results")
+    fl.set_defaults(func=cmd_flow)
+    ne = sub.add_parser("null-export", help="CSV des cas retenus à mitigation nulle, pour juger si la nulle est justifiée")
+    ne.add_argument("--review", required=True)
+    ne.add_argument("--output", default=None)
+    ne.add_argument("--force", action="store_true")
+    ne.set_defaults(func=cmd_null_export)
     args = parser.parse_args()
     args.func(args)
 

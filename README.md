@@ -516,3 +516,18 @@ python calibrate_retrieval.py --table results/knowledge_table_llm_raw.jsonl --go
 python bootstrap.py table2 --calibration results/calibration/calibration_XXXX.json --output results/bootstrap_table2_raw.json
 python bootstrap.py table3 --summary results/rq3_raw/table_iv_summary.json results/rq3_raw_calib/table_iv_summary.json results/rq3_curated/table_iv_summary.json results/rq3_selfrefine/table_iv_summary.json results/rq3_ablation_N/table_iv_summary.json
 ```
+
+### Flux des cas et accord inter-annotateurs (consignes du 17/10)
+
+- `review_cases.py flow --review ... [--nulls ...]` : table du flux des cas
+  avec des dénominateurs fixes (chunks -> attaque confirmée avant
+  déduplication -> cas construits -> relus -> retenus), et pour les retenus :
+  technique correcte / incorrecte / abstention injustifiée, contre-mesure /
+  pas une contre-mesure / nulle (justifiée ou non). Sortie texte, JSON et
+  table LaTeX.
+- `review_cases.py null-export --review ...` : CSV des cas retenus à
+  mitigation nulle ; colonne `null_ok` (o = le passage ne propose aucune
+  contre-mesure), à repasser à `flow --nulls`.
+- `review_cases.py iaa-export` tire maintenant 30 cas stratifiés par
+  technique × mitigation nulle / non nulle (`--no-stratify` : ancien tirage) ;
+  `iaa-score` écrit en plus le CSV des désaccords à trancher (adjudication).
