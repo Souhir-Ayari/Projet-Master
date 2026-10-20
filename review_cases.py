@@ -326,7 +326,8 @@ def cmd_split(args):
 # Flux des cas (consigne du 17/10 : dénominateurs explicites et uniques)
 # --------------------------------------------------------------------------- #
 def count_confirmed_before_dedup(papers: set, methodology_dir: str):
-    """Chunks où Layer 2 confirme une attaque, AVANT déduplication (results/methodology_<stem>.jsonl)."""
+    """Chunks où Layer 2 confirme une attaque, AVANT déduplication (results/methodology_<stem>.jsonl).
+    Compte partiel si des fichiers manquent : `missing` liste ceux qui n'ont pas été trouvés."""
     total, chunks, missing = 0, 0, []
     for paper in sorted(papers):
         path = os.path.join(methodology_dir, f"methodology_{os.path.splitext(os.path.basename(paper))[0]}.jsonl")
@@ -337,7 +338,7 @@ def count_confirmed_before_dedup(papers: set, methodology_dir: str):
             recs = [json.loads(line) for line in f if line.strip()]
         chunks += len(recs)
         total += sum(bool(r.get("attack_present")) for r in recs)
-    return (None, None, missing) if missing else (chunks, total, missing)
+    return chunks, total, missing
 
 
 def _null_review(path: str) -> dict:
@@ -353,7 +354,13 @@ def cmd_flow(args):
     if problems:
         raise SystemExit("[✗] CSV incomplet :\n    " + "\n    ".join(problems))
     nulls = _null_review(args.nulls)
-    chunks, confirmed, missing = count_confirmed_before_dedup({r["paper"] for r in rows}, args.methodology_dir)
+    papers = {r["paper"] for r in rows}
+    chunks, confirmed, missing = count_confirmed_before_dedup(papers, args.methodology_dir)
+    missing_papers = {p for p in papers
+                      if any(m.endswith(f"methodology_{os.path.splitext(os.path.basename(p))[0]}.jsonl") for m in missing)}
+    covered_papers = papers - missing_papers
+    # Cas construits des seuls papiers dont le fichier methodology existe (même périmètre que `confirmed`)
+    constructed_covered = sum(r["paper"] in covered_papers for r in rows)
 
     def split(rs):
         val = [r for r in rs if r["categorie"] != "non validée"]
@@ -371,6 +378,8 @@ def cmd_flow(args):
 
     flow = {
         "chunks_processed": chunks, "attack_confirmed_before_dedup": confirmed,
+        "dedup_scope": {"papers_with_methodology": len(covered_papers), "papers": len(papers),
+                        "missing": sorted(missing_papers), "constructed_for_these_papers": constructed_covered},
         "constructed_after_dedup": len(rows),
         "constructed": {"validated_id": len(val_all), "abstention": len(abst_all),
                         "non_null_mitigation": len(mit_all), "null_mitigation": len(null_all)},
@@ -386,11 +395,11 @@ def cmd_flow(args):
         },
     }
     print("Flux des cas (dénominateurs fixes) :")
-    if confirmed is not None:
-        print(f"  chunks traités par Layer 2                  {chunks}")
-        print(f"  attaque confirmée (avant déduplication)     {confirmed}")
-    else:
-        print(f"  [⚠] fichiers methodology absents ({len(missing)}) : compte avant déduplication non disponible")
+    scope = "" if not missing else f" ({len(covered_papers)}/{len(papers)} papiers)"
+    print(f"  chunks traités par Layer 2{scope:20} {chunks}")
+    print(f"  attaque confirmée avant déduplication{scope} {confirmed} -> {constructed_covered} gardés après déduplication")
+    if missing:
+        print(f"  [⚠] fichiers methodology absents ({len(missing)}) : compte partiel")
         for m in missing:
             print(f"      - {m}")
         print("      (indiquer leur dossier avec --methodology-dir, ou relancer build_knowledge.py sur ces papiers)")
@@ -412,8 +421,8 @@ def cmd_flow(args):
         r"\begin{table}[h]", r"\centering",
         r"\caption{Case flow. Every rate in the paper uses one of these denominators.}",
         r"\label{tab:case_flow}", r"\begin{tabular}{lr}", r"\toprule", r"Stage & Cases \\", r"\midrule",
-        rf"Chunks processed by Layer~2 & {r(chunks)} \\",
-        rf"Attack confirmed (before deduplication) & {r(confirmed)} \\",
+        (rf"Attack confirmed by Layer~2, before deduplication$^a$ & {confirmed} ({constructed_covered} kept) \\"
+         if missing else rf"Attack confirmed by Layer~2 (before deduplication) & {confirmed} \\"),
         rf"Constructed (after deduplication) & {len(rows)} \\",
         rf"\quad validated identifier / abstention & {len(val_all)} / {len(abst_all)} \\",
         rf"\quad non-null / null mitigation & {len(mit_all)} / {len(null_all)} \\",
@@ -425,7 +434,11 @@ def cmd_flow(args):
         rf"\quad non-null mitigation: countermeasure / not & {len(counter)} / {len(mit) - len(counter)} \\",
         rf"\quad null mitigation: justified / unjustified & "
         + (f"{len(null_ok)} / {len(null_judged) - len(null_ok)}" if null_judged else f"-- ({len(null)})") + r" \\",
-        r"\bottomrule", r"\end{tabular}", r"\end{table}"])
+        r"\bottomrule", r"\end{tabular}"]
+        + ([rf"\par\smallskip{{\footnotesize $^a$ Counted on the {len(covered_papers)} of {len(papers)} papers whose "
+            rf"Layer~2 output files are available.}}"]
+           if missing else [])
+        + [r"\end{table}"])
     out = os.path.splitext(args.review)[0] + "_flow.json"
     with open(out, "w", encoding="utf-8") as f:
         json.dump({"review": args.review, "nulls": args.nulls, **flow, "latex": latex}, f, indent=2, ensure_ascii=False)
