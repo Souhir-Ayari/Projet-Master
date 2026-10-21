@@ -74,8 +74,12 @@ def read_csv_rows(path: str) -> list[dict]:
     Relit un CSV annoté à la main. Excel peut le réenregistrer en UTF-8 ou en
     Windows-1252, avec ; , ou une tabulation comme séparateur, et laisser une
     marque BOM devant le premier nom de colonne : on accepte tous ces cas, et
-    les noms de colonnes sont normalisés (espaces, BOM, casse).
+    les noms de colonnes sont normalisés (espaces, BOM, casse). Un classeur
+    Excel (.xlsx) est aussi accepté : on lit sa feuille « Annotation » (ou la
+    première feuille contenant des données).
     """
+    if path.lower().endswith(".xlsx"):
+        return _read_xlsx_rows(path)
     raw = open(path, "rb").read()
     try:
         text = raw.decode("utf-8-sig")
@@ -87,6 +91,25 @@ def read_csv_rows(path: str) -> list[dict]:
     rows = csv.DictReader(io.StringIO(text, newline=""), delimiter=delimiter)
     return [{(k or "").strip().strip("\ufeff").lower(): (v or "").strip() if isinstance(v, str) else v
              for k, v in r.items()} for r in rows]
+
+
+def _read_xlsx_rows(path: str) -> list[dict]:
+    try:
+        from openpyxl import load_workbook
+    except ImportError:
+        raise SystemExit("[✗] Lecture d'un .xlsx : installer openpyxl (pip install openpyxl), "
+                         "ou réenregistrer le fichier en « CSV UTF-8 (délimité par des points-virgules) ».")
+    wb = load_workbook(path, read_only=True, data_only=True)
+    ws = wb["Annotation"] if "Annotation" in wb.sheetnames else wb.worksheets[0]
+    values = list(ws.iter_rows(values_only=True))
+    header = [str(h or "").strip().lower() for h in values[0]]
+    rows = []
+    for v in values[1:]:
+        if not any(x not in (None, "") for x in v):
+            continue
+        rows.append({h: ("" if x is None else str(int(x)) if isinstance(x, float) and x.is_integer() else str(x).strip())
+                     for h, x in zip(header, v) if h})
+    return rows
 
 
 def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
