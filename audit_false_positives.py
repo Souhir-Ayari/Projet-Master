@@ -75,8 +75,8 @@ def read_csv_rows(path: str) -> list[dict]:
     Windows-1252, avec ; , ou une tabulation comme séparateur, et laisser une
     marque BOM devant le premier nom de colonne : on accepte tous ces cas, et
     les noms de colonnes sont normalisés (espaces, BOM, casse). Un classeur
-    Excel (.xlsx) est aussi accepté : on lit sa feuille « Annotation » (ou la
-    première feuille contenant des données).
+    Excel (.xlsx) est aussi accepté : on lit sa feuille « Annotation » ou
+    « Evaluation » (sinon la première feuille).
     """
     if path.lower().endswith(".xlsx"):
         return _read_xlsx_rows(path)
@@ -100,7 +100,8 @@ def _read_xlsx_rows(path: str) -> list[dict]:
         raise SystemExit("[✗] Lecture d'un .xlsx : installer openpyxl (pip install openpyxl), "
                          "ou réenregistrer le fichier en « CSV UTF-8 (délimité par des points-virgules) ».")
     wb = load_workbook(path, read_only=True, data_only=True)
-    ws = wb["Annotation"] if "Annotation" in wb.sheetnames else wb.worksheets[0]
+    names = [n for n in ("Annotation", "Evaluation") if n in wb.sheetnames]
+    ws = wb[names[0]] if names else wb.worksheets[0]
     values = list(ws.iter_rows(values_only=True))
     header = [str(h or "").strip().lower() for h in values[0]]
     rows = []
