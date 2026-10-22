@@ -100,7 +100,7 @@ def _read_xlsx_rows(path: str) -> list[dict]:
         raise SystemExit("[✗] Lecture d'un .xlsx : installer openpyxl (pip install openpyxl), "
                          "ou réenregistrer le fichier en « CSV UTF-8 (délimité par des points-virgules) ».")
     wb = load_workbook(path, read_only=True, data_only=True)
-    names = [n for n in ("Annotation", "Evaluation") if n in wb.sheetnames]
+    names = [n for n in wb.sheetnames if "annotation" in n.lower() or "evaluation" in n.lower()]
     ws = wb[names[0]] if names else wb.worksheets[0]
     values = list(ws.iter_rows(values_only=True))
     header = [str(h or "").strip().lower() for h in values[0]]
