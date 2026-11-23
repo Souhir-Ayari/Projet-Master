@@ -17,11 +17,9 @@ Le rapport complet est assemblé dans `rapport/Rapport_Memoire_CARL.docx` par `p
 | 4 · Problématique | 1. Problématique |
 | 6–7 · État de l'art (6 approches) | 2. État de l'art |
 | 8 · Synthèse critique · 9 · Positionnement et contributions | 3. Synthèse critique, positionnement et contributions |
-| 10 · Objectifs | 4. Objectifs |
-| 11 · Pipeline global | 5. Méthodologie : le pipeline CARL |
-| 12 · Architecture | 6. Architecture et mise en œuvre de CARL |
-| 13 · Données · 14 · Protocole · 15–17 · RQ1–RQ3 · 18 · Évaluation humaine | 7. Évaluations |
-| 19 · Discussion et limites | 8. Discussion et limites |
+| 10 · Objectifs · 11 · Pipeline global · 12 · Architecture | 4. Objectifs et méthodologie (4.1 Objectifs · 4.2 Pipeline global de CARL · 4.3 Architecture et mise en œuvre) |
+| 13 · Données · 14 · Protocole · 15–17 · RQ1–RQ3 · 18 · Évaluation humaine | 5. Évaluations |
+| 19 · Discussion et limites | 6. Discussion et limites |
 | 20 · Conclusion | Conclusion générale et perspectives |
 | — (rédigé à la fin) | Résumé / Abstract |
 | 21 · Références | Références bibliographiques |
@@ -34,20 +32,21 @@ Le rapport complet est assemblé dans `rapport/Rapport_Memoire_CARL.docx` par `p
 | 1. Problématique | 5 |
 | 2. État de l'art | 12 |
 | 3. Synthèse critique, positionnement et contributions | 6 |
-| 4. Objectifs | 2 |
-| 5. Méthodologie : le pipeline CARL | 6 |
-| 6. Architecture et mise en œuvre de CARL | 9 |
-| 7. Évaluations | 16 |
-| 7.1 Données d'évaluation | 1 |
-| 7.2 Corpus et base de cas | 2 |
-| 7.3 Protocole expérimental | 2 |
-| 7.4 Méthodes d'extraction (GLiNER vs Mistral, filtres) | 2 |
-| 7.5 Classification : validité et exactitude (RQ1) | 2 |
-| 7.6 Recherche de cas : similarité et couverture (RQ2) | 2 |
-| 7.7 Adaptation et recommandations : traçabilité et solidité (RQ3) | 3 |
-| 7.8 Évaluation humaine | 1 |
-| 7.9 Synthèse des résultats et des métriques | 1 |
-| 8. Discussion et limites | 5 |
+| 4. Objectifs et méthodologie | 17 |
+| 4.1 Objectifs | 2 |
+| 4.2 Pipeline global de CARL | 6 |
+| 4.3 Architecture et mise en œuvre | 9 |
+| 5. Évaluations | 16 |
+| 5.1 Données d'évaluation | 1 |
+| 5.2 Corpus et base de cas | 2 |
+| 5.3 Protocole expérimental | 2 |
+| 5.4 Méthodes d'extraction (GLiNER vs Mistral, filtres) | 2 |
+| 5.5 Classification : validité et exactitude (RQ1) | 2 |
+| 5.6 Recherche de cas : similarité et couverture (RQ2) | 2 |
+| 5.7 Adaptation et recommandations : traçabilité et solidité (RQ3) | 3 |
+| 5.8 Évaluation humaine | 1 |
+| 5.9 Synthèse des résultats et des métriques | 1 |
+| 6. Discussion et limites | 5 |
 | Conclusion générale et perspectives | 3 |
 | Résumé / Abstract | 1 |
 | Références bibliographiques | 3 |
@@ -55,4 +54,4 @@ Le rapport complet est assemblé dans `rapport/Rapport_Memoire_CARL.docx` par `p
 
 Pages liminaires non comptées : page de garde, table des matières, liste des figures, liste des tableaux, liste des acronymes (`rapport/acronymes.md`, complétée au fil des chapitres).
 
-Ordre de rédaction : introduction générale → chapitres 1 à 8 → conclusion → références → résumé et abstract en dernier.
+Ordre de rédaction : introduction générale → chapitres 1 à 6 → conclusion → références → résumé et abstract en dernier.
