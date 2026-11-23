@@ -10,9 +10,12 @@ Le rapport complet est assemblé dans `rapport/Rapport_Memoire_CARL.docx` par `p
 |---|---|
 | 1 · Couverture | Page de garde |
 | 2 · Sommaire | Table des matières |
+| — | Liste des figures (s'il y en a) |
+| — | Liste des tableaux |
+| 5 · Mots clés | Liste des acronymes |
 | 3 · Introduction (LLM, menaces, besoin) | Introduction générale |
 | 4 · Problématique | 1. Problématique |
-| 5 · Mots clés · 6–7 · État de l'art (6 approches) | 2. État de l'art (+ liste des acronymes) |
+| 6–7 · État de l'art (6 approches) | 2. État de l'art |
 | 8 · Synthèse critique | 3. Synthèse critique |
 | 9 · Positionnement et contributions · 10 · Objectifs | 4. Positionnement, contributions et objectifs |
 | 11 · Pipeline global | 5. Méthodologie : le pipeline CARL |
@@ -50,6 +53,6 @@ Le rapport complet est assemblé dans `rapport/Rapport_Memoire_CARL.docx` par `p
 | Références bibliographiques | 3 |
 | **Total** | **70** |
 
-Pages liminaires non comptées : page de garde, remerciements, table des matières, listes des figures, tableaux et acronymes.
+Pages liminaires non comptées : page de garde, table des matières, liste des figures, liste des tableaux, liste des acronymes (`rapport/acronymes.md`, complétée au fil des chapitres).
 
 Ordre de rédaction : introduction générale → chapitres 1 à 8 → conclusion → références → résumé et abstract en dernier.

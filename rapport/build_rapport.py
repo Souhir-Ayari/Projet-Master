@@ -203,18 +203,49 @@ def add_markdown(doc, path, body, first):
     return first
 
 
+def liminaire(doc, body, titre, champ):
+    """Page liminaire générée par Word (table des matières, des figures, des tableaux)."""
+    p = doc.add_paragraph(titre, style="Unnumbered heading")
+    add_field(doc.add_paragraph(style=body), champ)
+    doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
+    return p
+
+
+def acronymes(doc, body):
+    """Liste des acronymes, lue dans rapport/acronymes.md (lignes « SIGLE : définition »)."""
+    doc.add_paragraph("Liste des acronymes", style="Unnumbered heading")
+    path = os.path.join(HERE, "acronymes.md")
+    with open(path, encoding="utf-8") as f:
+        rows = [line.split(":", 1) for line in f if ":" in line and not line.startswith("#")]
+    rows.sort(key=lambda r: r[0].strip().lower())
+    table = doc.add_table(rows=0, cols=2)
+    for sigle, definition in rows:
+        cells = table.add_row().cells
+        cells[0].width, cells[1].width = Cm(3.5), Cm(12.5)
+        r = cells[0].paragraphs[0].add_run(sigle.strip())
+        r.bold = True
+        add_inline(cells[1].paragraphs[0], definition.strip())
+        for c in cells:
+            for run in c.paragraphs[0].runs:
+                run.font.name, run.font.size = FONT, Pt(12)
+    doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
+
+
 def main(garde, out):
     doc = docx.Document(garde)
     fill_cover(doc)
     heading_style(doc, "Heading 1", 18, 0, 0, 18)
     heading_style(doc, "Heading 2", 14, 1, 14, 8)
     heading_style(doc, "Heading 3", 12, 2, 10, 6)
+    unnumbered = heading_style(doc, "Unnumbered heading", 18, 9, 0, 18)
+    unnumbered.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
     body = body_style(doc)
 
     new_report_section(doc)
-    toc_title = doc.add_paragraph("Table des matières", style="Heading 1")
-    toc_title.paragraph_format.keep_with_next = True
-    add_field(doc.add_paragraph(style=body), 'TOC \\o "1-3" \\h \\z \\u')
+    liminaire(doc, body, "Table des matières", 'TOC \\o "1-3" \\h \\z \\u')
+    liminaire(doc, body, "Liste des figures", 'TOC \\h \\z \\c "Figure"')
+    liminaire(doc, body, "Liste des tableaux", 'TOC \\h \\z \\c "Tableau"')
+    acronymes(doc, body)
 
     first = False
     for path in sorted(glob.glob(os.path.join(HERE, "sections", "*.md"))):
