@@ -71,12 +71,11 @@ Encadrante : Dr Amal TARIFA, Maître Assistante · Année universitaire 2025/202
     - Peu de défenses, et une vérification confiée au modèle
     - Une traçabilité rarement assurée et des erreurs évaluées étape par étape
   - 3.4 Ce que l'état de l'art nous apporte
-  - 3.5 Besoins identifiés
-  - 3.6 Positionnement
-  - 3.7 Contributions
+  - 3.5 Positionnement
+  - 3.6 Contributions
     - Contribution 1 : une approche de recommandation de défenses vérifiables
     - Contribution 2 : une mesure de la propagation des erreurs d'une étape à l'autre
-  - 3.8 Conclusion
+  - 3.7 Conclusion
 - Références bibliographiques
 
 ---
@@ -383,37 +382,26 @@ Ces limites ne remettent pas en cause l'intérêt des travaux étudiés. Chacun 
 - **Self-Refine** apporte le cycle « proposer, vérifier, réviser » pour améliorer une réponse ;
 - enfin, le **raisonnement à partir de cas** (Aamodt et Plaza, 1994), déjà combiné à la génération augmentée par la recherche dans CBR-RAG (Wiratunga et al., 2024), offre un cadre pour répondre à un nouveau problème à partir de cas documentés plutôt que par une génération libre.
 
-## 3.5 Besoins identifiés
+## 3.5 Positionnement
 
-La confrontation de ces apports et de ces limites permet de formuler six besoins auxquels une approche de recommandation de défenses contre les attaques visant les LLM doit répondre :
-
-- **B1 — Exploiter la littérature scientifique** : extraire automatiquement, à partir d'articles, les attaques contre les LLM, leur mécanisme et la défense proposée.
-- **B2 — Ancrer chaque attaque dans une taxonomie adaptée** : rattacher chaque attaque à une technique MITRE ATLAS dont l'identifiant est vérifié, et enregistrer explicitement l'absence de défense lorsque l'article n'en propose pas.
-- **B3 — Décrire l'attaque avec une granularité suffisante** : représenter son déroulement, depuis le canal d'entrée jusqu'à son effet, pour choisir une défense qui agit sur un point précis.
-- **B4 — Produire une défense adaptée à l'attaque** : recommander une mesure fondée sur des cas documentés et adaptée à la nouvelle attaque, plutôt que générée librement.
-- **B5 — Vérifier sans dépendre du modèle générateur et assurer la traçabilité** : contrôler chaque recommandation par un mécanisme extérieur au LLM et indiquer la source sur laquelle elle repose.
-- **B6 — Mesurer la propagation des erreurs** : évaluer chaque étape sur les mêmes cas, en distinguant ce que le mécanisme vérifie de ce qu'il est censé garantir, et mesurer comment l'erreur d'une étape se transmet aux suivantes.
-
-## 3.6 Positionnement
-
-Les six besoins identifiés conduisent à notre positionnement. L'état de l'art a construit des composants solides : extraire des connaissances, classer une attaque, constituer une base de vulnérabilités, produire une défense ou corriger une réponse. Notre objectif n'est pas de dépasser chacun de ces composants sur sa propre tâche, mais de les réunir dans une même approche de recommandation de défenses pour les attaques visant les LLM, puis de mesurer ce qui se passe de bout en bout lorsqu'ils sont enchaînés.
+Les limites identifiées conduisent à notre positionnement. L'état de l'art a construit des composants solides : extraire des connaissances, classer une attaque, constituer une base de vulnérabilités, produire une défense ou corriger une réponse. Notre objectif n'est pas de dépasser chacun de ces composants sur sa propre tâche, mais de les réunir dans une même approche de recommandation de défenses pour les attaques visant les LLM, puis de mesurer ce qui se passe de bout en bout lorsqu'ils sont enchaînés.
 
 Nous proposons pour cela CARL (*Case-based Attack Remediation for LLMs*), une approche qui aborde la recommandation de défense comme un problème de raisonnement à partir de cas. Plutôt que de laisser un modèle générer librement une défense, CARL lui fournit des cas d'attaques documentés, extraits de la littérature et ancrés dans MITRE ATLAS ; face à une nouvelle attaque, il retrouve les cas les plus proches, adapte leur défense, puis vérifie la recommandation avant de la proposer. Le tableau 3.2 montre comment chaque limite de l'état de l'art se traduit par un choix de conception de CARL.
 
 *Tableau 3.2 — Des limites de l'état de l'art aux choix de conception de CARL*
 
-| Besoin | Limite de l'état de l'art | Choix de CARL |
-|---|---|---|
-| B1 | Connaissances tirées de rapports CTI, pas de la littérature | Base de cas extraite automatiquement d'articles scientifiques |
-| B2 | ATT&CK ne couvre ni l'injection de prompt ni le *jailbreak* | Ancrage de chaque cas dans MITRE ATLAS, avec un « null » explicite en l'absence de défense |
-| B3 | Entités ou techniques isolées | Description de l'attaque par une chaîne causale : canal d'entrée → contournement → impact |
-| B4 | Aucune défense produite (CTINexus, LADDER, TechniqueRAG) | Recommandation par raisonnement à partir de cas, adaptée au maillon de l'attaque qu'elle casse |
-| B5 | Défense contrôlée par le modèle qui l'a produite (FALCON, Self-Refine) ; traçabilité rarement assurée | Vérification par une règle déterministe, hors du LLM ; chaque mesure cite son cas et son article |
-| B6 | Étapes évaluées isolément ; coût de la construction manuelle non mesuré (ATAG) | Évaluation de chaque étape sur les mêmes cas et mesure de la propagation des erreurs |
+| Limite de l'état de l'art | Choix de CARL |
+|---|---|
+| Connaissances tirées de rapports CTI, pas de la littérature | Base de cas extraite automatiquement d'articles scientifiques |
+| ATT&CK ne couvre ni l'injection de prompt ni le *jailbreak* | Ancrage de chaque cas dans MITRE ATLAS, avec un « null » explicite en l'absence de défense |
+| Entités ou techniques isolées | Description de l'attaque par une chaîne causale : canal d'entrée → contournement → impact |
+| Aucune défense produite (CTINexus, LADDER, TechniqueRAG) | Recommandation par raisonnement à partir de cas, adaptée au maillon de l'attaque qu'elle casse |
+| Défense contrôlée par le modèle qui l'a produite (FALCON, Self-Refine) ; traçabilité rarement assurée | Vérification par une règle déterministe, hors du LLM ; chaque mesure cite son cas et son article |
+| Étapes évaluées isolément ; coût de la construction manuelle non mesuré (ATAG) | Évaluation de chaque étape sur les mêmes cas et mesure de la propagation des erreurs |
 
 Ce positionnement place CARL au croisement des approches étudiées. Comme CTINexus et LADDER, il extrait automatiquement des connaissances structurées d'un texte ; comme TechniqueRAG, il restreint et vérifie la technique attribuée à chaque attaque ; comme ATAG, il s'appuie sur la littérature et sur MITRE ATLAS ; comme FALCON, il produit une défense ; et comme Self-Refine, il révise une réponse jugée insuffisante. Il s'en distingue toutefois sur deux points : la vérification n'est jamais confiée au modèle qui a produit la recommandation, et l'évaluation ne s'arrête pas à chaque étape prise isolément.
 
-## 3.7 Contributions
+## 3.6 Contributions
 
 Ce travail apporte deux contributions principales.
 
@@ -425,9 +413,9 @@ La première contribution est CARL lui-même : une approche de recommandation de
 
 La seconde contribution est méthodologique. Chaque mécanisme de contrôle de CARL vérifie une propriété facile à contrôler, que nous appelons un *proxy*, à la place de la propriété réellement recherchée : qu'un identifiant soit valide plutôt que correct, qu'un cas soit proche plutôt que pertinent, qu'une recommandation cite une source plutôt qu'elle constitue une bonne défense. Nous mesurons, étape par étape et sur les mêmes cas, l'écart entre ces deux propriétés, puis la manière dont l'erreur d'une étape se transmet aux suivantes. Cette mesure n'est possible que parce que chaque recommandation est traçable : lorsqu'une recommandation est fausse, on peut remonter jusqu'à l'étape qui a produit l'erreur. Les deux contributions sont donc liées : l'auditabilité de CARL est ce qui rend la propagation des erreurs mesurable. Les résultats de cette mesure sont présentés au chapitre 7.
 
-## 3.8 Conclusion
+## 3.7 Conclusion
 
-L'analyse comparative a montré que l'état de l'art fournit des composants solides mais étudiés séparément, le plus souvent pour des menaces informatiques classiques, et qu'aucun travail ne mesure ce qui se passe lorsqu'on les enchaîne pour protéger un système fondé sur un LLM. Nous en avons déduit six besoins, puis notre positionnement : une approche, CARL, qui réunit extraction, ancrage dans MITRE ATLAS, adaptation et vérification hors du modèle, et une évaluation qui mesure la propagation des erreurs entre ces étapes. Le chapitre suivant traduit ce positionnement en objectifs précis.
+L'analyse comparative a montré que l'état de l'art fournit des composants solides mais étudiés séparément, le plus souvent pour des menaces informatiques classiques, et qu'aucun travail ne mesure ce qui se passe lorsqu'on les enchaîne pour protéger un système fondé sur un LLM. Nous en avons déduit notre positionnement : une approche, CARL, qui réunit extraction, ancrage dans MITRE ATLAS, adaptation et vérification hors du modèle, et une évaluation qui mesure la propagation des erreurs entre ces étapes. Le chapitre suivant traduit ce positionnement en objectifs précis.
 
 ---
 
