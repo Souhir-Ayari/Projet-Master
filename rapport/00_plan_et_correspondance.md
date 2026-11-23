@@ -16,8 +16,8 @@ Le rapport complet est assemblé dans `rapport/Rapport_Memoire_CARL.docx` par `p
 | 3 · Introduction (LLM, menaces, besoin) | Introduction générale |
 | 4 · Problématique | 1. Problématique |
 | 6–7 · État de l'art (6 approches) | 2. État de l'art |
-| 8 · Synthèse critique | 3. Synthèse critique |
-| 9 · Positionnement et contributions · 10 · Objectifs | 4. Positionnement, contributions et objectifs |
+| 8 · Synthèse critique · 9 · Positionnement et contributions | 3. Synthèse critique, positionnement et contributions |
+| 10 · Objectifs | 4. Objectifs |
 | 11 · Pipeline global | 5. Méthodologie : le pipeline CARL |
 | 12 · Architecture | 6. Architecture et mise en œuvre de CARL |
 | 13 · Données · 14 · Protocole · 15–17 · RQ1–RQ3 · 18 · Évaluation humaine | 7. Évaluations |
@@ -33,8 +33,8 @@ Le rapport complet est assemblé dans `rapport/Rapport_Memoire_CARL.docx` par `p
 | Introduction générale | 2 |
 | 1. Problématique | 5 |
 | 2. État de l'art | 12 |
-| 3. Synthèse critique | 4 |
-| 4. Positionnement, contributions et objectifs | 4 |
+| 3. Synthèse critique, positionnement et contributions | 6 |
+| 4. Objectifs | 2 |
 | 5. Méthodologie : le pipeline CARL | 6 |
 | 6. Architecture et mise en œuvre de CARL | 9 |
 | 7. Évaluations | 16 |
