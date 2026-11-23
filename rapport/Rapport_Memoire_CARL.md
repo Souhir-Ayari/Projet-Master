@@ -34,37 +34,31 @@ Encadrante : Dr Amal TARIFA, Maître Assistante · Année universitaire 2025/202
     - Méthodologie et techniques utilisées
     - Contributions et résultats
     - Limites
-    - Relation avec notre travail
   - 2.2 LADDER : extraction de schémas d'attaque reliés à MITRE ATT&CK
     - Principe
     - Méthodologie et techniques utilisées
     - Contributions et résultats
     - Limites
-    - Relation avec notre travail
   - 2.3 FALCON : génération de règles de détection à partir de la CTI
     - Principe
     - Méthodologie et techniques utilisées
     - Contributions et résultats
     - Limites
-    - Relation avec notre travail
   - 2.4 TechniqueRAG : classification des techniques d'attaque par génération augmentée
     - Principe
     - Méthodologie et techniques utilisées
     - Contributions et résultats
     - Limites
-    - Relation avec notre travail
   - 2.5 ATAG : graphes d'attaque et base de vulnérabilités des LLM
     - Principe
     - Méthodologie et techniques utilisées
     - Contributions et résultats
     - Limites
-    - Relation avec notre travail
   - 2.6 Self-Refine : amélioration itérative par auto-évaluation
     - Principe
     - Méthodologie et techniques utilisées
     - Contributions et résultats
     - Limites
-    - Relation avec notre travail
   - 2.7 Autres travaux connexes
   - 2.8 Conclusion
 - Références bibliographiques
@@ -180,7 +174,7 @@ Ce chapitre a précisé le problème étudié : transformer une littérature sci
 
 Le chapitre précédent a mis en évidence quatre difficultés : extraire des connaissances fiables d'articles hétérogènes, les ancrer dans une taxonomie adaptée, décrire les attaques avec une granularité suffisante et vérifier les recommandations produites. Ce chapitre présente les travaux qui se rapprochent le plus de notre problème. Nous avons retenu six approches, publiées entre 2023 et 2025, qui exploitent des textes de cybersécurité à l'aide de modèles de langage ou qui traitent d'un mécanisme que notre travail réutilise.
 
-Ces six approches se répartissent en deux groupes. Les trois premières, CTINexus, LADDER et FALCON, partent de rapports de renseignement sur les menaces (CTI) et les transforment en connaissances structurées, voire en défenses : elles représentent la chaîne qui va du texte brut à la protection. Les trois suivantes, TechniqueRAG, ATAG et Self-Refine, ne couvrent pas toute cette chaîne, mais chacune traite une étape précise que notre approche doit également réaliser : classer une attaque dans une taxonomie, constituer une base de connaissances sur les vulnérabilités des LLM, et corriger les réponses d'un modèle. Chaque approche est analysée selon la même grille : son principe, sa méthodologie, ses contributions et résultats, ses limites, et sa relation avec notre travail. Les résultats chiffrés sont ceux rapportés par les auteurs.
+Ces six approches se répartissent en deux groupes. Les trois premières, CTINexus, LADDER et FALCON, partent de rapports de renseignement sur les menaces (CTI) et les transforment en connaissances structurées, voire en défenses : elles représentent la chaîne qui va du texte brut à la protection. Les trois suivantes, TechniqueRAG, ATAG et Self-Refine, ne couvrent pas toute cette chaîne, mais chacune traite une étape précise que notre approche doit également réaliser : classer une attaque dans une taxonomie, constituer une base de connaissances sur les vulnérabilités des LLM, et corriger les réponses d'un modèle. Chaque approche est analysée selon la même grille : son principe, sa méthodologie, ses contributions et résultats, et ses limites. Le lien entre ces approches et notre travail est établi au chapitre suivant, dans la synthèse critique. Les résultats chiffrés sont ceux rapportés par les auteurs.
 
 ## 2.1 CTINexus : construction de graphes de connaissances CTI par apprentissage en contexte
 
@@ -200,10 +194,6 @@ La contribution principale est un cadre de construction automatique de graphes d
 
 CTINexus produit une représentation structurée des menaces, mais ne va pas jusqu'à la défense : le graphe décrit les acteurs, les outils et les relations, sans proposer de contre-mesure à une attaque donnée. Il porte sur des rapports CTI consacrés aux menaces informatiques classiques, et non sur les attaques visant les LLM. Enfin, les entités et relations extraites ne sont pas rattachées à une taxonomie de référence des techniques d'attaque, ce qui limite la comparaison entre rapports au niveau des techniques.
 
-### Relation avec notre travail
-
-CTINexus montre qu'un LLM peut extraire des connaissances structurées d'un texte de sécurité sans réentraînement, ce que nous reprenons pour l'extraction des attaques et des défenses à partir d'articles. Il illustre aussi l'intérêt de passer par des entités avant d'aller vers une représentation plus riche. En revanche, son absence de défense produite et de rattachement à une taxonomie motive deux choix de notre approche : produire une recommandation de défense et ancrer chaque cas dans MITRE ATLAS.
-
 ## 2.2 LADDER : extraction de schémas d'attaque reliés à MITRE ATT&CK
 
 ### Principe
@@ -221,10 +211,6 @@ LADDER apporte une méthode d'extraction à grande échelle des schémas d'attaq
 ### Limites
 
 Comme CTINexus, LADDER décrit les attaques sans proposer de défense. Son rattachement taxonomique se fait vers MITRE ATT&CK, qui couvre les menaces informatiques classiques mais pas nativement les techniques propres aux LLM, comme l'injection de prompt ou le *jailbreak*. Enfin, l'approche repose sur des modèles entraînés sur des données annotées, ce qui suppose de disposer de telles données pour un nouveau domaine.
-
-### Relation avec notre travail
-
-LADDER confirme qu'il est préférable de raisonner sur le mécanisme d'une attaque plutôt que sur des indicateurs isolés ; c'est l'idée que nous poussons plus loin en décrivant chaque attaque par une chaîne causale. Son rattachement des schémas d'attaque à une taxonomie est également un principe que nous reprenons. La différence tient au choix de la taxonomie : les attaques que nous étudions visent des LLM, ce qui nous conduit à utiliser MITRE ATLAS plutôt qu'ATT&CK.
 
 ## 2.3 FALCON : génération de règles de détection à partir de la CTI
 
@@ -244,10 +230,6 @@ FALCON est l'une des premières approches à produire, à partir de la CTI, des 
 
 La qualité des règles est contrôlée en partie par le modèle qui les a générées. Or, plusieurs travaux montrent qu'un LLM a tendance à juger favorablement ses propres productions (Xu et al., 2024 ; Kamoi et al., 2024), ce qui fragilise ce type de validation. Par ailleurs, FALCON porte sur des attaques réseau et système, et non sur les attaques visant les LLM. Enfin, les règles produites ne sont pas présentées comme rattachées à un cas documenté ou à un article source qui permettrait à un analyste de retracer d'où vient chaque défense.
 
-### Relation avec notre travail
-
-FALCON montre qu'il est possible de passer de la CTI à une défense concrète, ce qui correspond à l'objectif de notre travail. Il en révèle aussi le point faible : lorsque la vérification dépend du modèle générateur, elle hérite de ses biais. Cette limite motive l'un de nos choix principaux, qui consiste à séparer la vérification de la génération et à la confier à une règle déterministe, extérieure au LLM.
-
 ## 2.4 TechniqueRAG : classification des techniques d'attaque par génération augmentée
 
 ### Principe
@@ -265,10 +247,6 @@ TechniqueRAG obtient de meilleurs résultats qu'une classification directe sans 
 ### Limites
 
 TechniqueRAG évalue si l'étiquette produite pour un passage est correcte ; il ne mesure pas ce que devient une erreur de classification lorsqu'elle est utilisée par les étapes suivantes d'un système, par exemple pour retrouver des cas similaires ou proposer une défense. L'approche cible par ailleurs MITRE ATT&CK, et non les techniques propres aux attaques contre les LLM.
-
-### Relation avec notre travail
-
-TechniqueRAG valide une idée que nous reprenons : restreindre les techniques proposées au modèle à une liste de candidats et vérifier l'identifiant produit, plutôt que de laisser le modèle choisir librement. Notre approche applique ce principe à MITRE ATLAS. La lacune qu'il laisse ouverte, l'effet d'une erreur de classification sur la suite du traitement, est précisément l'une des questions que nous étudions dans l'évaluation.
 
 ## 2.5 ATAG : graphes d'attaque et base de vulnérabilités des LLM
 
@@ -288,10 +266,6 @@ ATAG propose un cadre de modélisation des menaces adapté aux applications à a
 
 La LVD est constituée manuellement : ses enregistrements sont extraits et croisés à la main, et les auteurs citent eux-mêmes la dérivation automatique de stratégies de mitigation comme une perspective de travail. Le coût de cette construction manuelle n'est pas mesuré, et la base reste de petite taille. Par ailleurs, ATAG sert à évaluer les risques d'une application déjà déployée, et non à recommander une défense face à une attaque nouvellement signalée.
 
-### Relation avec notre travail
-
-ATAG est le travail le plus proche du nôtre par la nature de ses données. Il confirme l'intérêt d'une base de cas ancrée dans MITRE ATLAS et issue de la littérature. Notre approche se distingue en construisant cette base automatiquement, puis en mesurant ce que cette automatisation coûte par rapport à une base relue à la main, une question que la construction manuelle de la LVD ne permet pas de poser.
-
 ## 2.6 Self-Refine : amélioration itérative par auto-évaluation
 
 ### Principe
@@ -309,10 +283,6 @@ Les auteurs évaluent Self-Refine sur sept tâches variées, de la génération 
 ### Limites
 
 L'efficacité de Self-Refine dépend de la capacité du modèle à juger correctement sa propre réponse. Or, des travaux ultérieurs montrent que les LLM ont tendance à surévaluer leurs propres productions, un biais qui s'amplifie au fil des itérations d'auto-raffinement (Xu et al., 2024). Une revue critique conclut par ailleurs que les gains d'auto-correction annoncés résistent rarement à une évaluation équitable face à des références contrôlées (Kamoi et al., 2024). Self-Refine n'a pas non plus été conçu pour vérifier qu'une réponse s'appuie sur une source.
-
-### Relation avec notre travail
-
-Self-Refine apporte l'idée d'un cycle « proposer, vérifier, réviser », que nous reprenons pour la production des recommandations. Ses limites justifient toutefois une différence essentielle : dans notre approche, l'étape de vérification n'est pas confiée au modèle qui a produit la recommandation, mais à une règle déterministe. Self-Refine sert également de point de comparaison dans notre évaluation, afin de mesurer ce que l'auto-vérification par le même modèle garantit réellement.
 
 ## 2.7 Autres travaux connexes
 
