@@ -1,6 +1,6 @@
 # Chapitre 3 — Synthèse critique, positionnement et contributions
 
-Le chapitre précédent a présenté six approches, chacune avec ses propres objectifs, données et méthodes. Ce chapitre les compare selon des critères communs, afin d'identifier ce que l'état de l'art permet déjà de faire, ce qu'il laisse de côté et les besoins auxquels une approche de recommandation de défenses contre les attaques visant les LLM doit répondre. Il présente ensuite notre positionnement et nos contributions, qui découlent directement de cette analyse. Les jugements portés dans ce chapitre relèvent de notre analyse des articles ; lorsqu'une propriété n'est pas décrite dans un article, nous l'indiquons comme non rapportée.
+Le chapitre précédent a présenté six approches, chacune avec ses propres objectifs, données et méthodes. Ce chapitre les compare selon des critères communs, afin d'identifier ce que l'état de l'art permet déjà de faire, et ce qu'il laisse de côté. Il présente ensuite notre positionnement et nos contributions, qui découlent directement de cette analyse. Les jugements portés dans ce chapitre relèvent de notre analyse des articles ; lorsqu'une propriété n'est pas décrite dans un article, nous l'indiquons comme non rapportée.
 
 ## 3.1 Critères de comparaison
 
