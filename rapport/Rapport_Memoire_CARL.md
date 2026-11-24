@@ -779,13 +779,13 @@ Chaque étape de CARL est évaluée sur un jeu de données adapté à ce qu'elle
 
 *Tableau 5.3 — Jeux de données de test et étape évaluée*
 
-| Jeu de données | Taille | Étape évaluée | Section |
-|---|---|---|---|
-| Annotation manuelle des entités d'un article | 45 entités | Extraction (couche 1) | 5.3 |
-| Revue manuelle de la base de cas | 119 cas (30 réannotés) | Classification ATLAS et défenses | 5.4 |
-| Requêtes d'attaque rédigées à la main | 18 requêtes | Recherche de cas et recommandations | 5.5 et 5.6 |
-| Paires de cas pour la calibration | 20 paires | Seuils du vérificateur causal | 5.6 |
-| Recommandations soumises à des évaluateurs | 76 recommandations | Évaluation humaine | 5.7 |
+| Jeu de données | Taille | Étape évaluée |
+|---|---|---|
+| Annotation manuelle des entités d'un article | 45 entités | Extraction (couche 1) |
+| Revue manuelle de la base de cas | 119 cas (30 réannotés) | Classification ATLAS et défenses |
+| Requêtes d'attaque rédigées à la main | 18 requêtes | Recherche de cas et recommandations |
+| Paires de cas pour la calibration | 20 paires | Seuils du vérificateur causal |
+| Recommandations soumises à des évaluateurs | 76 recommandations | Évaluation humaine |
 
 **Annotation des entités.** Pour évaluer l'extraction, nous avons annoté manuellement un article du corpus (Greshake et al., 2023) avec les sept étiquettes de la couche 1. L'annotation contient 45 entités distinctes. Chacune a été vérifiée comme présente dans le texte produit par notre extraction PDF, bibliographie exclue, afin qu'une entité absente du texte lu par le pipeline ne soit pas comptée comme une erreur du modèle.
 
