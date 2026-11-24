@@ -462,7 +462,11 @@ L'objectif général se décompose en cinq objectifs spécifiques (OS). Chacun r
 
 **OS4 — Recommander une défense à partir de cas similaires et l'adapter.** CTINexus, LADDER et TechniqueRAG ne produisent aucune défense. Le quatrième objectif est de recommander une mesure en retrouvant, dans la base, les cas les plus proches de la nouvelle attaque, puis en adaptant leur défense à cette attaque, en précisant quel maillon de la chaîne la mesure vient casser.
 
-**OS5 — Vérifier hors du LLM, citer la source et évaluer chaque étape.** FALCON et Self-Refine confient le contrôle de la réponse, au moins en partie, au modèle qui l'a produite. Le cinquième objectif est de vérifier chaque recommandation par une règle déterministe, extérieure au LLM, d'exiger qu'elle cite le cas sur lequel elle repose, et d'évaluer chaque étape du pipeline séparément, sur les mêmes cas, afin de mesurer la propagation des erreurs.
+**OS5 — Vérifier hors du LLM, citer la source et évaluer chaque étape.** Dans FALCON et Self-Refine, c'est le modèle qui a produit la réponse qui juge, au moins en partie, si elle est bonne. Or un modèle qui relit sa propre réponse a tendance à l'approuver (Xu et al., 2024 ; Kamoi et al., 2024). Le cinquième objectif répond à cette limite par trois exigences complémentaires :
+
+- **vérifier hors du LLM** : la décision d'accepter ou de rejeter une recommandation est prise par une règle fixe, fondée sur des calculs de similarité et des seuils, et non par un modèle. La même recommandation reçoit donc toujours le même verdict, et ce verdict ne dépend pas de l'avis du modèle qui l'a écrite ;
+- **citer la source** : chaque mesure recommandée doit indiquer le cas dont elle s'inspire, donc la technique ATLAS et l'article d'origine. Un analyste peut ainsi remonter à la source et contrôler la recommandation avant de l'appliquer ;
+- **évaluer chaque étape** : au lieu de juger seulement la recommandation finale, on mesure séparément, sur les mêmes cas, la qualité de l'extraction, de la classification, de la recherche et de la recommandation. On peut alors savoir à quelle étape une erreur est apparue et comment elle s'est transmise aux étapes suivantes.
 
 Le tableau 4.1 récapitule le lien entre chaque limite, l'objectif qui y répond et l'étape du pipeline qui le réalise.
 
