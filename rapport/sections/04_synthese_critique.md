@@ -73,19 +73,7 @@ Une seule approche produit une défense, et sa qualité est contrôlée en parti
 
 Hormis ATAG, dont les enregistrements proviennent d'articles identifiés, les approches ne permettent pas de retrouver la source précise sur laquelle repose chaque résultat. Surtout, toutes évaluent leurs étapes isolément : la qualité d'une classification, d'une extraction ou d'une règle. Aucune ne mesure ce que devient une erreur lorsqu'elle est réutilisée par l'étape suivante, alors que, dans un système qui enchaîne extraction, classification, recherche et génération, c'est cette propagation qui détermine la qualité de la recommandation finale. ATAG, en construisant sa base à la main, évite le coût de l'automatisation sans le mesurer.
 
-## 3.4 Ce que l'état de l'art apporte à CARL
-
-Ces limites ne remettent pas en cause l'intérêt des travaux étudiés. Chacun apporte une idée que CARL réutilise :
-
-- **CTINexus** montre qu'un LLM peut extraire des connaissances structurées d'un texte de sécurité sans réentraînement, et qu'il est utile de passer par des entités avant de construire une représentation plus riche ;
-- **LADDER** confirme qu'il vaut mieux raisonner sur le mécanisme d'une attaque que sur des indicateurs isolés, et rattacher ce mécanisme à une taxonomie ;
-- **FALCON** montre qu'il est possible de passer de la CTI à une défense concrète ;
-- **TechniqueRAG** valide le principe consistant à restreindre les techniques proposées au modèle à une liste de candidats, puis à vérifier l'identifiant produit ;
-- **ATAG** confirme l'intérêt d'une base de connaissances issue de la littérature et ancrée dans MITRE ATLAS ;
-- **Self-Refine** apporte le cycle « proposer, vérifier, réviser » pour améliorer une réponse ;
-- enfin, le **raisonnement à partir de cas** (Aamodt et Plaza, 1994), déjà combiné à la génération augmentée par la recherche dans CBR-RAG (Wiratunga et al., 2024), offre un cadre pour répondre à un nouveau problème à partir de cas documentés plutôt que par une génération libre.
-
-## 3.5 Positionnement
+## 3.4 Positionnement
 
 Notre positionnement découle directement des cinq limites L1 à L5. L'état de l'art a construit des composants solides : extraire des connaissances, classer une attaque, constituer une base de vulnérabilités, produire une défense ou corriger une réponse. Notre objectif n'est pas de dépasser chacun de ces composants sur sa propre tâche, mais de les réunir dans une même approche de recommandation de défenses pour les attaques visant les LLM, puis de mesurer ce qui se passe de bout en bout lorsqu'ils sont enchaînés.
 
@@ -105,7 +93,7 @@ Le tableau 3.2 fait le lien entre l'analyse de la section 3.3 et la conception d
 
 Ce positionnement place CARL au croisement des approches étudiées. Comme CTINexus et LADDER, il extrait automatiquement des connaissances structurées d'un texte ; comme TechniqueRAG, il restreint et vérifie la technique attribuée à chaque attaque ; comme ATAG, il s'appuie sur la littérature et sur MITRE ATLAS ; comme FALCON, il produit une défense ; et comme Self-Refine, il révise une réponse jugée insuffisante. Il s'en distingue toutefois sur deux points : la vérification n'est jamais confiée au modèle qui a produit la recommandation, et l'évaluation ne s'arrête pas à chaque étape prise isolément.
 
-## 3.6 Contributions
+## 3.5 Contributions
 
 Ce travail apporte deux contributions principales.
 
@@ -117,6 +105,6 @@ La première contribution est CARL lui-même : une approche de recommandation de
 
 La seconde contribution est méthodologique. Chaque mécanisme de contrôle de CARL vérifie une propriété facile à contrôler, que nous appelons un *proxy*, à la place de la propriété réellement recherchée : qu'un identifiant soit valide plutôt que correct, qu'un cas soit proche plutôt que pertinent, qu'une recommandation cite une source plutôt qu'elle constitue une bonne défense. Nous mesurons, étape par étape et sur les mêmes cas, l'écart entre ces deux propriétés, puis la manière dont l'erreur d'une étape se transmet aux suivantes. Cette mesure n'est possible que parce que chaque recommandation est traçable : lorsqu'une recommandation est fausse, on peut remonter jusqu'à l'étape qui a produit l'erreur. Les deux contributions sont donc liées : l'auditabilité de CARL est ce qui rend la propagation des erreurs mesurable. Les résultats de cette mesure sont présentés au chapitre 5.
 
-## 3.7 Conclusion
+## 3.6 Conclusion
 
 La comparaison des six approches avec CARL a montré que l'état de l'art fournit des composants solides mais étudiés séparément, le plus souvent pour des menaces informatiques classiques, et qu'aucun travail ne mesure ce qui se passe lorsqu'on les enchaîne pour protéger un système fondé sur un LLM. Les cinq limites identifiées ont conduit à notre positionnement : une approche, CARL, qui réunit extraction, ancrage dans MITRE ATLAS, adaptation et vérification hors du modèle, et une évaluation qui mesure la propagation des erreurs entre ces étapes. Le chapitre suivant traduit ce positionnement en objectifs précis, puis présente la méthodologie mise en œuvre pour les atteindre : le pipeline global de CARL et son architecture.
