@@ -25,7 +25,7 @@ def main():
     sections = []
     for path in sorted(glob.glob(os.path.join(HERE, "sections", "*.md"))):
         with open(path, encoding="utf-8") as f:
-            sections.append(f.read().strip())
+            sections.append(f.read().strip().replace("](../figures/", "](figures/"))
 
     toc = []
     for text in sections:

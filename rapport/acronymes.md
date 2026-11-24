@@ -8,6 +8,9 @@ CTI : *Cyber Threat Intelligence*, renseignement sur les menaces : rapports qui 
 IA : Intelligence artificielle
 IDS : *Intrusion Detection System*, système de détection d'intrusion
 IoC : *Indicator of Compromise*, indicateur de compromission (adresse IP, nom de domaine, empreinte de fichier…)
+JSONL : *JSON Lines*, format de fichier qui contient un enregistrement JSON par ligne
 LLM : *Large Language Model*, grand modèle de langage
 LVD : *LLM Vulnerability Database*, base de vulnérabilités des LLM introduite avec ATAG
+NER : *Named Entity Recognition*, reconnaissance d'entités nommées : repérer dans un texte les segments qui appartiennent à des catégories données
+OS : Objectif spécifique
 RAG : *Retrieval-Augmented Generation*, génération augmentée par la recherche : le modèle répond à partir de documents retrouvés plutôt que de sa seule mémoire
