@@ -94,8 +94,7 @@ Encadrante : Dr Amal TARIFA, Maître Assistante · Année universitaire 2025/202
     - 4.3.8 Recherche des cas similaires
     - 4.3.9 Chaîne causale, proposition et adaptation
     - 4.3.10 Vérification par une règle déterministe
-    - 4.3.11 Composants prévus mais non évalués
-    - 4.3.12 Environnement de mise en œuvre
+    - 4.3.11 Environnement de mise en œuvre
   - 4.4 Conclusion
 - Références bibliographiques
 
@@ -480,7 +479,7 @@ Le tableau 4.1 récapitule le lien entre chaque limite, l'objectif qui y répond
 
 ### 4.1.3 Périmètre
 
-Ces objectifs portent sur la conception de l'approche et sur la mesure de ce qu'elle garantit. Ils ne visent pas à couvrir l'ensemble des attaques contre les LLM : la base de cas est construite à partir d'un corpus de quatorze articles, centré sur l'injection de prompt et le *jailbreak*, et le chapitre 5 précise ce que cette taille permet ou non de conclure. Par ailleurs, deux composants de l'architecture sont implémentés mais n'ont pas été évalués dans ce travail : la recherche complémentaire d'articles lorsque la base ne contient aucun cas assez proche, et la génération de variantes adverses d'une attaque pour tester une défense. Ils sont décrits à la section 4.3 pour que l'architecture soit complète, mais ils ne sont pas présentés comme des résultats.
+Ces objectifs portent sur la conception de l'approche et sur la mesure de ce qu'elle garantit. Ils ne visent pas à couvrir l'ensemble des attaques contre les LLM : la base de cas est construite à partir d'un corpus de quatorze articles, centré sur l'injection de prompt et le *jailbreak*, et le chapitre 5 précise ce que cette taille permet ou non de conclure. Par ailleurs, la recherche complémentaire d'articles, utilisée lorsque la base ne contient aucun cas assez proche, est implémentée mais n'a pas été activée dans les expériences (section 4.3.8).
 
 ## 4.2 Pipeline global de CARL
 
@@ -517,7 +516,7 @@ Le pipeline de CARL se déroule en deux phases, présentées à la figure 4.1. C
 - *Recherche de cas similaires (OS4).* CARL retrouve dans la base les trois cas les plus proches de la nouvelle attaque, à condition que le plus proche dépasse un seuil de similarité. Le modèle propose alors une ou plusieurs mesures, chacune adaptée de la défense d'un cas retrouvé et associée au maillon qu'elle casse.
 - *Vérification (OS5).* Une règle déterministe, qui ne fait appel à aucun modèle génératif, vérifie chaque mesure. Si elle est acceptée, elle est renvoyée avec le cas cité. Si elle est rejetée, le modèle reçoit les raisons du rejet et propose une version révisée, elle-même vérifiée par la même règle.
 
-Les deux phases correspondent au cycle du raisonnement à partir de cas : la phase hors ligne prépare la mémoire de cas ; la phase en ligne en réalise les étapes *Retrieve* (recherche), *Reuse* (adaptation de la défense) et *Revise* (vérification et révision). L'étape *Retain* est prévue dans l'architecture, mais elle n'est exercée dans ce travail que pour la construction hors ligne de la base (section 4.3.9).
+Les deux phases correspondent au cycle du raisonnement à partir de cas : la phase hors ligne prépare la mémoire de cas ; la phase en ligne en réalise les étapes *Retrieve* (recherche), *Reuse* (adaptation de la défense) et *Revise* (vérification et révision). L'étape *Retain* est prévue dans l'architecture, mais elle n'est exercée dans ce travail que pour la construction hors ligne de la base, puisque la recherche complémentaire qui ajouterait de nouveaux cas est désactivée (section 4.3.8).
 
 ## 4.3 Architecture et mise en œuvre
 
@@ -664,16 +663,7 @@ Pour mesurer ce qu'apporte ce choix, l'évaluation compare la vérification caus
 
 Une mesure qui passe la vérification est *traçable*, ce qui ne garantit pas qu'elle soit une *bonne défense*. L'écart entre les deux est l'objet de la section 5.7.
 
-### 4.3.11 Composants prévus mais non évalués
-
-Deux composants de l'architecture sont implémentés mais n'ont pas été exercés dans les expériences :
-
-- **la recherche secondaire et la conservation de nouveaux cas** : les cas construits à partir d'articles trouvés en ligne devaient être ajoutés à la base (étape *Retain*), après la même validation que les cas hors ligne et une déduplication par article et par identifiant. Ce niveau étant désactivé, l'étape *Retain* n'est validée que pour la construction hors ligne de la base ;
-- **la génération de variantes adverses** : la vérification pourrait générer une variante plausible de l'attaque, conçue pour contourner la mesure proposée, afin de tester sa robustesse et pas seulement son ancrage. Cette extension est décrite, mais elle n'est pas évaluée.
-
-Ces deux composants sont repris dans les perspectives, car ils répondent directement à des limites mises en évidence par l'évaluation.
-
-### 4.3.12 Environnement de mise en œuvre
+### 4.3.11 Environnement de mise en œuvre
 
 CARL est implémenté en Python. Le tableau 4.2 récapitule les composants, les outils utilisés et leurs principaux paramètres.
 
