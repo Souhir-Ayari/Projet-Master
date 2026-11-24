@@ -756,7 +756,7 @@ Les quatorze articles ont été traités par la phase hors ligne décrite au cha
 
 *Tableau 5.2 — Du corpus à la base de cas : effectifs à chaque étape (rapporté)*
 
-| Étape | Effectif | Ce que représente ce chiffre |
+| Étape | Effectif | Signification |
 |---|---|---|
 | Articles traités | 14 | Nombre d'articles scientifiques dont au moins un cas figure dans la base |
 | Passages analysés par la couche 2 | 263 | Nombre de passages de texte (*chunks*) découpés dans les 14 articles et lus par Mistral-7B |
