@@ -96,6 +96,11 @@ Encadrante : Dr Amal TARIFA, Maître Assistante · Année universitaire 2025/202
     - 4.3.10 Vérification par une règle déterministe
     - 4.3.11 Environnement de mise en œuvre
   - 4.4 Conclusion
+- Chapitre 5 — Évaluations
+  - 5.1 Données
+    - 5.1.1 Corpus scientifique
+    - 5.1.2 Constitution de la base de cas
+    - 5.1.3 Jeux de données de test
 - Références bibliographiques
 
 ---
@@ -117,6 +122,9 @@ Encadrante : Dr Amal TARIFA, Maître Assistante · Année universitaire 2025/202
 - Tableau 3.2 — Réponse de CARL aux limites de l'état de l'art (section 3.3)
 - Tableau 4.1 — Des limites de l'état de l'art aux étapes de CARL
 - Tableau 4.2 — Composants, outils et paramètres de CARL
+- Tableau 5.1 — Articles arXiv ajoutés au corpus, par famille d'attaques
+- Tableau 5.2 — Du corpus à la base de cas : effectifs à chaque étape (rapporté)
+- Tableau 5.3 — Jeux de données de test et étape évaluée
 
 ---
 
@@ -567,7 +575,7 @@ Une alternative a été étudiée : demander directement à Mistral-7B, par un p
 3. un **filtre de fuite de l'exemple**, qui supprime toute entité reprenant littéralement une valeur de l'exemple donné dans le prompt ;
 4. un **filtre des valeurs de remplissage**, qui rejette les textes du type « non spécifié » utilisés à la place d'une véritable absence.
 
-Le choix final de GLiNER pour la couche 1 repose sur la comparaison des deux méthodes et sur la mesure de la contribution de chaque filtre, présentées à la section 5.4. Les entités extraites ne sont pas abandonnées après cette étape : elles sont transmises à la couche 2 comme contexte.
+Le choix final de GLiNER pour la couche 1 repose sur la comparaison des deux méthodes et sur la mesure de la contribution de chaque filtre, présentées à la section 5.3. Les entités extraites ne sont pas abandonnées après cette étape : elles sont transmises à la couche 2 comme contexte.
 
 ### 4.3.4 Couche 2 : résumé de l'attaque et de la défense
 
@@ -593,7 +601,7 @@ L'identifiant proposé par le modèle est ensuite contrôlé en deux temps :
 
 Seul un identifiant qui passe ces deux contrôles est conservé. Sinon, le cas reçoit une abstention. Un point est essentiel : un échec de validation ne supprime pas le cas. Le résumé de l'attaque et celui de la défense sont conservés, car une erreur de classification ne prouve pas que le contenu extrait soit lui-même faux.
 
-Passer ces deux contrôles montre qu'un identifiant est *valide*, c'est-à-dire bien formé et plausible pour le domaine ; cela ne montre pas qu'il est *correct* pour le cas considéré. La section 5.5 mesure l'écart entre les deux.
+Passer ces deux contrôles montre qu'un identifiant est *valide*, c'est-à-dire bien formé et plausible pour le domaine ; cela ne montre pas qu'il est *correct* pour le cas considéré. La section 5.4 mesure l'écart entre les deux.
 
 ### 4.3.6 Score de généralisabilité
 
@@ -623,7 +631,7 @@ Lorsqu'une nouvelle attaque est soumise, elle passe d'abord par les mêmes couch
 2. chaque cas candidat reçoit un score égal à la similarité cosinus entre son résumé d'attaque et celui de la nouvelle attaque, augmentée d'un bonus α = 0,05 lorsque les deux techniques coïncident ;
 3. les k = 3 cas les mieux classés sont retenus, à condition que le meilleur dépasse le seuil θ = 0,6.
 
-Le filtre par technique est un choix de conception, et non un paramètre ajusté. L'effet de α et de θ est analysé à la section 5.6. Un meilleur score au-dessus de θ est censé signifier que la base *couvre* la nouvelle attaque, ce que l'évaluation vérifie.
+Le filtre par technique est un choix de conception, et non un paramètre ajusté. L'effet de α et de θ est analysé à la section 5.5. Un meilleur score au-dessus de θ est censé signifier que la base *couvre* la nouvelle attaque, ce que l'évaluation vérifie.
 
 L'architecture prévoit aussi un niveau de recherche secondaire, utilisé lorsque aucun cas n'atteint le seuil : une requête est construite à partir des éléments de l'attaque (famille de modèle visée, mécanisme de contournement, technique), des articles sont recherchés dans des bases académiques (Semantic Scholar, arXiv), traités par la phase hors ligne et ajoutés à la base avant une nouvelle recherche. Ce niveau est implémenté et paramétrable, mais il est **désactivé dans toutes les expériences de ce travail** : les cas où le seuil n'est pas atteint sont seulement enregistrés. Ce choix permet d'évaluer le pipeline principal indépendamment de toute recherche en ligne.
 
@@ -655,13 +663,13 @@ La vérification est le point central de l'approche. Elle n'est pas confiée à 
 2. sa similarité cosinus avec la défense de ce cas est d'au moins 0,70 ;
 3. sa similarité cosinus avec le maillon qu'elle prétend casser est d'au moins 0,50.
 
-Ces deux seuils ont d'abord été fixés a priori, puis calibrés sur la base de cas ; les valeurs calibrées et leurs limites sont présentées à la section 5.7.
+Ces deux seuils ont d'abord été fixés a priori, puis calibrés sur la base de cas ; les valeurs calibrées et leurs limites sont présentées à la section 5.6.
 
 Si une mesure est rejetée, les raisons du rejet sont transmises au modèle, qui propose une version révisée ; celle-ci est vérifiée par la même règle. La boucle s'arrête lorsque la mesure est acceptée ou après un nombre maximal d'itérations, fixé à une révision (N = 1) dans nos expériences. Le nombre d'itérations et le verdict final accompagnent chaque recommandation.
 
-Pour mesurer ce qu'apporte ce choix, l'évaluation compare la vérification causale à plusieurs variantes : la même règle sans l'étiquette de maillon donnée par le modèle, un juge LLM utilisant le même modèle Mistral-7B, et une boucle de type Self-Refine où le modèle critique et révise sa propre réponse. Ces comparaisons sont présentées à la section 5.7.
+Pour mesurer ce qu'apporte ce choix, l'évaluation compare la vérification causale à plusieurs variantes : la même règle sans l'étiquette de maillon donnée par le modèle, un juge LLM utilisant le même modèle Mistral-7B, et une boucle de type Self-Refine où le modèle critique et révise sa propre réponse. Ces comparaisons sont présentées à la section 5.6.
 
-Une mesure qui passe la vérification est *traçable*, ce qui ne garantit pas qu'elle soit une *bonne défense*. L'écart entre les deux est l'objet de la section 5.7.
+Une mesure qui passe la vérification est *traçable*, ce qui ne garantit pas qu'elle soit une *bonne défense*. L'écart entre les deux est l'objet de la section 5.6.
 
 ### 4.3.11 Environnement de mise en œuvre
 
@@ -691,6 +699,110 @@ Il a aussi fait apparaître que chacun des trois mécanismes de contrôle du pip
 
 ---
 
+# Chapitre 5 — Évaluations
+
+Ce chapitre évalue CARL étape par étape. Il présente d'abord les données utilisées : le corpus d'articles, la base de cas construite à partir de ce corpus et les jeux de données de test (section 5.1). Il décrit ensuite le protocole expérimental, puis les résultats de chaque étape.
+
+## 5.1 Données
+
+### 5.1.1 Corpus scientifique
+
+**Présentation des articles.** La base de cas de CARL est construite à partir d'un corpus de quatorze articles scientifiques consacrés aux attaques contre les LLM et à leurs défenses. Le corpus a été constitué en deux temps.
+
+Trois articles ont servi au développement initial du pipeline :
+
+- une étude de l'injection de prompt indirecte contre les applications intégrant un LLM (Greshake et al., 2023) ;
+- une analyse théorique des limites de l'alignement des LLM (Wolf et al., 2023) ;
+- une formalisation et un banc d'essai des attaques par injection de prompt et de leurs défenses (Liu et al., 2024).
+
+Le corpus a ensuite été élargi avec des articles publiés sur arXiv, présentés dans le tableau 5.1 et regroupés par famille d'attaques.
+
+> **[À vérifier avant la version finale]** L'article ICAART indique 11 articles arXiv (3 + 11 = 14), alors que le script de téléchargement du dépôt en liste 12. Il faut vérifier dans le dossier `files/corpus_llm` lequel n'a pas été traité, puis le retirer de ce tableau.
+
+*Tableau 5.1 — Articles arXiv ajoutés au corpus, par famille d'attaques*
+
+| Famille | Article | Nature de la contribution |
+|---|---|---|
+| Injection de prompt directe | *Ignore Previous Prompt: Attack Techniques For Language Models* (Perez et Ribeiro, 2022) | Attaque |
+| Injection de prompt directe | *Prompt Injection attack against LLM-integrated Applications* (Liu et al., 2023) | Attaque |
+| Injection de prompt indirecte | *Benchmarking and Defending Against Indirect Prompt Injection Attacks on Large Language Models* (Yi et al., 2023) | Banc d'essai et défense |
+| Injection de prompt | *StruQ: Defending Against Prompt Injection with Structured Queries* (Chen et al., 2024) | Défense |
+| Agents avec outils | *InjecAgent: Benchmarking Indirect Prompt Injections in Tool-Integrated Large Language Model Agents* (Zhan et al., 2024) | Banc d'essai |
+| *Jailbreak* | *Jailbroken: How Does LLM Safety Training Fail?* (Wei et al., 2023) | Analyse des attaques |
+| *Jailbreak* | *Universal and Transferable Adversarial Attacks on Aligned Language Models* (Zou et al., 2023) | Attaque |
+| *Jailbreak* | *Do Anything Now: Characterizing and Evaluating In-The-Wild Jailbreak Prompts on Large Language Models* (Shen et al., 2023) | Étude empirique |
+| *Jailbreak* | *Jailbreaking Black Box Large Language Models in Twenty Queries* (Chao et al., 2023) | Attaque |
+| *Jailbreak* | *SmoothLLM: Defending Large Language Models Against Jailbreaking Attacks* (Robey et al., 2023) | Défense |
+| *Jailbreak* | *Baseline Defenses for Adversarial Attacks Against Aligned Language Models* (Jain et al., 2023) | Défense |
+| Empoisonnement des données | *Poisoning Language Models During Instruction Tuning* (Wan et al., 2023) | Attaque |
+
+**Types de publications étudiées.** Le corpus ne contient pas de rapports CTI ni de bulletins de sécurité, mais uniquement des articles de recherche. Ils sont de quatre natures :
+
+- des articles qui **proposent une attaque** et la démontrent sur des modèles ou des applications ;
+- des articles qui **proposent une défense** et mesurent son efficacité ;
+- des **bancs d'essai** (*benchmarks*), qui évaluent de manière systématique plusieurs attaques et défenses ;
+- des **analyses** des attaques, empiriques ou théoriques, qui expliquent pourquoi les protections échouent.
+
+Cette variété est volontaire. Un article d'attaque fournit surtout la description d'une attaque, souvent sans défense : il produit des cas avec une défense « null ». Un article de défense ou un banc d'essai fournit au contraire des mesures de protection. Le corpus permet ainsi de vérifier que le pipeline sait distinguer ces deux situations.
+
+**Pourquoi ces articles ont été sélectionnés.** Les articles ajoutés ont été choisis selon trois critères.
+
+1. *Couvrir plusieurs fois les mêmes techniques.* Les articles portent sur les techniques déjà présentes dans les trois premiers articles : injection de prompt directe, indirecte et déclenchée, *jailbreak* et empoisonnement. Avoir plusieurs cas d'une même technique, issus d'articles différents, donne à la recherche de cas de vrais choix à faire.
+2. *Inclure des articles de défense.* Un cas sans défense n'aide pas à recommander une mesure. Des articles centrés sur la défense (StruQ, BIPIA, SmoothLLM et les défenses de base de Jain et al.) ont donc été ajoutés.
+3. *Exclure volontairement certaines attaques.* Aucun article ne porte sur l'inférence d'appartenance, l'extraction de modèle, l'extraction de données d'entraînement ou les exemples adverses sur des images. Ces attaques sont réservées aux requêtes de test hors corpus (section 5.1.3) : elles servent à vérifier si CARL signale correctement qu'aucun cas de sa base ne couvre une attaque. Les inclure dans le corpus supprimerait ces exemples négatifs.
+
+Avant chaque téléchargement, le titre de l'article sur arXiv est comparé au titre attendu, afin d'éviter d'intégrer un mauvais document. Il faut noter enfin que le corpus est dominé par l'injection de prompt et le *jailbreak*. Il suffit pour construire et tester le pipeline, mais pas pour prétendre couvrir l'ensemble des attaques contre les LLM.
+
+### 5.1.2 Constitution de la base de cas
+
+Les quatorze articles ont été traités par la phase hors ligne décrite au chapitre 4. Le tableau 5.2 suit le nombre de cas à chaque étape. Ces effectifs servent de dénominateurs à tous les taux présentés dans la suite du chapitre.
+
+*Tableau 5.2 — Du corpus à la base de cas : effectifs à chaque étape (rapporté)*
+
+| Étape | Effectif |
+|---|---|
+| Articles traités | 14 |
+| Passages analysés par la couche 2 | 263 |
+| Passages décrivant une attaque confirmée | 212 |
+| Cas après déduplication (base construite) | 119 |
+| dont identifiant ATLAS validé / abstention | 107 / 12 |
+| dont défense extraite / « null » explicite | 92 / 27 |
+| Cas retirés à la revue (pas une attaque) | 11 |
+| Cas retenus après revue | 108 |
+
+**Base construite.** La couche 2 a analysé 263 passages, dont 212 décrivent une attaque confirmée. La déduplication, qui conserve au plus trois cas par couple (article, technique), ramène ce nombre à 119 cas. Parmi eux, 107 ont reçu un identifiant ATLAS qui a passé la validation, et 12 une abstention ; 92 comportent une défense extraite, et 27 une valeur « null » explicite. Toutes les expériences sont menées sur cette base, **telle que le pipeline l'a produite, sans correction manuelle**. C'est en effet la construction automatique qui distingue CARL des bases construites à la main, comme la LVD d'ATAG (Gandhi et al., 2025) : il faut donc évaluer ce que produit réellement l'automatisation.
+
+**Base révisée.** Les 119 cas ont ensuite été relus un par un (section 5.1.3). Cette revue a conduit à une seconde version de la base, dite *révisée* : 11 enregistrements qui ne décrivent pas une attaque ont été retirés, les identifiants erronés ont été corrigés, et les défenses qui ne sont pas de véritables contre-mesures ont été remplacées par « null ». Elle compte 108 cas, dont 84 concernent le *jailbreak* ou l'injection de prompt. Cette base révisée n'est jamais utilisée comme base de travail : elle sert seulement de **borne supérieure**, pour estimer ce qu'obtiendrait CARL si sa classification était sans erreur.
+
+### 5.1.3 Jeux de données de test
+
+Chaque étape de CARL est évaluée sur un jeu de données adapté à ce qu'elle doit produire. Le tableau 5.3 les récapitule.
+
+*Tableau 5.3 — Jeux de données de test et étape évaluée*
+
+| Jeu de données | Taille | Étape évaluée | Section |
+|---|---|---|---|
+| Annotation manuelle des entités d'un article | 45 entités | Extraction (couche 1) | 5.3 |
+| Revue manuelle de la base de cas | 119 cas (30 réannotés) | Classification ATLAS et défenses | 5.4 |
+| Requêtes d'attaque rédigées à la main | 18 requêtes | Recherche de cas et recommandations | 5.5 et 5.6 |
+| Paires de cas pour la calibration | 20 paires | Seuils du vérificateur causal | 5.6 |
+| Recommandations soumises à des évaluateurs | 76 recommandations | Évaluation humaine | 5.7 |
+
+**Annotation des entités.** Pour évaluer l'extraction, nous avons annoté manuellement un article du corpus (Greshake et al., 2023) avec les sept étiquettes de la couche 1. L'annotation contient 45 entités distinctes. Chacune a été vérifiée comme présente dans le texte produit par notre extraction PDF, bibliographie exclue, afin qu'une entité absente du texte lu par le pipeline ne soit pas comptée comme une erreur du modèle.
+
+**Revue de la base de cas.** Pour évaluer la classification, chacun des 119 cas a été relu à partir de son résumé d'attaque. La revue indique, pour chaque cas, s'il décrit réellement une attaque, si la technique ATLAS attribuée est correcte, si la défense extraite est une véritable contre-mesure et si une valeur « null » est justifiée. Elle a été pré-annotée avec l'aide d'un assistant LLM, puis chaque jugement a été vérifié par nous-même. Aucun second annotateur indépendant n'étant disponible, 30 cas tirés au hasard ont été réannotés sans assistance, afin de mesurer la cohérence de la revue (section 5.4).
+
+**Requêtes d'attaque.** Pour évaluer la recherche de cas et les recommandations, nous avons rédigé 18 descriptions d'attaques **avant d'examiner le contenu de la base**, afin de ne pas les adapter aux cas existants. Chaque requête est une courte description en texte libre, comme celle qu'un analyste pourrait soumettre, accompagnée d'une technique ATLAS attribuée manuellement. Les requêtes sont de deux types :
+
+- **14 requêtes couvertes par le corpus**, qui portent sur des techniques représentées dans la base : injection de prompt indirecte (par une page web, un courriel ou un document), injection directe, injection déclenchée, *jailbreak* (jeu de rôle, mode développeur, encodage), infiltration par une application publique, empoisonnement des données d'entraînement et extraction du prompt système ;
+- **4 requêtes hors corpus**, qui portent sur des attaques volontairement absentes du corpus : inférence d'appartenance, extraction de modèle, extraction de données d'entraînement et perturbation adverse d'un classifieur d'images. Pour ces requêtes, la bonne réponse de CARL est de signaler qu'aucun cas de sa base ne les couvre.
+
+**Paires de calibration.** Les seuils du vérificateur causal ne sont pas ajustés sur les requêtes de test. Ils sont calibrés sur la base elle-même, à partir de 20 paires de cas partageant la même technique : le modèle adapte la défense de l'un à l'attaque de l'autre, ce qui fournit des exemples positifs et négatifs (section 5.6).
+
+**Évaluation humaine.** Enfin, 76 recommandations distinctes, tirées des différentes configurations comparées, ont été soumises à deux évaluateurs externes, doctorants, qui ne sont pas impliqués dans le projet (section 5.7).
+
+---
+
 # Références bibliographiques
 
 Aamodt, A. et Plaza, E. (1994). Case-Based Reasoning: Foundational Issues, Methodological Variations, and System Approaches. *AI Communications*, vol. 7, n° 1, p. 39–59.
@@ -701,6 +813,10 @@ Blefari, F., Cosentino, C., Pironti, F. A., Furfaro, A. et Marozzo, F. (2026). C
 
 Carlini, N., Jagielski, M., Choquette-Choo, C. A., Paleka, D., Pearce, W., Anderson, H., Terzis, A., Thomas, K. et Tramèr, F. (2024). Poisoning Web-Scale Training Datasets is Practical. *IEEE Symposium on Security and Privacy (SP)*, p. 407–425.
 
+Chao, P., Robey, A., Dobriban, E., Hassani, H., Pappas, G. J. et Wong, E. (2023). Jailbreaking Black Box Large Language Models in Twenty Queries. *arXiv preprint arXiv:2310.08419*.
+
+Chen, S., Piet, J., Sitawarin, C. et Wagner, D. (2024). StruQ: Defending Against Prompt Injection with Structured Queries. *arXiv preprint arXiv:2402.06363*.
+
 Cheng, Y., Bajaber, O., Tsegai, S. A., Song, D. et Gao, P. (2025). CTINexus: Automatic Cyber Threat Intelligence Knowledge Graph Construction Using Large Language Models. *IEEE European Symposium on Security and Privacy (EuroS&P)*.
 
 Es, S., James, J., Espinosa Anke, L. et Schockaert, S. (2024). RAGAS: Automated Evaluation of Retrieval Augmented Generation. *Proceedings of the 18th Conference of the European Chapter of the Association for Computational Linguistics: System Demonstrations*, p. 150–158.
@@ -709,26 +825,48 @@ Gandhi, P. A., Shukla, A., Tayouri, D., Ifland, B., Elovici, Y., Puzis, R. et Sh
 
 Greshake, K., Abdelnabi, S., Mishra, S., Endres, C., Holz, T. et Fritz, M. (2023). Not What You've Signed Up For: Compromising Real-World LLM-Integrated Applications with Indirect Prompt Injection. *Proceedings of the 16th ACM Workshop on Artificial Intelligence and Security (AISec)*, p. 79–90.
 
+Jain, N., Schwarzschild, A., Wen, Y. et al. (2023). Baseline Defenses for Adversarial Attacks Against Aligned Language Models. *arXiv preprint arXiv:2309.00614*.
+
 Kamoi, R., Zhang, Y., Zhang, N., Han, J. et Zhang, R. (2024). When Can LLMs Actually Correct Their Own Mistakes? A Critical Survey of Self-Correction of LLMs. *Transactions of the Association for Computational Linguistics*, vol. 12, p. 1417–1440.
 
 Lekssays, A., Shukla, U., Sencar, H. T. et Parvez, M. R. (2025). TechniqueRAG: Retrieval Augmented Generation for Adversarial Technique Annotation in Cyber Threat Intelligence Text. *Findings of the Association for Computational Linguistics: ACL 2025*, p. 20913–20926.
 
+Liu, Y., Deng, G., Li, Y. et al. (2023). Prompt Injection attack against LLM-integrated Applications. *arXiv preprint arXiv:2306.05499*.
+
+Liu, Y., Jia, Y., Geng, R., Jia, J. et Gong, N. Z. (2024). Formalizing and Benchmarking Prompt Injection Attacks and Defenses. *33rd USENIX Security Symposium*.
+
 Madaan, A., Tandon, N., Gupta, P., Hallinan, S., Gao, L., Wiegreffe, S., Alon, U., Dziri, N., Prabhumoye, S., Yang, Y., Gupta, S., Majumder, B. P., Hermann, K., Welleck, S., Yazdanbakhsh, A. et Clark, P. (2023). Self-Refine: Iterative Refinement with Self-Feedback. *Advances in Neural Information Processing Systems (NeurIPS)*, vol. 36, p. 46534–46594.
+
+Mitra, S., Neupane, S., Duclos, M., Mittal, S., Piplai, A., Rahman, M. R., Zieglar, E. et Rahimi, S. (2025). FALCON: Transforming Cyber Threat Intelligence into Deployable IDS Rules with Self-Reflection. *arXiv preprint arXiv:2508.18684*.
 
 MITRE Corporation. MITRE ATLAS : Adversarial Threat Landscape for Artificial-Intelligence Systems. https://atlas.mitre.org — techniques AML.T0020 « Poison Training Data », AML.T0051 « LLM Prompt Injection », AML.T0054 « LLM Jailbreak ».
 
 MITRE Corporation. MITRE ATT&CK. https://attack.mitre.org
 
-Mitra, S., Neupane, S., Duclos, M., Mittal, S., Piplai, A., Rahman, M. R., Zieglar, E. et Rahimi, S. (2025). FALCON: Transforming Cyber Threat Intelligence into Deployable IDS Rules with Self-Reflection. *arXiv preprint arXiv:2508.18684*.
-
 Niu, C., Wu, Y., Zhu, J., Xu, S., Shum, K., Zhong, R., Song, J. et Zhang, T. (2024). RAGTruth: A Hallucination Corpus for Developing Trustworthy Retrieval-Augmented Language Models. *Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics (ACL)*, vol. 1, p. 10862–10878.
+
+Perez, F. et Ribeiro, I. (2022). Ignore Previous Prompt: Attack Techniques For Language Models. *arXiv preprint arXiv:2211.09527*.
+
+Robey, A., Wong, E., Hassani, H. et Pappas, G. J. (2023). SmoothLLM: Defending Large Language Models Against Jailbreaking Attacks. *arXiv preprint arXiv:2310.03684*.
+
+Shen, X., Chen, Z., Backes, M., Shen, Y. et Zhang, Y. (2023). Do Anything Now: Characterizing and Evaluating In-The-Wild Jailbreak Prompts on Large Language Models. *arXiv preprint arXiv:2308.03825*.
 
 Shinn, N., Cassano, F., Berman, E., Gopinath, A., Narasimhan, K. et Yao, S. (2023). Reflexion: Language Agents with Verbal Reinforcement Learning. *Advances in Neural Information Processing Systems (NeurIPS)*, vol. 36, p. 8634–8652.
 
 Tang, L., Laban, P. et Durrett, G. (2024). MiniCheck: Efficient Fact-Checking of LLMs on Grounding Documents. *Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing (EMNLP)*, p. 8818–8847.
 
+Wan, A., Wallace, E., Shen, S. et Klein, D. (2023). Poisoning Language Models During Instruction Tuning. *arXiv preprint arXiv:2305.00944*.
+
 Wei, A., Haghtalab, N. et Steinhardt, J. (2023). Jailbroken: How Does LLM Safety Training Fail? *Advances in Neural Information Processing Systems (NeurIPS)*, vol. 36.
 
 Wiratunga, N., Abeyratne, R., Jayawardena, L., Martin, K., Massie, S., Nkisi-Orji, I., Weerasinghe, R., Liret, A. et Fleisch, B. (2024). CBR-RAG: Case-Based Reasoning for Retrieval Augmented Generation in LLMs for Legal Question Answering. *Proceedings of the 32nd International Conference on Case-Based Reasoning (ICCBR)*, LNCS vol. 14775, p. 445–460.
 
+Wolf, Y., Wies, N., Avnery, O., Levine, Y. et Shashua, A. (2023). Fundamental Limitations of Alignment in Large Language Models. *arXiv preprint arXiv:2304.11082*.
+
 Xu, W., Zhu, G., Zhao, X., Pan, L., Li, L. et Wang, W. (2024). Pride and Prejudice: LLM Amplifies Self-Bias in Self-Refinement. *Proceedings of the 62nd Annual Meeting of the Association for Computational Linguistics (ACL)*, vol. 1, p. 15474–15492.
+
+Yi, J., Xie, Y., Zhu, B. et al. (2023). Benchmarking and Defending Against Indirect Prompt Injection Attacks on Large Language Models. *arXiv preprint arXiv:2312.14197*.
+
+Zhan, Q., Liang, Z., Ying, Z. et Kang, D. (2024). InjecAgent: Benchmarking Indirect Prompt Injections in Tool-Integrated Large Language Model Agents. *arXiv preprint arXiv:2403.02691*.
+
+Zou, A., Wang, Z., Carlini, N., Nasr, M., Kolter, J. Z. et Fredrikson, M. (2023). Universal and Transferable Adversarial Attacks on Aligned Language Models. *arXiv preprint arXiv:2307.15043*.

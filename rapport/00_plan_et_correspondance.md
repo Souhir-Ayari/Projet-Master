@@ -37,15 +37,14 @@ Le rapport complet est assemblé dans `rapport/Rapport_Memoire_CARL.docx` par `p
 | 4.2 Pipeline global de CARL | 6 |
 | 4.3 Architecture et mise en œuvre | 9 |
 | 5. Évaluations | 16 |
-| 5.1 Données d'évaluation | 1 |
-| 5.2 Corpus et base de cas | 2 |
-| 5.3 Protocole expérimental | 2 |
-| 5.4 Méthodes d'extraction (GLiNER vs Mistral, filtres) | 2 |
-| 5.5 Classification : validité et exactitude (RQ1) | 2 |
-| 5.6 Recherche de cas : similarité et couverture (RQ2) | 2 |
-| 5.7 Adaptation et recommandations : traçabilité et solidité (RQ3) | 3 |
-| 5.8 Évaluation humaine | 1 |
-| 5.9 Synthèse des résultats et des métriques | 1 |
+| 5.1 Données (corpus, base de cas, jeux de test) | 3 |
+| 5.2 Protocole expérimental | 2 |
+| 5.3 Méthodes d'extraction (GLiNER vs Mistral, filtres) | 2 |
+| 5.4 Classification : validité et exactitude (RQ1) | 2 |
+| 5.5 Recherche de cas : similarité et couverture (RQ2) | 2 |
+| 5.6 Adaptation et recommandations : traçabilité et solidité (RQ3) | 3 |
+| 5.7 Évaluation humaine | 1 |
+| 5.8 Synthèse des résultats et des métriques | 1 |
 | 6. Discussion et limites | 5 |
 | Conclusion générale et perspectives | 3 |
 | Résumé / Abstract | 1 |
