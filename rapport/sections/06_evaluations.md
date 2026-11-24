@@ -227,50 +227,34 @@ Deux conséquences en découlent. D'une part, la précision absolue de toutes le
 
 ## 5.4 Classification : validité et exactitude (RQ1)
 
-La première question de recherche porte sur l'ancrage dans MITRE ATLAS : un identifiant qui passe la validation désigne-t-il la bonne technique ?
+### 5.4.1 Question de recherche
 
-### 5.4.1 Écart entre validité et exactitude
+**Un identifiant MITRE ATLAS validé par CARL désigne-t-il réellement la bonne technique d'attaque ?**
 
-Le tableau 5.8 met en regard ce que la validation garantit et ce que la revue mesure.
+### 5.4.2 Objectif de l'expérience
+
+La validation de CARL vérifie qu'un identifiant existe dans MITRE ATLAS et qu'il concerne les LLM. Elle ne vérifie pas qu'il correspond à l'attaque décrite. L'expérience mesure l'écart entre ces deux propriétés, en comparant les identifiants validés à la revue manuelle des cas.
+
+### 5.4.3 Résultats de la classification
 
 *Tableau 5.8 — Validité et exactitude de la classification (rapporté ; intervalles de Wilson à 95 %)*
 
 | Mesure | Résultat | Intervalle |
 |---|---|---|
-| Identifiants valides (base construite) | 107 / 119 = 89,9 % | n.r. |
-| Identifiants corrects parmi les valides (cas retenus) | 47 / 99 = 47,5 % | 37,9 %–57,2 % |
-| Défenses extraites qui sont de vraies contre-mesures | 53 / 86 = 61,6 % | 51,1 %–71,2 % |
+| Identifiants valides | 107 / 119 = 89,9 % | n.r. |
+| Identifiants corrects parmi les valides | 47 / 99 = 47,5 % | 37,9 %–57,2 % |
+| Défenses qui sont de vraies contre-mesures | 53 / 86 = 61,6 % | 51,1 %–71,2 % |
 | Valeurs « null » justifiées | 21 / 22 = 95,5 % | 78,2 %–99,2 % |
 | Abstentions justifiées | 0 / 9 | n.r. |
 
-Les deux premières lignes doivent être lues ensemble. Près de 90 % des identifiants passent la validation, mais moins de la moitié des identifiants validés désignent la bonne technique. La validation remplit bien son rôle : elle écarte les identifiants inventés et ceux qui ne concernent pas les LLM. Mais un identifiant valide n'est correct qu'environ une fois sur deux. Le mécanisme garantit donc à peu près la moitié de ce qu'on attend de lui.
+Près de 90 % des identifiants sont valides, mais moins de la moitié des identifiants validés sont corrects. Les valeurs « null » sont fiables, alors qu'aucune abstention n'était justifiée.
 
-Les trois autres lignes nuancent ce constat :
+### 5.4.4 Analyse des erreurs
 
-- **les défenses** : environ six défenses extraites sur dix sont de vraies contre-mesures ; les autres rapportent un résultat d'expérience, reformulent la procédure de l'attaque ou décrivent le protocole d'évaluation des auteurs ;
-- **les valeurs « null »** sont fiables : lorsque CARL indique qu'un passage ne propose aucune défense, c'est exact dans 21 cas sur 22. Le choix d'enregistrer explicitement l'absence de défense, plutôt que de laisser le modèle la combler, est donc justifié ;
-- **les abstentions** ne le sont pas : pour aucun des 9 cas sans identifiant l'abstention n'était justifiée, car une technique de la liste s'appliquait à chaque fois. Le modèle s'abstient donc dans des cas où il aurait dû répondre.
+Les erreurs ne sont pas aléatoires : 27 des 52 erreurs concernent le *jailbreak* (AML.T0054), classé le plus souvent comme une injection de prompt. Le modèle confond ces deux techniques, qui consistent toutes deux à faire suivre au modèle des instructions malveillantes. Donner au modèle les définitions officielles d'ATLAS ne corrige pas cette confusion : l'exactitude baisse à 41,1 % et 39,8 %, contre 47,5 % sans définitions.
 
-### 5.4.2 Nature des erreurs
+### 5.4.5 Discussion des résultats
 
-Les erreurs de classification ne sont pas aléatoires. Sur les 52 identifiants incorrects, 27 concernent un cas dont la bonne technique est le *jailbreak* (AML.T0054) ; 22 d'entre eux ont été classés à la place comme une injection de prompt ou comme AML.T0093 (infiltration par une application publique). La sous-technique « injection déclenchée » (AML.T0051.002) n'était correcte que dans 1 de ses 17 utilisations. Comme AML.T0054 fait partie de la liste des techniques candidates, la restriction de la liste n'est pas en cause : la bonne réponse était disponible, mais le modèle ne l'a pas choisie.
+La validation apporte une garantie réelle mais limitée : elle empêche les identifiants inventés ou hors sujet, sans garantir la bonne technique. Un identifiant valide n'est correct qu'environ une fois sur deux. Ces taux reposent sur une revue faite par une seule personne (kappa intra-annotateur de 0,62 pour la technique et de 0,75 pour la défense) ; ils doivent être lus comme des bornes supérieures.
 
-Le modèle confond donc surtout des techniques voisines : le *jailbreak*, qui vise les protections du modèle lui-même, et l'injection de prompt, qui détourne les instructions d'une application. Ces deux attaques se ressemblent dans leur formulation, car toutes deux consistent à faire suivre au modèle des instructions malveillantes.
-
-### 5.4.3 Les définitions n'aident pas le modèle
-
-Pour savoir si le modèle manquait d'information, chaque cas a été reclassé à partir de son passage d'origine, avec un prompt consacré uniquement à la classification, dans deux variantes : avec les seuls noms des techniques, puis avec la définition officielle de chaque technique ATLAS et une règle explicite distinguant *jailbreak*, injection de prompt et empoisonnement des données. Aucune variante n'améliore le résultat initial : 41,1 % et 39,8 % des identifiants validés sont corrects, contre 47,5 % pour la couche 2. Avec les définitions, le modèle se replie surtout sur la technique parente AML.T0051. Comme la règle de distinction a été rédigée après avoir observé ces erreurs, ce résultat négatif est même optimiste.
-
-Restreindre la liste des techniques apporte donc une garantie réelle mais limitée : elle empêche les identifiants inventés ou hors sujet, sans permettre à un modèle de 7 milliards de paramètres de séparer des techniques proches.
-
-### 5.4.4 Cohérence de la revue
-
-Ces taux reposent sur une revue réalisée par une seule personne. La réannotation de 30 cas donne un kappa de Cohen de 0,62 pour la technique (accord sur 16 des 22 cas conservés dans les deux annotations) et de 0,75 pour le statut de la défense (14 sur 16). L'accord est plus faible sur la question de savoir si un enregistrement décrit une attaque (24 sur 30, kappa de 0,30) : la réannotation a retiré sept enregistrements, surtout des énoncés généraux ou des résultats, que la première revue avait conservés.
-
-Les 14 désaccords ont été tranchés en revenant au passage d'origine ; la réannotation a été retenue dans 12 cas. Sur cet échantillon, la première revue, réalisée avec l'assistant LLM, se montre trop indulgente : elle conserve des énoncés généraux comme des attaques (cinq cas) et choisit une sous-technique là où le résumé ne justifie que la technique parente (trois cas). Les taux du tableau 5.8 surestiment donc la part de cas exploitables et doivent être lus comme des **bornes supérieures**. Comme les deux annotations proviennent de la même personne, ce kappa mesure la reproductibilité de la revue, mais pas son biais ; une annotation indépendante reste nécessaire.
-
-### 5.4.5 Réponse à RQ1
-
-Un identifiant ATLAS valide n'est pas, en général, un identifiant correct : 89,9 % des identifiants sont valides, mais seulement 47,5 % des identifiants validés sont corrects. L'écart n'est pas dû au hasard : il vient surtout de la confusion entre *jailbreak* et injection de prompt, que ni la restriction de la liste ni les définitions officielles ne corrigent. À l'inverse, l'enregistrement explicite des valeurs « null » se révèle fiable.
-
-Cette erreur ne reste pas confinée à la classification. La recherche de cas filtre les candidats par technique : un cas mal classé peut donc être écarté d'une requête à laquelle il répondait, ou proposé à une requête à laquelle il ne répond pas. La question de recherche suivante mesure ce que cette erreur coûte à la recherche des cas.
+Cette erreur ne reste pas dans la classification : la recherche de cas filtre les candidats par technique, donc un cas mal classé peut être écarté d'une requête à laquelle il répondait. RQ2 mesure ce coût.
