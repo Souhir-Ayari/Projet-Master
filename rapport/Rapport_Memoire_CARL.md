@@ -83,7 +83,6 @@ Encadrante : Dr Amal TARIFA, Maître Assistante · Année universitaire 2025/202
   - 4.2 Pipeline global de CARL
     - 4.2.1 Principe : le raisonnement à partir de cas
     - 4.2.2 Deux phases : construire la base, puis répondre
-    - 4.2.3 Trois mécanismes de contrôle et ce qu'ils vérifient réellement
   - 4.3 Architecture et mise en œuvre
     - 4.3.1 Vue d'ensemble
     - 4.3.2 Prétraitement des articles
@@ -118,8 +117,7 @@ Encadrante : Dr Amal TARIFA, Maître Assistante · Année universitaire 2025/202
 - Tableau 3.1 — Comparaison des approches de l'état de l'art avec CARL (notre analyse ; n.r. : non rapporté)
 - Tableau 3.2 — Réponse de CARL aux limites de l'état de l'art (section 3.3)
 - Tableau 4.1 — Des limites de l'état de l'art aux étapes de CARL
-- Tableau 4.2 — Les trois mécanismes de contrôle de CARL et la propriété qu'ils sont censés garantir
-- Tableau 4.3 — Composants, outils et paramètres de CARL
+- Tableau 4.2 — Composants, outils et paramètres de CARL
 
 ---
 
@@ -521,20 +519,6 @@ Le pipeline de CARL se déroule en deux phases, présentées à la figure 4.1. C
 
 Les deux phases correspondent au cycle du raisonnement à partir de cas : la phase hors ligne prépare la mémoire de cas ; la phase en ligne en réalise les étapes *Retrieve* (recherche), *Reuse* (adaptation de la défense) et *Revise* (vérification et révision). L'étape *Retain* est prévue dans l'architecture, mais elle n'est exercée dans ce travail que pour la construction hors ligne de la base (section 4.3.9).
 
-### 4.2.3 Trois mécanismes de contrôle et ce qu'ils vérifient réellement
-
-Le pipeline comporte trois mécanismes de contrôle, placés aux trois endroits où une erreur peut entrer : la classification d'une attaque, le choix des cas sur lesquels s'appuyer et l'acceptation d'une recommandation. Chacun vérifie une propriété facile à contrôler automatiquement, qui est censée garantir une propriété plus importante mais plus difficile à vérifier. Nous appelons la première un *proxy* de la seconde.
-
-*Tableau 4.2 — Les trois mécanismes de contrôle de CARL et la propriété qu'ils sont censés garantir*
-
-| Mécanisme | Ce qu'il vérifie (proxy) | Ce que l'on veut réellement | Évalué en |
-|---|---|---|---|
-| Validation ATLAS | L'identifiant existe et appartient à la liste des techniques liées aux LLM | La technique est la bonne pour ce cas | Section 5.5 (RQ1) |
-| Seuil de similarité | Le cas le plus proche dépasse le seuil θ | La base contient un cas qui couvre vraiment l'attaque | Section 5.6 (RQ2) |
-| Vérification de la recommandation | La mesure cite un cas et lui est proche | La mesure est une bonne défense contre l'attaque | Section 5.7 (RQ3) |
-
-Cette distinction structure toute l'évaluation. Un pipeline peut passer tous ses contrôles et produire malgré tout une recommandation fausse, si chaque contrôle vérifie la propriété facile au lieu de la propriété recherchée. C'est pourquoi le chapitre 5 mesure, pour chaque mécanisme, l'écart entre les deux propriétés, puis la manière dont l'erreur d'une étape se transmet aux suivantes.
-
 ## 4.3 Architecture et mise en œuvre
 
 ### 4.3.1 Vue d'ensemble
@@ -610,7 +594,7 @@ L'identifiant proposé par le modèle est ensuite contrôlé en deux temps :
 
 Seul un identifiant qui passe ces deux contrôles est conservé. Sinon, le cas reçoit une abstention. Un point est essentiel : un échec de validation ne supprime pas le cas. Le résumé de l'attaque et celui de la défense sont conservés, car une erreur de classification ne prouve pas que le contenu extrait soit lui-même faux.
 
-Ce mécanisme est le premier des trois contrôles du tableau 4.2. Passer les deux contrôles montre qu'un identifiant est *valide*, c'est-à-dire bien formé et plausible pour le domaine ; cela ne montre pas qu'il est *correct* pour le cas considéré. La section 5.5 mesure l'écart entre les deux.
+Passer ces deux contrôles montre qu'un identifiant est *valide*, c'est-à-dire bien formé et plausible pour le domaine ; cela ne montre pas qu'il est *correct* pour le cas considéré. La section 5.5 mesure l'écart entre les deux.
 
 ### 4.3.6 Score de généralisabilité
 
@@ -640,7 +624,7 @@ Lorsqu'une nouvelle attaque est soumise, elle passe d'abord par les mêmes couch
 2. chaque cas candidat reçoit un score égal à la similarité cosinus entre son résumé d'attaque et celui de la nouvelle attaque, augmentée d'un bonus α = 0,05 lorsque les deux techniques coïncident ;
 3. les k = 3 cas les mieux classés sont retenus, à condition que le meilleur dépasse le seuil θ = 0,6.
 
-Le filtre par technique est un choix de conception, et non un paramètre ajusté. L'effet de α et de θ est analysé à la section 5.6. Le seuil θ est le deuxième contrôle du tableau 4.2 : un meilleur score au-dessus de θ est censé signifier que la base *couvre* la nouvelle attaque, ce que l'évaluation vérifie.
+Le filtre par technique est un choix de conception, et non un paramètre ajusté. L'effet de α et de θ est analysé à la section 5.6. Un meilleur score au-dessus de θ est censé signifier que la base *couvre* la nouvelle attaque, ce que l'évaluation vérifie.
 
 L'architecture prévoit aussi un niveau de recherche secondaire, utilisé lorsque aucun cas n'atteint le seuil : une requête est construite à partir des éléments de l'attaque (famille de modèle visée, mécanisme de contournement, technique), des articles sont recherchés dans des bases académiques (Semantic Scholar, arXiv), traités par la phase hors ligne et ajoutés à la base avant une nouvelle recherche. Ce niveau est implémenté et paramétrable, mais il est **désactivé dans toutes les expériences de ce travail** : les cas où le seuil n'est pas atteint sont seulement enregistrés. Ce choix permet d'évaluer le pipeline principal indépendamment de toute recherche en ligne.
 
@@ -678,7 +662,7 @@ Si une mesure est rejetée, les raisons du rejet sont transmises au modèle, qui
 
 Pour mesurer ce qu'apporte ce choix, l'évaluation compare la vérification causale à plusieurs variantes : la même règle sans l'étiquette de maillon donnée par le modèle, un juge LLM utilisant le même modèle Mistral-7B, et une boucle de type Self-Refine où le modèle critique et révise sa propre réponse. Ces comparaisons sont présentées à la section 5.7.
 
-Ce mécanisme est le troisième contrôle du tableau 4.2 : une mesure qui passe la vérification est *traçable*, ce qui ne garantit pas qu'elle soit une *bonne défense*. L'écart entre les deux est l'objet de la section 5.7.
+Une mesure qui passe la vérification est *traçable*, ce qui ne garantit pas qu'elle soit une *bonne défense*. L'écart entre les deux est l'objet de la section 5.7.
 
 ### 4.3.11 Composants prévus mais non évalués
 
@@ -691,9 +675,9 @@ Ces deux composants sont repris dans les perspectives, car ils répondent direct
 
 ### 4.3.12 Environnement de mise en œuvre
 
-CARL est implémenté en Python. Le tableau 4.3 récapitule les composants, les outils utilisés et leurs principaux paramètres.
+CARL est implémenté en Python. Le tableau 4.2 récapitule les composants, les outils utilisés et leurs principaux paramètres.
 
-*Tableau 4.3 — Composants, outils et paramètres de CARL*
+*Tableau 4.2 — Composants, outils et paramètres de CARL*
 
 | Composant | Outil ou modèle | Paramètres principaux |
 |---|---|---|
