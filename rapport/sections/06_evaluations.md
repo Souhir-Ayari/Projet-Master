@@ -55,16 +55,18 @@ Les quatorze articles ont été traités par la phase hors ligne décrite au cha
 
 *Tableau 5.2 — Du corpus à la base de cas : effectifs à chaque étape (rapporté)*
 
-| Étape | Effectif |
-|---|---|
-| Articles traités | 14 |
-| Passages analysés par la couche 2 | 263 |
-| Passages décrivant une attaque confirmée | 212 |
-| Cas après déduplication (base construite) | 119 |
-| dont identifiant ATLAS validé / abstention | 107 / 12 |
-| dont défense extraite / « null » explicite | 92 / 27 |
-| Cas retirés à la revue (pas une attaque) | 11 |
-| Cas retenus après revue | 108 |
+| Étape | Effectif | Ce que représente ce chiffre |
+|---|---|---|
+| Articles traités | 14 | Nombre d'articles scientifiques dont au moins un cas figure dans la base |
+| Passages analysés par la couche 2 | 263 | Nombre de passages de texte (*chunks*) découpés dans les 14 articles et lus par Mistral-7B |
+| Passages décrivant une attaque confirmée | 212 | Passages que la couche 2 a jugés comme décrivant une attaque concrète ; les autres (résultats, état de l'art, protocole…) sont écartés |
+| Cas après déduplication (base construite) | 119 | Cas conservés après la limite de 3 cas par couple (article, technique), qui supprime les reformulations d'une même attaque ; c'est la base utilisée dans toutes les expériences |
+| dont identifiant ATLAS validé / abstention | 107 / 12 | 107 cas ont un identifiant MITRE ATLAS qui a passé les deux contrôles ; 12 cas n'ont reçu aucun identifiant (abstention) |
+| dont défense extraite / « null » explicite | 92 / 27 | 92 cas ont un résumé de défense ; 27 cas portent « null », car le passage ne propose aucune défense |
+| Cas retirés à la revue (pas une attaque) | 11 | Cas que la revue manuelle a jugés ne pas décrire une attaque (énoncé général, résultat d'expérience…) |
+| Cas retenus après revue (base révisée) | 108 | 119 − 11 : cas qui décrivent réellement une attaque ; base utilisée seulement comme borne supérieure |
+
+*Lecture : chaque ligne compte des passages ou des cas ; les lignes « dont » détaillent les 119 cas de la base construite.*
 
 **Base construite.** La couche 2 a analysé 263 passages, dont 212 décrivent une attaque confirmée. La déduplication, qui conserve au plus trois cas par couple (article, technique), ramène ce nombre à 119 cas. Parmi eux, 107 ont reçu un identifiant ATLAS qui a passé la validation, et 12 une abstention ; 92 comportent une défense extraite, et 27 une valeur « null » explicite. Toutes les expériences sont menées sur cette base, **telle que le pipeline l'a produite, sans correction manuelle**. C'est en effet la construction automatique qui distingue CARL des bases construites à la main, comme la LVD d'ATAG (Gandhi et al., 2025) : il faut donc évaluer ce que produit réellement l'automatisation.
 
