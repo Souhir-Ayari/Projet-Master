@@ -715,16 +715,13 @@ Trois articles ont servi au développement initial du pipeline :
 - une analyse théorique des limites de l'alignement des LLM (Wolf et al., 2023) ;
 - une formalisation et un banc d'essai des attaques par injection de prompt et de leurs défenses (Liu et al., 2024).
 
-Le corpus a ensuite été élargi avec des articles publiés sur arXiv, présentés dans le tableau 5.1 et regroupés par famille d'attaques.
-
-> **[À vérifier avant la version finale]** L'article ICAART indique 11 articles arXiv (3 + 11 = 14), alors que le script de téléchargement du dépôt en liste 12. Il faut vérifier dans le dossier `files/corpus_llm` lequel n'a pas été traité, puis le retirer de ce tableau.
+Le corpus a ensuite été élargi avec onze articles publiés sur arXiv, présentés dans le tableau 5.1 et regroupés par famille d'attaques.
 
 *Tableau 5.1 — Articles arXiv ajoutés au corpus, par famille d'attaques*
 
 | Famille | Article | Nature de la contribution |
 |---|---|---|
 | Injection de prompt directe | *Ignore Previous Prompt: Attack Techniques For Language Models* (Perez et Ribeiro, 2022) | Attaque |
-| Injection de prompt directe | *Prompt Injection attack against LLM-integrated Applications* (Liu et al., 2023) | Attaque |
 | Injection de prompt indirecte | *Benchmarking and Defending Against Indirect Prompt Injection Attacks on Large Language Models* (Yi et al., 2023) | Banc d'essai et défense |
 | Injection de prompt | *StruQ: Defending Against Prompt Injection with Structured Queries* (Chen et al., 2024) | Défense |
 | Agents avec outils | *InjecAgent: Benchmarking Indirect Prompt Injections in Tool-Integrated Large Language Model Agents* (Zhan et al., 2024) | Banc d'essai |
@@ -830,8 +827,6 @@ Jain, N., Schwarzschild, A., Wen, Y. et al. (2023). Baseline Defenses for Advers
 Kamoi, R., Zhang, Y., Zhang, N., Han, J. et Zhang, R. (2024). When Can LLMs Actually Correct Their Own Mistakes? A Critical Survey of Self-Correction of LLMs. *Transactions of the Association for Computational Linguistics*, vol. 12, p. 1417–1440.
 
 Lekssays, A., Shukla, U., Sencar, H. T. et Parvez, M. R. (2025). TechniqueRAG: Retrieval Augmented Generation for Adversarial Technique Annotation in Cyber Threat Intelligence Text. *Findings of the Association for Computational Linguistics: ACL 2025*, p. 20913–20926.
-
-Liu, Y., Deng, G., Li, Y. et al. (2023). Prompt Injection attack against LLM-integrated Applications. *arXiv preprint arXiv:2306.05499*.
 
 Liu, Y., Jia, Y., Geng, R., Jia, J. et Gong, N. Z. (2024). Formalizing and Benchmarking Prompt Injection Attacks and Defenses. *33rd USENIX Security Symposium*.
 
