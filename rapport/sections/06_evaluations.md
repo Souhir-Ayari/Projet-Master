@@ -168,7 +168,7 @@ Le tableau 5.5 récapitule, pour chaque étape, le jeu de données, ce qui est c
 **Recommandations (RQ3).** Trois configurations sont comparées : (1) la génération sans recherche, où le modèle ne voit que la description de l'attaque ; (2) la génération à partir des trois cas retrouvés, sans vérification ; (3) la boucle « proposer, vérifier, réviser » avec une révision. La boucle est testée avec plusieurs vérificateurs : la règle lexicale, la règle causale, la règle causale avec les seuils calibrés, un juge LLM utilisant le même modèle, et une boucle de type Self-Refine où le modèle critique sa propre réponse. Les mesures sont :
 
 - l'**ancrage** : part des recommandations finales qui satisfont la règle de traçabilité, c'est-à-dire qui citent un cas retrouvé dont la défense n'est pas « null » et dont elles sont suffisamment proches ;
-- le **taux d'hallucination** : une mesure légère, propre au domaine, inspirée des outils d'évaluation de la fidélité aux sources (Es et al., 2024 ; Tang et al., 2024) ; ce n'est pas un instrument validé ;
+- le **taux d'hallucination** : part des recommandations dont le contenu n'est justifié par la défense d'aucun cas retrouvé, cité ou non. C'est une mesure légère, propre au domaine, inspirée des outils d'évaluation de la fidélité aux sources (Es et al., 2024 ; Tang et al., 2024), et non un instrument validé ;
 - l'**adaptation** : part des mesures qui mentionnent un élément de la nouvelle attaque absent de la défense citée ;
 - l'**adéquation causale** : part des mesures qui visent un maillon existant de la chaîne causale et lui sont proches ;
 - la **part des requêtes servies** : part des requêtes couvertes qui reçoivent au moins une recommandation ;
@@ -182,25 +182,48 @@ Les seuils du vérificateur causal sont calibrés sur les 20 paires de cas en ma
 
 ## 5.3 Extraction des entités
 
-Cette étape compare les deux méthodes envisagées pour la couche 1 : GLiNER, qui sélectionne des segments du texte, et Mistral-7B guidé par un prompt, qui génère les entités, complété par les quatre filtres décrits au chapitre 4.
+Cette étape compare les méthodes envisagées pour la couche 1 sur l'article annoté (45 entités) : GLiNER, qui sélectionne des segments du texte, et quatre variantes de Mistral-7B guidé par un prompt, de plus en plus spécifiques. La variante *naïve* donne une simple consigne ; la variante *travaillée* (*engineered*) structure davantage la demande ; la variante *personnalisée* (*custom*) part d'un besoin formulé par l'utilisateur ; la variante *thématique* (*topic*) fournit la taxonomie des sept étiquettes avec leur description.
 
-**Choix de l'extracteur.** Sur l'article annoté, GLiNER obtient un F1 de 0,292, contre 0,192 pour Mistral-7B avec ses filtres, et aucune des entités qu'il extrait n'est absente du texte. Ce second point est déterminant : la sortie de la couche 1 sert de contexte à la couche 2, et une entité inventée à ce stade serait transmise à toutes les étapes suivantes. GLiNER a donc été retenu pour la couche 1.
+### 5.3.1 Choix de l'extracteur
 
-**Contribution des filtres.** Les filtres ont été évalués sur Mistral-7B, la méthode qui en a besoin. Le tableau 5.6 résume leur effet.
+*Tableau 5.6 — Comparaison des extracteurs de la couche 1 sur l'annotation manuelle (45 entités) (rapporté)*
 
-*Tableau 5.6 — Effet des filtres sur l'extraction par Mistral-7B (rapporté)*
+| Méthode | Précision | Rappel | F1 | Taux d'hallucination |
+|---|---|---|---|---|
+| GLiNER (*zero-shot*) | 0,296 | 0,289 | 0,292 | 0,000 |
+| Mistral-7B (naïve) | 0,104 | 0,667 | 0,180 | 0,010 |
+| Mistral-7B (travaillée) | 0,115 | 0,244 | 0,156 | 0,000 |
+| Mistral-7B (personnalisée) | 0,212 | 0,156 | 0,180 | 0,030 |
+| Mistral-7B (thématique) | 0,121 | 0,467 | 0,192 | 0,017 |
 
-| Filtre | Effet mesuré |
-|---|---|
-| Longueur maximale | Retire 54 prédictions, surtout des propositions descriptives ; la précision passe de 0,089 à 0,116, sans perte d'entité correcte |
-| Liste blanche d'étiquettes | Seul filtre avec un compromis : il écarte deux entités correctes extraites sous une étiquette hors taxonomie ; le rappel passe de 0,511 à 0,467 |
-| Fuite de l'exemple | Aucun effet sur cet article ; filtre de sécurité contre une erreur observée sur un corpus antérieur |
-| Valeurs de remplissage | Aucun effet sur cet article ; même rôle de sécurité |
-| Ensemble des filtres | Le F1 passe de 0,143 à 0,192 (+34 %) |
+*Le taux d'hallucination est la part des entités extraites absentes du texte de l'article.*
 
-Le taux d'hallucination semble augmenter, de 0,011 à 0,017, mais il s'agit d'un effet de dénominateur : les trois mêmes entités non présentes dans le texte restent, parmi un nombre plus faible de prédictions.
+GLiNER obtient la meilleure précision et le meilleur F1. Avec la variante travaillée, c'est aussi la seule méthode qui n'extrait aucune entité absente du texte. Parmi les variantes de Mistral-7B, fournir la taxonomie du domaine double presque le rappel (0,467 pour la variante thématique contre 0,244 pour la variante travaillée), tandis que la variante naïve atteint le rappel le plus élevé (0,667) au prix de la précision la plus faible : elle extrait beaucoup, mais surtout du bruit. GLiNER, à l'inverse, renvoie surtout des noms propres et manque les rôles plus analytiques, comme le vecteur d'entrée, le mécanisme de contournement ou l'impact, ce qui limite son rappel.
 
-**Limite de l'annotation.** Les précisions sont faibles pour les deux méthodes, mais elles sous-estiment en partie la qualité réelle de l'extraction. Un contrôle de 30 faux positifs tirés au hasard a montré que 17 d'entre eux (57 % ; intervalle de Wilson 39 %–73 %) étaient de vraies entités de l'article, que l'annotation avait omises : types d'applications, impacts cités dans la taxonomie propre à l'article, ou défense proposée. Les 13 autres étaient des segments descriptifs. L'annotation de référence est donc incomplète, et les scores doivent être lus comme des comparaisons entre méthodes plutôt que comme des valeurs absolues. Ces résultats portent en outre sur un seul article et une seule configuration.
+Le choix de GLiNER ne repose pas d'abord sur le F1, mais sur son taux d'hallucination nul. La sortie de la couche 1 sert de contexte à la couche 2 : une entité absente du texte serait reprise dans les résumés des cas et transmise à toutes les étapes suivantes, alors qu'une entité réelle simplement oubliée par l'annotation ne cause aucun dommage. GLiNER est donc utilisé pour la couche 1, et Mistral-7B uniquement pour les résumés de la couche 2.
+
+### 5.3.2 Contribution des filtres
+
+Les filtres ont été évalués sur la variante thématique de Mistral-7B, en les ajoutant un par un aux mêmes sorties enregistrées du modèle.
+
+*Tableau 5.7 — Contribution de chaque filtre (Mistral-7B, variante thématique) (rapporté)*
+
+| Configuration | Précision | Rappel | F1 | Taux d'hallucination |
+|---|---|---|---|---|
+| Sans filtre | 0,083 | 0,511 | 0,143 | 0,011 |
+| + liste blanche d'étiquettes | 0,089 | 0,467 | 0,150 | 0,013 |
+| + longueur maximale | 0,116 | 0,467 | 0,186 | 0,017 |
+| + fuite de l'exemple | 0,116 | 0,467 | 0,186 | 0,017 |
+| + valeurs de remplissage | 0,116 | 0,467 | 0,186 | 0,017 |
+| Système complet (+ format, bruit des citations) | 0,121 | 0,467 | 0,192 | 0,017 |
+
+Le filtre de longueur maximale apporte le plus : il retire 54 prédictions, surtout des propositions descriptives plutôt que des entités, et fait passer la précision de 0,089 à 0,116 sans perdre aucune entité correcte. La liste blanche d'étiquettes est le seul filtre qui présente un compromis : elle écarte deux entités correctes que le modèle avait extraites sous une étiquette hors taxonomie, ce qui fait baisser le rappel de 0,511 à 0,467. Les filtres de fuite de l'exemple et des valeurs de remplissage n'ont aucun effet sur cet article ; ils corrigent des erreurs observées sur un corpus antérieur et servent ici de garde-fous. Au total, les filtres font passer le F1 de 0,143 à 0,192 (+34 %). La hausse apparente du taux d'hallucination, de 0,011 à 0,017, est un effet de dénominateur : les trois mêmes entités non présentes dans le texte restent, parmi un nombre plus faible de prédictions.
+
+### 5.3.3 Limite de l'annotation
+
+Les précisions sont faibles pour toutes les méthodes, mais elles sous-estiment la qualité réelle de l'extraction. Un contrôle de 30 faux positifs tirés au hasard dans la sortie de la variante thématique a montré que 17 d'entre eux (57 % ; intervalle de Wilson 39 %–73 %) étaient de vraies entités de l'article, que l'annotation avait omises : types d'applications, impacts cités dans la taxonomie propre à l'article, ou défense proposée. Les 13 autres étaient des fragments descriptifs, des étiquettes erronées ou du bruit d'extraction. La précision de 0,121 est donc une borne inférieure ; extrapolée aux 153 faux positifs, elle correspondrait à environ 0,62 (0,47–0,76), un ordre de grandeur donné à titre indicatif seulement.
+
+Deux conséquences en découlent. D'une part, la précision absolue de toutes les méthodes du tableau 5.6 est sous-estimée. D'autre part, le classement des méthodes ne reste valable que si la part d'entités valides non annotées est comparable d'une méthode à l'autre, ce qui n'a pas été vérifié. C'est une raison supplémentaire de fonder le choix de GLiNER sur l'absence d'hallucination plutôt que sur le F1. Ces résultats portent enfin sur un seul article et une seule configuration.
 
 ## 5.4 Classification : validité et exactitude (RQ1)
 
@@ -208,9 +231,9 @@ La première question de recherche porte sur l'ancrage dans MITRE ATLAS : un ide
 
 ### 5.4.1 Écart entre validité et exactitude
 
-Le tableau 5.7 met en regard ce que la validation garantit et ce que la revue mesure.
+Le tableau 5.8 met en regard ce que la validation garantit et ce que la revue mesure.
 
-*Tableau 5.7 — Validité et exactitude de la classification (rapporté ; intervalles de Wilson à 95 %)*
+*Tableau 5.8 — Validité et exactitude de la classification (rapporté ; intervalles de Wilson à 95 %)*
 
 | Mesure | Résultat | Intervalle |
 |---|---|---|
@@ -244,7 +267,7 @@ Restreindre la liste des techniques apporte donc une garantie réelle mais limit
 
 Ces taux reposent sur une revue réalisée par une seule personne. La réannotation de 30 cas donne un kappa de Cohen de 0,62 pour la technique (accord sur 16 des 22 cas conservés dans les deux annotations) et de 0,75 pour le statut de la défense (14 sur 16). L'accord est plus faible sur la question de savoir si un enregistrement décrit une attaque (24 sur 30, kappa de 0,30) : la réannotation a retiré sept enregistrements, surtout des énoncés généraux ou des résultats, que la première revue avait conservés.
 
-Les 14 désaccords ont été tranchés en revenant au passage d'origine ; la réannotation a été retenue dans 12 cas. Sur cet échantillon, la première revue, réalisée avec l'assistant LLM, se montre trop indulgente : elle conserve des énoncés généraux comme des attaques (cinq cas) et choisit une sous-technique là où le résumé ne justifie que la technique parente (trois cas). Les taux du tableau 5.7 surestiment donc la part de cas exploitables et doivent être lus comme des **bornes supérieures**. Comme les deux annotations proviennent de la même personne, ce kappa mesure la reproductibilité de la revue, mais pas son biais ; une annotation indépendante reste nécessaire.
+Les 14 désaccords ont été tranchés en revenant au passage d'origine ; la réannotation a été retenue dans 12 cas. Sur cet échantillon, la première revue, réalisée avec l'assistant LLM, se montre trop indulgente : elle conserve des énoncés généraux comme des attaques (cinq cas) et choisit une sous-technique là où le résumé ne justifie que la technique parente (trois cas). Les taux du tableau 5.8 surestiment donc la part de cas exploitables et doivent être lus comme des **bornes supérieures**. Comme les deux annotations proviennent de la même personne, ce kappa mesure la reproductibilité de la revue, mais pas son biais ; une annotation indépendante reste nécessaire.
 
 ### 5.4.5 Réponse à RQ1
 
