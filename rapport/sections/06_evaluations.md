@@ -135,17 +135,7 @@ Trois questions de recherche structurent cette comparaison, une par mécanisme d
 
 L'extraction des entités, qui précède ces trois étapes, est évaluée en premier, car elle fournit le contexte de tout le reste du pipeline. Une évaluation humaine complète enfin les mesures automatiques.
 
-### 5.2.2 Configuration expérimentale
-
-Toutes les expériences utilisent la même configuration, décrite au chapitre 4 :
-
-- la **base construite** de 119 cas, telle que le pipeline l'a produite, sans correction manuelle ; la base révisée de 108 cas sert uniquement de borne supérieure ;
-- GLiNER (`urchade/gliner_multi-v2.1`, seuil de confiance 0,4) pour la couche 1, et Mistral-7B-Instruct-v0.3, servi par Ollama avec une température de 0,1, pour la couche 2, la proposition et la révision ;
-- `nomic-embed-text` pour les plongements lexicaux ;
-- une recherche limitée aux cas de la technique de la requête, avec un bonus α = 0,05, k = 3 cas retournés et un seuil θ = 0,6 ;
-- le niveau de recherche secondaire désactivé : aucun article n'est ajouté à la base pendant les expériences.
-
-### 5.2.3 Mesures utilisées à chaque étape
+### 5.2.2 Mesures utilisées à chaque étape
 
 Le tableau 5.5 récapitule, pour chaque étape, le jeu de données, ce qui est comparé et les mesures utilisées.
 
