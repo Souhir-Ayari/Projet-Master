@@ -6,48 +6,34 @@ Le chapitre précédent a présenté six approches, chacune avec ses propres obj
 
 Les critères de comparaison sont définis à partir de ce que CARL doit accomplir pour répondre à la problématique. Chacun correspond à une exigence de notre approche, et permet de vérifier si une approche existante la satisfait déjà :
 
-- **la source des connaissances** : CARL exploite des articles scientifiques ; l'approche part-elle de la littérature ou d'une autre source ?
-- **les attaques visées** : CARL traite les attaques contre les LLM ; l'approche les couvre-t-elle ?
-- **le mode de construction des connaissances** : CARL construit sa base automatiquement ; l'approche est-elle automatique ou manuelle ?
+- **la source et les attaques visées** : CARL exploite des articles scientifiques consacrés aux attaques contre les LLM ; d'où l'approche tire-t-elle ses connaissances, et quelles attaques couvre-t-elle ?
+- **le mode de construction** : CARL construit sa base automatiquement ; l'approche est-elle automatique ou manuelle ?
 - **la granularité** : CARL décrit chaque attaque par une chaîne causale ; à quel niveau de détail l'approche décrit-elle les attaques ?
 - **la taxonomie de référence** : CARL ancre chaque attaque dans MITRE ATLAS ; à quel référentiel l'approche se rattache-t-elle ?
-- **la défense produite** : CARL recommande une mesure adaptée à l'attaque ; l'approche propose-t-elle une défense ?
-- **la vérification** : CARL vérifie chaque recommandation hors du modèle générateur ; comment l'approche contrôle-t-elle ses sorties ?
-- **la traçabilité** : chaque réponse de CARL cite sa source ; peut-on retrouver la source d'un résultat de l'approche ?
-- **la mesure de la propagation des erreurs** : CARL évalue l'effet d'une erreur d'une étape sur les suivantes ; l'approche le fait-elle ?
+- **la défense et son contrôle** : CARL recommande une mesure adaptée et la vérifie hors du modèle générateur ; l'approche propose-t-elle une défense, et qui la contrôle ?
+- **la traçabilité et la propagation des erreurs** : chaque réponse de CARL cite sa source, et CARL mesure l'effet d'une erreur d'une étape sur les suivantes ; l'approche permet-elle l'un et l'autre ?
 
 ## 3.2 Comparaison des approches avec CARL
 
-Le tableau 3.1 situe les six approches par rapport à CARL selon ces critères. La dernière colonne indique ce que CARL réalise pour chaque critère, et la dernière ligne la limite principale de chaque approche, y compris celle de CARL.
+Le tableau 3.1 situe les six approches par rapport à CARL selon ces critères. La dernière colonne indique ce que réalise CARL, et la dernière ligne la limite principale de chaque approche, y compris celle de CARL.
 
 *Tableau 3.1 — Comparaison des approches de l'état de l'art avec CARL (notre analyse ; n.r. : non rapporté)*
 
 | Critère | CTINexus | LADDER | FALCON | TechniqueRAG | ATAG | Self-Refine | **CARL (notre approche)** |
 |---|---|---|---|---|---|---|---|
-| Source | Rapports CTI | Rapports CTI | CTI | Textes CTI | Articles et attaques implémentées | Non spécifique | **Articles scientifiques** |
-| Attaques visées | Menaces classiques | Menaces classiques | Réseau et système | Menaces classiques | Applications à agents LLM | Non spécifique | **Attaques contre les LLM** |
-| Construction | Automatique (LLM) | Automatique (BERT) | Automatique (LLM) | Automatique (RAG) | Manuelle | — | **Automatique (GLiNER et Mistral-7B)** |
-| Granularité | Entités et relations | Schémas d'attaque | Règle de détection | Technique | Vulnérabilité et procédure | — | **Chaîne causale : canal d'entrée → contournement → impact** |
+| Source et attaques visées | Rapports CTI ; menaces classiques | Rapports CTI ; menaces classiques | CTI ; réseau et système | Textes CTI ; menaces classiques | Articles ; agents LLM | Non spécifique | **Articles scientifiques ; attaques contre les LLM** |
+| Construction | Automatique (LLM) | Automatique (BERT) | Automatique (LLM) | Automatique (RAG) | Manuelle | — | **Automatique (GLiNER, Mistral-7B)** |
+| Granularité | Entités et relations | Schémas d'attaque | Règle de détection | Technique | Vulnérabilité et procédure | — | **Chaîne causale** |
 | Taxonomie | Ontologie au choix | ATT&CK | n.r. | ATT&CK | ATLAS | — | **ATLAS, identifiant validé** |
-| Défense produite | Non | Non | Oui : règles Snort, YARA | Non | Non : évaluation des risques | Non | **Oui : mesure adaptée, ou « null » si aucune** |
-| Vérification | n.r. | n.r. | Vérifications et auto-réflexion du modèle | n.r. | Raisonnement logique | Par le même modèle | **Règle déterministe, hors du LLM** |
-| Traçabilité | n.r. | n.r. | n.r. | n.r. | Enregistrements issus d'articles | Non | **Cas, technique et article cités** |
-| Propagation des erreurs mesurée | Non | Non | Non | Non | Non | Non | **Oui, étape par étape** |
-| Limite principale | Aucune défense produite | Aucune défense ; ATT&CK hors LLM | Validée par le même modèle | Effet d'une erreur sur la suite non mesuré | Construction manuelle | Biais d'auto-évaluation | **Classification encore faible (chapitre 5)** |
+| Défense et contrôle | Aucune défense | Aucune défense | Règles Snort, YARA ; contrôle en partie par le modèle | Aucune défense | Aucune défense ; évaluation des risques | Révision par le même modèle | **Mesure adaptée ou « null » ; règle hors du LLM** |
+| Traçabilité et propagation | n.r. ; non mesurée | n.r. ; non mesurée | n.r. ; non mesurée | n.r. ; non mesurée | Articles sources ; non mesurée | Non ; non mesurée | **Cas, technique et article cités ; propagation mesurée** |
+| Limite principale | Aucune défense | ATT&CK hors LLM | Validée par le même modèle | Effet d'une erreur non mesuré | Construction manuelle | Biais d'auto-évaluation | **Classification encore faible (chapitre 5)** |
 
-La lecture du tableau critère par critère montre ce que chaque approche partage avec CARL et ce qui l'en sépare.
+Ce tableau montre d'abord qu'aucune approche ne couvre à elle seule l'ensemble des exigences de CARL. Chacune en satisfait une partie : la plupart construisent leurs connaissances automatiquement, ATAG partage le choix de la littérature et de MITRE ATLAS, FALCON produit une défense et Self-Refine révise ses réponses. Mais ces points forts sont dispersés entre des travaux différents, conçus pour des objectifs différents, et le plus souvent pour des menaces informatiques classiques plutôt que pour les attaques contre les LLM.
 
-**Source et attaques visées.** CARL part d'articles scientifiques consacrés aux attaques contre les LLM. Quatre approches exploitent des rapports CTI centrés sur les menaces informatiques classiques ; seul ATAG s'appuie, comme CARL, sur des articles décrivant des attaques contre des systèmes à base de LLM.
+Le tableau fait ensuite apparaître une rupture nette entre la partie haute et la partie basse. Les premières lignes, qui portent sur l'extraction et l'organisation des connaissances, sont relativement bien couvertes par l'état de l'art. Les dernières, qui portent sur ce qui se passe après, c'est-à-dire produire une défense, la contrôler sans dépendre du modèle et pouvoir en retrouver la source, le sont très peu. Plus on avance vers la recommandation finale, moins les approches existantes apportent de garanties. C'est précisément sur cette partie de la chaîne que CARL concentre ses choix.
 
-**Construction et granularité.** Comme CARL, CTINexus, LADDER, FALCON et TechniqueRAG construisent leurs connaissances automatiquement, alors qu'ATAG les assemble à la main. Mais aucune ne décrit l'attaque au niveau de détail que vise CARL : les entités, les schémas d'attaque ou les techniques indiquent de quoi il s'agit, sans préciser par où l'attaque entre, comment elle contourne les protections et quel effet elle produit.
-
-**Taxonomie.** CARL ancre chaque attaque dans MITRE ATLAS en vérifiant l'identifiant proposé. LADDER et TechniqueRAG utilisent ATT&CK, inadapté aux attaques contre les LLM ; seul ATAG partage le choix d'ATLAS, mais sans automatiser le rattachement.
-
-**Défense et vérification.** CARL produit une défense pour chaque attaque couverte, ou indique explicitement qu'aucune n'est documentée. Seul FALCON produit une défense, et sa qualité est contrôlée en partie par le modèle qui l'a générée ; Self-Refine repose entièrement sur ce principe. CARL fait le choix inverse : sa vérification est une règle déterministe, extérieure au LLM.
-
-**Traçabilité et propagation des erreurs.** Chaque recommandation de CARL indique le cas, la technique et l'article sur lesquels elle repose. Parmi les six approches, seul ATAG conserve un lien avec les articles sources. Enfin, CARL est la seule approche du tableau à mesurer comment l'erreur d'une étape se transmet aux suivantes.
-
-**Limite de CARL.** La dernière ligne rappelle que CARL a, lui aussi, une limite principale : la classification des attaques dans la taxonomie reste l'étape la plus fragile, comme le montrera l'évaluation (chapitre 5). Nous l'indiquons dès maintenant, car c'est précisément la mesure de cette limite et de ses effets sur les étapes suivantes qui constitue l'une de nos contributions.
+Enfin, aucune des six approches ne mesure ce que devient une erreur lorsqu'elle passe d'une étape à la suivante, alors que toutes enchaînent plusieurs traitements. La colonne de CARL n'est pas pour autant présentée comme idéale : sa dernière ligne rappelle que la classification des attaques reste son étape la plus fragile. Nous l'indiquons dès maintenant, car c'est justement la mesure de cette faiblesse et de ses effets sur les étapes suivantes qui constitue l'une de nos contributions.
 
 ## 3.3 Limites de l'état de l'art
 
