@@ -201,9 +201,30 @@ def new_report_section(doc):
                 r.text = ""
         for tbl in list(part.tables):
             tbl._element.getparent().remove(tbl._element)
-    fp = sec.footer.paragraphs[0] if sec.footer.paragraphs else sec.footer.add_paragraph()
-    fp.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    add_field(fp, "PAGE")
+    return sec
+
+
+def start_section(doc, numbered, restart=False):
+    """Nouvelle section sur une nouvelle page, avec ou sans numéro de page en pied."""
+    sec = doc.add_section(WD_SECTION.NEW_PAGE)
+    for part in (sec.header, sec.footer):
+        part.is_linked_to_previous = False
+        for para in part.paragraphs:
+            for r in para.runs:
+                r.text = ""
+    if numbered:
+        fp = sec.footer.paragraphs[0] if sec.footer.paragraphs else sec.footer.add_paragraph()
+        fp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        add_field(fp, "PAGE")
+        for r in fp.runs:
+            r.font.name, r.font.size = FONT, Pt(12)
+    if restart:
+        sectpr = sec._sectPr
+        pg = sectpr.find(qn("w:pgNumType"))
+        if pg is None:
+            pg = OxmlElement("w:pgNumType")
+            sectpr.append(pg)
+        pg.set(qn("w:start"), "1")
     return sec
 
 
@@ -285,7 +306,12 @@ def add_markdown(doc, path, body, first):
     base = os.path.dirname(path)
     for block in blocks:
         if block.startswith("# "):
-            if not first:
+            title = block[2:].strip()
+            if title.startswith("Introduction générale"):
+                start_section(doc, numbered=True, restart=True)   # pages 1, 2… jusqu'à la conclusion
+            elif title.startswith("Références bibliographiques"):
+                start_section(doc, numbered=False)                # références et résumé non numérotés
+            elif not first:
                 doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
             first = False
             doc.add_paragraph(block[2:].strip(), style="Heading 1")
@@ -380,7 +406,6 @@ def acronymes(doc, body):
         for c in cells:
             for run in c.paragraphs[0].runs:
                 run.font.name, run.font.size = FONT, Pt(12)
-    doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
 
 
 def main(garde, out, remplir=False):
