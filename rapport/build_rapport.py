@@ -173,6 +173,24 @@ def add_field(paragraph, instr):
     run2._r.append(end)
 
 
+def add_tc(paragraph, text, ident):
+    """Entrée cachée (champ TC) lue par la liste des figures ou des tableaux.
+
+    TOC \\f t / TOC \\f f fonctionne quelle que soit la langue de Word, contrairement
+    à TOC \\t qui dépend du séparateur de liste régional (« , » ou « ; »).
+    """
+    clean = text.replace("*", "").replace('"', "'")
+    run = paragraph.add_run()
+    for tag, attr in (("w:fldChar", "begin"), ("w:instrText", None), ("w:fldChar", "end")):
+        el = OxmlElement(tag)
+        if attr:
+            el.set(qn("w:fldCharType"), attr)
+        else:
+            el.set(qn("xml:space"), "preserve")
+            el.text = f' TC "{clean}" \\f {ident} \\l 1 '
+        run._r.append(el)
+
+
 def new_report_section(doc):
     """Ouvre la section du rapport sans créer de page vide après la page de garde.
 
@@ -328,7 +346,9 @@ def add_markdown(doc, path, body, first):
         elif re.match(r"^\*(Tableau|Figure) \d", block):
             style = "Legende tableau" if block.startswith("*Tableau") else "Legende figure"
             p = doc.add_paragraph(style=style)
-            add_inline(p, block[1:-1] if block.endswith("*") else block[1:])
+            caption = block[1:-1] if block.endswith("*") else block[1:]
+            add_inline(p, caption)
+            add_tc(p, caption, "t" if style == "Legende tableau" else "f")
         elif block.startswith("|"):
             add_table(doc, block)
         elif block.startswith("> "):
@@ -430,8 +450,8 @@ def main(garde, out, remplir=False):
 
     new_report_section(doc)
     liminaire(doc, body, "Table des matières", 'TOC \\o "1-3" \\h \\z \\u')
-    liminaire(doc, body, "Liste des figures", 'TOC \\h \\z \\t "Legende figure,1"')
-    liminaire(doc, body, "Liste des tableaux", 'TOC \\h \\z \\t "Legende tableau,1"')
+    liminaire(doc, body, "Liste des figures", 'TOC \\h \\z \\f f')
+    liminaire(doc, body, "Liste des tableaux", 'TOC \\h \\z \\f t')
     acronymes(doc, body)
 
     first = True
