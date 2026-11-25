@@ -176,49 +176,51 @@ Deux conséquences en découlent. D'une part, la précision absolue de toutes le
 
 ## 5.4 Classification : validité et exactitude (RQ1)
 
-### 5.4.1 Question de recherche
+**Question de recherche : une classification correcte dans MITRE ATLAS permet-elle réellement d'identifier correctement le cas d'attaque ?**
 
-**Un identifiant MITRE ATLAS validé par CARL désigne-t-il réellement la bonne technique d'attaque ?**
+Cette section évalue la capacité de CARL à associer chaque attaque extraite à la technique ATLAS appropriée.
 
-### 5.4.2 Objectif de l'expérience
+### 5.4.1 Objectif de l'expérience
 
-La validation de CARL vérifie qu'un identifiant existe dans MITRE ATLAS et qu'il concerne les LLM. Elle ne vérifie pas qu'il correspond à l'attaque décrite. L'expérience mesure l'écart entre ces deux propriétés, en comparant les identifiants validés à la revue manuelle des cas.
+CARL valide chaque identifiant ATLAS : il vérifie que l'identifiant existe et qu'il concerne les LLM. Mais un identifiant valide n'est pas forcément le bon. L'expérience mesure donc l'écart entre les identifiants *valides* et les identifiants *corrects*, en comparant la sortie de CARL à la revue manuelle des cas.
 
-### 5.4.3 Résultats de la classification
+### 5.4.2 Résultats de la classification
 
-*Tableau 5.7 — Validité et exactitude de la classification (rapporté ; intervalles de Wilson à 95 %)*
+*Tableau 5.7 — Résultats de la classification (rapporté ; intervalles de Wilson à 95 %)*
 
 | Mesure | Résultat | Intervalle |
 |---|---|---|
-| Identifiants valides | 107 / 119 = 89,9 % | n.r. |
-| Identifiants corrects parmi les valides | 47 / 99 = 47,5 % | 37,9 %–57,2 % |
-| Défenses qui sont de vraies contre-mesures | 53 / 86 = 61,6 % | 51,1 %–71,2 % |
-| Valeurs « null » justifiées | 21 / 22 = 95,5 % | 78,2 %–99,2 % |
+| Validité des identifiants ATLAS | 107 / 119 = 89,9 % | n.r. |
+| Exactitude des identifiants validés | 47 / 99 = 47,5 % | 37,9 %–57,2 % |
+| Fiabilité des valeurs « null » | 21 / 22 = 95,5 % | 78,2 %–99,2 % |
 | Abstentions justifiées | 0 / 9 | n.r. |
 
-Près de 90 % des identifiants sont valides, mais moins de la moitié des identifiants validés sont corrects. Les valeurs « null » sont fiables, alors qu'aucune abstention n'était justifiée.
+- **Validité** : presque tous les identifiants passent la validation.
+- **Exactitude** : moins de la moitié des identifiants validés désignent la bonne technique.
+- **Valeurs « null »** : lorsque CARL indique qu'un article ne propose aucune défense, il a raison 21 fois sur 22.
+- **Erreurs récurrentes** : 27 des 52 erreurs concernent le *jailbreak* (AML.T0054), et l'injection déclenchée (AML.T0051.002) n'est correcte qu'une fois sur 17.
 
-### 5.4.4 Analyse des erreurs
+### 5.4.3 Analyse des erreurs
 
-Les erreurs ne sont pas aléatoires : 27 des 52 erreurs concernent le *jailbreak* (AML.T0054), classé le plus souvent comme une injection de prompt. Le modèle confond ces deux techniques, qui consistent toutes deux à faire suivre au modèle des instructions malveillantes. Donner au modèle les définitions officielles d'ATLAS ne corrige pas cette confusion : l'exactitude baisse à 41,1 % et 39,8 %, contre 47,5 % sans définitions.
+Les erreurs ne sont pas dues au hasard. Le modèle confond surtout le *jailbreak*, qui vise les protections du modèle, et l'injection de prompt, qui détourne les instructions d'une application : dans les deux cas, l'attaque consiste à faire suivre au modèle des instructions malveillantes. La bonne technique figurait pourtant dans la liste des candidats, et fournir au modèle les définitions officielles d'ATLAS ne corrige pas la confusion (41,1 % et 39,8 % d'identifiants corrects, contre 47,5 %).
 
-### 5.4.5 Discussion des résultats
+Ces erreurs ont des conséquences sur les étapes suivantes. La recherche de cas filtre les candidats par technique : un cas mal classé peut être écarté d'une requête à laquelle il répondait, ou proposé pour une attaque différente. La défense recommandée peut alors s'appuyer sur un cas qui ne correspond pas à l'attaque.
 
-La validation apporte une garantie réelle mais limitée : elle empêche les identifiants inventés ou hors sujet, sans garantir la bonne technique. Un identifiant valide n'est correct qu'environ une fois sur deux. Ces taux reposent sur une revue faite par une seule personne (kappa intra-annotateur de 0,62 pour la technique et de 0,75 pour la défense) ; ils doivent être lus comme des bornes supérieures.
+### 5.4.4 Discussion des résultats
 
-Cette erreur ne reste pas dans la classification : la recherche de cas filtre les candidats par technique, donc un cas mal classé peut être écarté d'une requête à laquelle il répondait. RQ2 mesure ce coût.
+La validation ATLAS apporte une garantie réelle mais limitée : elle empêche les identifiants inventés ou hors sujet, mais ne garantit la bonne technique qu'environ une fois sur deux. Un identifiant valide ne suffit donc pas à identifier correctement le cas d'attaque. Ces taux reposent sur une revue faite par une seule personne (kappa intra-annotateur de 0,62 pour la technique) et doivent être lus comme des bornes supérieures. RQ2 mesure ce que cette erreur coûte à la recherche des cas.
 
 ## 5.5 Recherche de cas : similarité et couverture (RQ2)
 
-### 5.5.1 Question de recherche
+**Question de recherche : le cas le plus proche retrouvé par CARL est-il vraiment un cas pertinent, et le seuil θ indique-t-il correctement quand la base ne couvre pas une attaque ?**
 
-**Le cas le plus proche retrouvé par CARL est-il vraiment un cas pertinent, et le seuil θ indique-t-il correctement quand la base ne couvre pas une attaque ?**
+Cette section évalue la capacité de CARL à retrouver, pour une nouvelle attaque, les cas de la base qui lui correspondent.
 
-### 5.5.2 Objectif de l'expérience
+### 5.5.1 Objectif de l'expérience
 
 Le seuil θ est censé garantir deux choses : que le meilleur cas retrouvé est pertinent, et que la base couvre bien l'attaque. L'expérience vérifie ces deux points sur les 18 requêtes. Elle compare aussi la base construite à la base révisée, pour mesurer ce que les erreurs de classification de RQ1 coûtent à la recherche.
 
-### 5.5.3 Résultats de la recherche
+### 5.5.2 Résultats de la recherche
 
 *Tableau 5.8 — Recherche sur les 14 requêtes couvertes : base construite et base révisée (rapporté)*
 
@@ -232,27 +234,27 @@ Sur la base construite, le premier cas retrouvé est pertinent pour 57,1 % des r
 
 Pour le seuil θ, la similarité du meilleur cas ne sépare pas les deux groupes de requêtes : trois des quatre requêtes hors corpus atteignent une similarité de 0,689 à 0,747, supérieure à celle de plusieurs requêtes couvertes (0,617 à 0,683). Le meilleur seuil possible (θ = 0,75) n'atteint qu'une exactitude équilibrée de 0,68 ; le seuil retenu (θ = 0,6) atteint 0,63.
 
-### 5.5.4 Analyse des erreurs
+### 5.5.3 Analyse des erreurs
 
 Sur la base construite, le filtre par technique n'améliore pas le premier cas retrouvé, car il favorise les cas mal classés autant que les cas pertinents. Une fois les techniques corrigées, le même filtre devient parfait. Le point faible n'est donc pas le mécanisme de recherche, mais la classification de la couche 2 : l'erreur mesurée en RQ1 se transmet directement à la recherche.
 
 Le seuil échoue pour une autre raison. Le corpus étant consacré aux attaques contre les LLM, toute requête qui décrit une attaque de ce type trouve un cas qui lui ressemble, même si la base ne contient pas cette attaque.
 
-### 5.5.5 Discussion des résultats
+### 5.5.4 Discussion des résultats
 
 Un cas proche n'est pas forcément un cas pertinent, et une similarité élevée ne prouve pas que la base couvre l'attaque. Le seuil θ ne détecte que les requêtes clairement étrangères au domaine, et non les attaques plausibles absentes de la base, alors que c'est précisément dans ce cas qu'un signal de couverture serait utile. La borne de la base révisée est par ailleurs optimiste, car les techniques des requêtes et des cas révisés ont été attribuées par la même personne. RQ3 mesure ce que ces deux erreurs coûtent aux recommandations.
 
 ## 5.6 Adaptation et recommandations : traçabilité et solidité (RQ3)
 
-### 5.6.1 Question de recherche
+**Question de recherche : une recommandation qui cite un cas, et passe donc la vérification, est-elle vraiment une bonne défense ?**
 
-**Une recommandation qui cite un cas, et passe donc la vérification, est-elle vraiment une bonne défense ?**
+Cette section évalue la qualité des défenses recommandées par CARL et ce que la vérification garantit réellement.
 
-### 5.6.2 Objectif de l'expérience
+### 5.6.1 Objectif de l'expérience
 
 La vérification garantit qu'une mesure est rattachée à un cas retrouvé. L'expérience compare plusieurs façons de produire et de vérifier les recommandations, afin de voir ce que cette garantie apporte réellement : génération sans recherche, recherche sans vérification, boucle avec la règle lexicale, juge LLM utilisant le même modèle, boucle de type Self-Refine, et notre boucle avec le vérificateur causal aux seuils calibrés. Les résultats portent sur 13 requêtes couvertes : la requête sur l'extraction du prompt système, marquée hors corpus dans le fichier de requêtes, est exclue des deux groupes.
 
-### 5.6.3 Résultats
+### 5.6.2 Résultats
 
 *Tableau 5.9 — Qualité des recommandations sur la base construite (rapporté)*
 
@@ -270,7 +272,7 @@ La vérification garantit qu'une mesure est rattachée à un cas retrouvé. L'ex
 
 Sans recherche, aucune recommandation n'est ancrée, et le modèle en propose douze pour des attaques que la base ne documente pas. La recherche seule fait monter l'ancrage à 0,42. Toutes les boucles atteignent un ancrage de 1,00. Notre configuration sert 7 des 13 requêtes, avec des mesures toutes causalement adéquates, et ne renvoie aucune recommandation hors corpus.
 
-### 5.6.4 Analyse des erreurs
+### 5.6.3 Analyse des erreurs
 
 L'ancrage de 1,00 est obtenu par construction : les recommandations non traçables sont supprimées. Il ne prouve donc pas que les mesures sont bonnes. Deux mécanismes le gonflent :
 
@@ -279,6 +281,6 @@ L'ancrage de 1,00 est obtenu par construction : les recommandations non traçabl
 
 Le vérificateur causal supprime ces copies, mais au prix de la couverture : avec les seuils fixés a priori, il ne sert que 3 requêtes ; avec les seuils calibrés (0,627 et 0,534), il en sert 7. Le seuil sémantique reste peu discriminant (exactitude équilibrée de 0,63). À l'inverse, les approches où le modèle se juge lui-même acceptent presque tout : la critique de Self-Refine a approuvé le plan initial pour les 16 requêtes avec des cas retrouvés, si bien que seulement 13 % de ses recommandations sont ancrées. Enfin, une révision (N = 1) fait passer le nombre de requêtes servies de 4 à 9 ; les révisions suivantes coûtent environ cinq fois plus d'appels par requête gagnée.
 
-### 5.6.5 Discussion des résultats
+### 5.6.4 Discussion des résultats
 
 Une recommandation traçable n'est pas forcément une bonne défense : un vérificateur qui contrôle le lien entre une mesure et sa source ne peut pas détecter que la source est fausse, ni qu'elle répond à une autre attaque. Le vérificateur causal réduit cet écart sans le combler, et il reste dépendant des deux étapes précédentes : sur la base révisée, la boucle accepte quatre recommandations hors corpus, parce que le seuil θ ne signale pas l'absence de couverture. La vérification hors du modèle reste néanmoins préférable à l'auto-vérification, qui approuve ce qu'elle a produit au lieu de le contrôler.
