@@ -188,12 +188,14 @@ CARL valide chaque identifiant ATLAS : il vérifie que l'identifiant existe et q
 
 *Tableau 5.7 — Résultats de la classification (rapporté ; intervalles de Wilson à 95 %)*
 
-| Mesure | Résultat | Intervalle |
+| Mesure | Résultat | Intervalle de confiance à 95 % |
 |---|---|---|
 | Validité des identifiants ATLAS | 107 / 119 = 89,9 % | n.r. |
 | Exactitude des identifiants validés | 47 / 99 = 47,5 % | 37,9 %–57,2 % |
 | Fiabilité des valeurs « null » | 21 / 22 = 95,5 % | 78,2 %–99,2 % |
 | Abstentions justifiées | 0 / 9 | n.r. |
+
+*Intervalle de confiance à 95 % (méthode de Wilson) : plage de valeurs dans laquelle se situe probablement le vrai taux, compte tenu du petit nombre de cas. Par exemple, l'exactitude mesurée est de 47,5 %, mais le vrai taux se situe probablement entre 37,9 % et 57,2 %. n.r. : non rapporté.*
 
 - **Validité** : presque tous les identifiants passent la validation.
 - **Exactitude** : moins de la moitié des identifiants validés désignent la bonne technique.
