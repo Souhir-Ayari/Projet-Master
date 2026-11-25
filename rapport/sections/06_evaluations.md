@@ -229,3 +229,78 @@ Les erreurs ne sont pas aléatoires : 27 des 52 erreurs concernent le *jailbreak
 La validation apporte une garantie réelle mais limitée : elle empêche les identifiants inventés ou hors sujet, sans garantir la bonne technique. Un identifiant valide n'est correct qu'environ une fois sur deux. Ces taux reposent sur une revue faite par une seule personne (kappa intra-annotateur de 0,62 pour la technique et de 0,75 pour la défense) ; ils doivent être lus comme des bornes supérieures.
 
 Cette erreur ne reste pas dans la classification : la recherche de cas filtre les candidats par technique, donc un cas mal classé peut être écarté d'une requête à laquelle il répondait. RQ2 mesure ce coût.
+
+## 5.5 Recherche de cas : similarité et couverture (RQ2)
+
+### 5.5.1 Question de recherche
+
+**Le cas le plus proche retrouvé par CARL est-il vraiment un cas pertinent, et le seuil θ indique-t-il correctement quand la base ne couvre pas une attaque ?**
+
+### 5.5.2 Objectif de l'expérience
+
+Le seuil θ est censé garantir deux choses : que le meilleur cas retrouvé est pertinent, et que la base couvre bien l'attaque. L'expérience vérifie ces deux points sur les 18 requêtes. Elle compare aussi la base construite à la base révisée, pour mesurer ce que les erreurs de classification de RQ1 coûtent à la recherche.
+
+### 5.5.3 Résultats de la recherche
+
+*Tableau 5.9 — Recherche sur les 14 requêtes couvertes : base construite et base révisée (rapporté)*
+
+| Configuration | Hit@1 (construite) | Hit@3 (construite) | MRR (construite) | Hit@1 (révisée) | Hit@3 (révisée) | MRR (révisée) |
+|---|---|---|---|---|---|---|
+| Similarité seule (α = 0) | 0,571 | 0,714 | 0,695 | 0,571 | 0,714 | 0,695 |
+| Bonus α = 0,05 | 0,571 | 0,857 | 0,707 | 0,786 | 0,857 | 0,843 |
+| Filtre par technique (retenu) | 0,571 | 0,786 | 0,716 | **1,000** | **1,000** | **1,000** |
+
+Sur la base construite, le premier cas retrouvé est pertinent pour 57,1 % des requêtes, quelle que soit la configuration. Sur la base révisée, le filtre par technique atteint 100 %. L'écart de 43 points en Hit@1 est la seule différence que les intervalles de confiance permettent d'affirmer.
+
+Pour le seuil θ, la similarité du meilleur cas ne sépare pas les deux groupes de requêtes : trois des quatre requêtes hors corpus atteignent une similarité de 0,689 à 0,747, supérieure à celle de plusieurs requêtes couvertes (0,617 à 0,683). Le meilleur seuil possible (θ = 0,75) n'atteint qu'une exactitude équilibrée de 0,68 ; le seuil retenu (θ = 0,6) atteint 0,63.
+
+### 5.5.4 Analyse des erreurs
+
+Sur la base construite, le filtre par technique n'améliore pas le premier cas retrouvé, car il favorise les cas mal classés autant que les cas pertinents. Une fois les techniques corrigées, le même filtre devient parfait. Le point faible n'est donc pas le mécanisme de recherche, mais la classification de la couche 2 : l'erreur mesurée en RQ1 se transmet directement à la recherche.
+
+Le seuil échoue pour une autre raison. Le corpus étant consacré aux attaques contre les LLM, toute requête qui décrit une attaque de ce type trouve un cas qui lui ressemble, même si la base ne contient pas cette attaque.
+
+### 5.5.5 Discussion des résultats
+
+Un cas proche n'est pas forcément un cas pertinent, et une similarité élevée ne prouve pas que la base couvre l'attaque. Le seuil θ ne détecte que les requêtes clairement étrangères au domaine, et non les attaques plausibles absentes de la base, alors que c'est précisément dans ce cas qu'un signal de couverture serait utile. La borne de la base révisée est par ailleurs optimiste, car les techniques des requêtes et des cas révisés ont été attribuées par la même personne. RQ3 mesure ce que ces deux erreurs coûtent aux recommandations.
+
+## 5.6 Adaptation et recommandations : traçabilité et solidité (RQ3)
+
+### 5.6.1 Question de recherche
+
+**Une recommandation qui cite un cas, et passe donc la vérification, est-elle vraiment une bonne défense ?**
+
+### 5.6.2 Objectif de l'expérience
+
+La vérification garantit qu'une mesure est rattachée à un cas retrouvé. L'expérience compare plusieurs façons de produire et de vérifier les recommandations, afin de voir ce que cette garantie apporte réellement : génération sans recherche, recherche sans vérification, boucle avec la règle lexicale, juge LLM utilisant le même modèle, boucle de type Self-Refine, et notre boucle avec le vérificateur causal aux seuils calibrés. Les résultats portent sur 13 requêtes couvertes : la requête sur l'extraction du prompt système, marquée hors corpus dans le fichier de requêtes, est exclue des deux groupes.
+
+### 5.6.3 Résultats
+
+*Tableau 5.10 — Qualité des recommandations sur la base construite (rapporté)*
+
+| Configuration | Recommandations (requêtes servies) | Ancrage | Adaptation | Adéquation causale | Hors corpus |
+|---|---|---|---|---|---|
+| Sans recherche | 39 (13) | 0,00 | 0,56 | — | 12 |
+| Recherche sans vérification | 38 (13) | 0,42 | 0,69 | 0,74 | 6 |
+| Boucle, règle lexicale | 17 (9) | 1,00 | — | — | 2 |
+| Boucle, juge LLM | 29 (12) | 1,00 | 0,69 | 0,76 | 4 |
+| Self-Refine (même modèle) | 39 (13) | 0,13 | 0,67 | 0,62 | 6 |
+| **Boucle, vérificateur causal calibré (CARL)** | **9 (7)** | **1,00** | **0,89** | **1,00** | **0** |
+| Base révisée (borne supérieure) | 11 (9) | 1,00 | 1,00 | 1,00 | 4 |
+
+*Hors corpus : nombre de recommandations renvoyées pour les quatre requêtes non couvertes, qui devrait être nul.*
+
+Sans recherche, aucune recommandation n'est ancrée, et le modèle en propose douze pour des attaques que la base ne documente pas. La recherche seule fait monter l'ancrage à 0,42. Toutes les boucles atteignent un ancrage de 1,00. Notre configuration sert 7 des 13 requêtes, avec des mesures toutes causalement adéquates, et ne renvoie aucune recommandation hors corpus.
+
+### 5.6.4 Analyse des erreurs
+
+L'ancrage de 1,00 est obtenu par construction : les recommandations non traçables sont supprimées. Il ne prouve donc pas que les mesures sont bonnes. Deux mécanismes le gonflent :
+
+- **la règle lexicale récompense la copie** : exiger 60 % de mots communs avec la défense citée favorise la reprise mot pour mot plutôt que l'adaptation ;
+- **la traçabilité hérite des erreurs des cas** : pour un *jailbreak* caché dans une requête encodée en Base64, la boucle accepte « une revue régulière du code », copiée d'un cas décrivant un ver qui se propage entre applications, que le pipeline avait mal classé comme *jailbreak*. La recommandation est parfaitement traçable, mais elle ne répond pas à l'attaque.
+
+Le vérificateur causal supprime ces copies, mais au prix de la couverture : avec les seuils fixés a priori, il ne sert que 3 requêtes ; avec les seuils calibrés (0,627 et 0,534), il en sert 7. Le seuil sémantique reste peu discriminant (exactitude équilibrée de 0,63). À l'inverse, les approches où le modèle se juge lui-même acceptent presque tout : la critique de Self-Refine a approuvé le plan initial pour les 16 requêtes avec des cas retrouvés, si bien que seulement 13 % de ses recommandations sont ancrées. Enfin, une révision (N = 1) fait passer le nombre de requêtes servies de 4 à 9 ; les révisions suivantes coûtent environ cinq fois plus d'appels par requête gagnée.
+
+### 5.6.5 Discussion des résultats
+
+Une recommandation traçable n'est pas forcément une bonne défense : un vérificateur qui contrôle le lien entre une mesure et sa source ne peut pas détecter que la source est fausse, ni qu'elle répond à une autre attaque. Le vérificateur causal réduit cet écart sans le combler, et il reste dépendant des deux étapes précédentes : sur la base révisée, la boucle accepte quatre recommandations hors corpus, parce que le seuil θ ne signale pas l'absence de couverture. La vérification hors du modèle reste néanmoins préférable à l'auto-vérification, qui approuve ce qu'elle a produit au lieu de le contrôler.
