@@ -954,11 +954,7 @@ RQ1 a montré qu'un identifiant valide n'est correct qu'environ une fois sur deu
 
 ### 5.5.1 Objectif de l'expérience
 
-Pour chaque nouvelle attaque, CARL retrouve les trois cas les plus similaires de sa base (k = 3), à condition que le meilleur d'entre eux dépasse le seuil de similarité θ = 0,6. Ce seuil a deux rôles : garantir que le cas retrouvé est pertinent, et signaler qu'une attaque n'est pas couverte par la base.
-
-L'expérience vérifie ces deux rôles sur les 18 requêtes de test. Les 14 requêtes couvertes servent à mesurer la pertinence des cas retrouvés, et les 4 requêtes hors corpus servent à tester le signal de couverture. La recherche est lancée sur la base automatique (119 cas), puis sur la base de référence vérifiée manuellement (108 cas). La seule différence entre les deux bases étant la correction des erreurs de classification, la comparaison isole leur effet sur la recherche.
-
-La mesure principale est le **Hit@1**, qui indique si le premier cas retrouvé est pertinent. Elle est complétée par le Hit@3 (au moins un des trois cas est pertinent) et le MRR, qui tient compte du rang du premier cas pertinent. Un cas est jugé pertinent lorsque sa technique, telle qu'établie par la revue, correspond à l'attaque décrite par la requête.
+CARL retrouve les trois cas les plus similaires (k = 3) si le meilleur dépasse le seuil θ = 0,6. L'expérience vérifie, sur les 18 requêtes, si le premier cas retrouvé est pertinent (Hit@1) et si le seuil signale les attaques non couvertes. La recherche est lancée sur la base automatique (119 cas) puis sur la base de référence (108 cas) : comme seules les techniques diffèrent, cette comparaison mesure l'effet des erreurs de classification.
 
 ### 5.5.2 Résultats de la récupération
 
@@ -1007,11 +1003,7 @@ Les deux premières étapes ont montré que les cas retrouvés peuvent être mal
 
 ### 5.6.1 Objectif de l'expérience
 
-Le vérificateur de CARL accepte une recommandation lorsqu'elle est rattachée à un cas retrouvé. L'expérience cherche à savoir ce que cette garantie apporte réellement, en comparant plusieurs façons de produire et de vérifier les recommandations sur la base automatique.
-
-Les résultats sont calculés sur 13 requêtes couvertes, et non 14. La requête sur l'extraction du prompt système était marquée hors corpus dans le fichier de requêtes, alors que RQ2 la compte comme couverte ; elle est donc exclue des deux groupes dans cette expérience.
-
-Deux mesures principales sont utilisées. L'**ancrage** (*groundedness*) est la part des recommandations finales rattachées à un cas retrouvé qui les justifie. L'**adéquation causale** est la part des mesures qui visent un maillon réel de la chaîne causale de l'attaque (vecteur d'entrée, contournement ou impact). Nous mesurons aussi l'**adaptation**, c'est-à-dire la part des mesures qui mentionnent un élément de la nouvelle attaque absent de la défense citée.
+L'expérience vérifie si une recommandation rattachée à un cas, et donc acceptée par le vérificateur, est réellement adaptée à l'attaque. Plusieurs configurations sont comparées selon l'**ancrage** (part des recommandations justifiées par un cas cité), l'**adéquation causale** (la mesure vise un maillon réel de l'attaque) et l'**adaptation** (la mesure tient compte de la nouvelle attaque). Les résultats portent sur 13 requêtes couvertes : la requête sur l'extraction du prompt système, marquée hors corpus dans le fichier de requêtes, est exclue.
 
 ### 5.6.2 Comparaison des différentes configurations
 
