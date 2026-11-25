@@ -1,12 +1,14 @@
 """Assemble le mémoire en un seul fichier Word.
 
-Usage : python rapport/build_rapport.py <page_de_garde.docx> <sortie.docx>
+Usage : python rapport/build_rapport.py <page_de_garde.docx> <sortie.docx> [--remplir]
 
-La page de garde ENSI est remplie, puis chaque section validée (fichiers
-rapport/sections/NN_*.md, dans l'ordre des noms) est ajoutée à la suite.
+La page de garde ENSI est reprise telle quelle (l'étudiante la complète
+elle-même) ; avec --remplir, les champs connus sont remplis. Chaque section
+(fichiers rapport/sections/NN_*.md, dans l'ordre des noms) est ajoutée à la suite.
 Syntaxe reconnue dans les fichiers .md : '# ' titre de chapitre, '## ' et
 '### ' sous-titres, paragraphes séparés par une ligne vide, *italique*,
-**gras**, et lignes commençant par '- ' pour les listes à puces.
+**gras**, `code`, listes '- ' et '1. ', citations '> ', tableaux Markdown,
+images ![...](chemin) et légendes '*Tableau …*' / '*Figure …*'.
 """
 import copy
 import glob
@@ -99,8 +101,30 @@ def heading_style(doc, name, size, level, before, after, color=NAVY):
     return st
 
 
+def get_style(doc, name):
+    try:
+        return doc.styles[name]
+    except KeyError:
+        return doc.styles.add_style(name, WD_STYLE_TYPE.PARAGRAPH)
+
+
+def caption_style(doc, name):
+    st = get_style(doc, name)
+    st.base_style = doc.styles["Normal"]
+    st.font.name = FONT
+    st.font.size = Pt(11)
+    st.font.italic = True
+    st.font.bold = False
+    st.font.color.rgb = NAVY
+    pf = st.paragraph_format
+    pf.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    pf.space_before = Pt(6)
+    pf.space_after = Pt(10)
+    return st
+
+
 def body_style(doc):
-    st = doc.styles.add_style("Corps memoire", WD_STYLE_TYPE.PARAGRAPH)
+    st = get_style(doc, "Corps memoire")
     st.base_style = doc.styles["Normal"]
     st.font.name = FONT
     st.font.size = Pt(12)
@@ -163,24 +187,85 @@ def new_report_section(doc):
     return sec
 
 
-INLINE = re.compile(r"(\*\*[^*]+\*\*|\*[^*]+\*)")
+INLINE = re.compile(r"(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)")
 
 
-def add_inline(paragraph, text):
+def add_inline(paragraph, text, italic=False, size=None):
     for piece in INLINE.split(text):
         if not piece:
             continue
-        if piece.startswith("**") and piece.endswith("**"):
-            paragraph.add_run(piece[2:-2]).bold = True
-        elif piece.startswith("*") and piece.endswith("*"):
-            paragraph.add_run(piece[1:-1]).italic = True
+        if piece.startswith("**") and piece.endswith("**") and len(piece) > 4:
+            run = paragraph.add_run(piece[2:-2])
+            run.bold = True
+            run.italic = italic or None
+        elif piece.startswith("*") and piece.endswith("*") and len(piece) > 2:
+            run = paragraph.add_run(piece[1:-1])
+            run.italic = not italic
+        elif piece.startswith("`") and piece.endswith("`"):
+            run = paragraph.add_run(piece[1:-1])
+            run.font.name = "Courier New"
+            run.font.size = Pt(size - 1 if size else 11)
+            run.italic = italic or None
         else:
-            paragraph.add_run(piece)
+            run = paragraph.add_run(piece)
+            run.italic = italic or None
+        if size and not piece.startswith("`"):
+            run.font.size = Pt(size)
+
+
+def strip_outer_italic(text):
+    """« *texte avec **gras*** » → (« texte avec **gras** », True)."""
+    if text.startswith("*") and not text.startswith("**") and text.endswith("*"):
+        inner = text[1:-1]
+        if inner.endswith("**") and inner.count("**") % 2 == 1:
+            inner = inner + "*"
+        return inner, True
+    return text, False
+
+
+def set_cell_shading(cell, hex_color):
+    tcpr = cell._tc.get_or_add_tcPr()
+    shd = OxmlElement("w:shd")
+    shd.set(qn("w:val"), "clear")
+    shd.set(qn("w:color"), "auto")
+    shd.set(qn("w:fill"), hex_color)
+    tcpr.append(shd)
+
+
+def add_table(doc, block):
+    rows = [r.strip() for r in block.splitlines() if r.strip().startswith("|")]
+    rows = [r for r in rows if not re.match(r"^\|[\s:|-]+\|$", r)]
+    cells = [[c.strip() for c in r.strip("|").split("|")] for r in rows]
+    ncol = max(len(r) for r in cells)
+    size = 10 if ncol <= 4 else 9 if ncol <= 6 else 8
+    table = doc.add_table(rows=0, cols=ncol)
+    table.style = doc.styles["Table Grid"]
+    table.alignment = 1
+    for i, row in enumerate(cells):
+        tr = table.add_row().cells
+        for j in range(ncol):
+            text = row[j] if j < len(row) else ""
+            para = tr[j].paragraphs[0]
+            para.paragraph_format.space_after = Pt(0)
+            para.paragraph_format.first_line_indent = Cm(0)
+            if i == 0:
+                run = para.add_run(text.replace("**", ""))
+                run.bold = True
+                run.font.size = Pt(size)
+                run.font.name = FONT
+                set_cell_shading(tr[j], "DCE6F0")
+            else:
+                add_inline(para, text, size=size)
+                for run in para.runs:
+                    if run.font.name != "Courier New":
+                        run.font.name = FONT
+    doc.add_paragraph().paragraph_format.space_after = Pt(2)
 
 
 def add_markdown(doc, path, body, first):
     with open(path, encoding="utf-8") as f:
         blocks = [b.strip() for b in f.read().split("\n\n") if b.strip()]
+    base = os.path.dirname(path)
     for block in blocks:
         if block.startswith("# "):
             if not first:
@@ -191,15 +276,65 @@ def add_markdown(doc, path, body, first):
             doc.add_paragraph(block[4:].strip(), style="Heading 3")
         elif block.startswith("## "):
             doc.add_paragraph(block[3:].strip(), style="Heading 2")
+        elif block.startswith("!["):
+            m = re.match(r"!\[[^\]]*\]\(([^)]+)\)", block)
+            img = os.path.normpath(os.path.join(base, m.group(1)))
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.add_run().add_picture(img, width=Cm(15.5))
+        elif re.match(r"^\*(Tableau|Figure) \d", block):
+            style = "Legende tableau" if block.startswith("*Tableau") else "Legende figure"
+            p = doc.add_paragraph(style=style)
+            add_inline(p, block.strip("*"), italic=True)
+        elif block.startswith("|"):
+            add_table(doc, block)
+        elif block.startswith("> "):
+            p = doc.add_paragraph(style=body)
+            p.paragraph_format.first_line_indent = Cm(0)
+            p.paragraph_format.left_indent = Cm(1.25)
+            p.paragraph_format.right_indent = Cm(1.25)
+            add_inline(p, " ".join(l[2:].strip() for l in block.splitlines()), italic=True)
         elif all(line.startswith("- ") for line in block.splitlines()):
             for line in block.splitlines():
                 p = doc.add_paragraph(style=body)
-                p.paragraph_format.first_line_indent = Cm(0)
-                p.paragraph_format.left_indent = Cm(1)
-                add_inline(p, "• " + line[2:].strip())
-        else:
+                p.paragraph_format.first_line_indent = Cm(-0.5)
+                p.paragraph_format.left_indent = Cm(1.25)
+                p.paragraph_format.space_after = Pt(4)
+                add_inline(p, "•  " + line[2:].strip())
+        elif all(re.match(r"^\d+\. ", line) for line in block.splitlines()):
+            for line in block.splitlines():
+                p = doc.add_paragraph(style=body)
+                p.paragraph_format.first_line_indent = Cm(-0.6)
+                p.paragraph_format.left_indent = Cm(1.25)
+                p.paragraph_format.space_after = Pt(4)
+                add_inline(p, line.strip())
+        elif re.match(r"^\[\d+\] ", block):
             p = doc.add_paragraph(style=body)
+            p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+            p.paragraph_format.first_line_indent = Cm(-1)
+            p.paragraph_format.left_indent = Cm(1)
+            p.paragraph_format.line_spacing = 1.15
             add_inline(p, " ".join(block.splitlines()))
+        else:
+            # un paragraphe peut contenir une liste qui suit une phrase d'introduction
+            lines = block.splitlines()
+            if len(lines) > 1 and all(l.startswith("- ") for l in lines[1:]):
+                p = doc.add_paragraph(style=body)
+                add_inline(p, lines[0])
+                for line in lines[1:]:
+                    q = doc.add_paragraph(style=body)
+                    q.paragraph_format.first_line_indent = Cm(-0.5)
+                    q.paragraph_format.left_indent = Cm(1.25)
+                    q.paragraph_format.space_after = Pt(4)
+                    add_inline(q, "•  " + line[2:].strip())
+                continue
+            text, italic = strip_outer_italic(" ".join(lines))
+            p = doc.add_paragraph(style=body)
+            if italic:
+                p.paragraph_format.first_line_indent = Cm(0)
+                add_inline(p, text, italic=True, size=10)
+            else:
+                add_inline(p, text)
     return first
 
 
@@ -231,28 +366,35 @@ def acronymes(doc, body):
     doc.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
 
 
-def main(garde, out):
+def main(garde, out, remplir=False):
     doc = docx.Document(garde)
-    fill_cover(doc)
+    if remplir:
+        fill_cover(doc)
     heading_style(doc, "Heading 1", 18, 0, 0, 18)
     heading_style(doc, "Heading 2", 14, 1, 14, 8)
     heading_style(doc, "Heading 3", 12, 2, 10, 6)
     unnumbered = heading_style(doc, "Unnumbered heading", 18, 9, 0, 18)
     unnumbered.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    caption_style(doc, "Legende tableau")
+    caption_style(doc, "Legende figure")
     body = body_style(doc)
 
     new_report_section(doc)
     liminaire(doc, body, "Table des matières", 'TOC \\o "1-3" \\h \\z \\u')
-    liminaire(doc, body, "Liste des figures", 'TOC \\h \\z \\c "Figure"')
-    liminaire(doc, body, "Liste des tableaux", 'TOC \\h \\z \\c "Tableau"')
+    liminaire(doc, body, "Liste des figures", 'TOC \\h \\z \\t "Legende figure,1"')
+    liminaire(doc, body, "Liste des tableaux", 'TOC \\h \\z \\t "Legende tableau,1"')
     acronymes(doc, body)
 
-    first = False
+    first = True
     for path in sorted(glob.glob(os.path.join(HERE, "sections", "*.md"))):
         first = add_markdown(doc, path, body, first)
+    settings = doc.settings.element
+    upd = OxmlElement("w:updateFields")
+    upd.set(qn("w:val"), "true")
+    settings.append(upd)
     doc.save(out)
     print("écrit :", out)
 
 
 if __name__ == "__main__":
-    main(sys.argv[1], sys.argv[2])
+    main(sys.argv[1], sys.argv[2], remplir="--remplir" in sys.argv[3:])
