@@ -86,40 +86,18 @@ Chaque étape de CARL est évaluée sur un jeu de données adapté à ce qu'elle
 | Paires de cas pour la calibration | 20 paires | Seuils du vérificateur causal |
 | Recommandations soumises à des évaluateurs | 76 recommandations | Évaluation humaine |
 
-**Annotation des entités.** Pour évaluer l'extraction, nous avons annoté manuellement un article du corpus (Greshake et al., 2023) avec les sept étiquettes de la couche 1. L'annotation contient 45 entités distinctes. Chacune a été vérifiée comme présente dans le texte produit par notre extraction PDF, bibliographie exclue, afin qu'une entité absente du texte lu par le pipeline ne soit pas comptée comme une erreur du modèle.
+**Annotation des entités.** Un article du corpus (Greshake et al., 2023) a été annoté à la main avec les sept étiquettes de la couche 1 : il contient 45 entités. Cette annotation sert de référence pour évaluer l'extraction.
 
-**Revue de la base de cas.** Le pipeline contrôle qu'un identifiant ATLAS est *valide*, c'est-à-dire qu'il existe et qu'il appartient à la liste des techniques liées aux LLM. Il ne peut pas contrôler qu'il est *correct*, c'est-à-dire qu'il désigne bien la technique de l'attaque décrite. Pour mesurer cette exactitude, il faut disposer d'une réponse de référence pour chaque cas. Aucune référence n'existant pour cette base, nous l'avons construite en relisant chacun des 119 cas. Pour chaque cas, la revue répond à quatre questions :
+**Revue de la base de cas.** Le pipeline vérifie qu'un identifiant ATLAS est *valide*, mais pas qu'il est *correct*. Pour le savoir, chacun des 119 cas a été relu afin de répondre à quatre questions : le cas décrit-il une attaque ? la technique est-elle correcte ? la défense est-elle une vraie contre-mesure ? la valeur « null » est-elle justifiée ? Un assistant LLM a proposé une première réponse, que nous avons vérifiée cas par cas. Comme aucun second annotateur n'était disponible, 30 cas ont été annotés une seconde fois pour mesurer la cohérence de la revue.
 
-1. **Le cas décrit-il réellement une attaque ?** Certains enregistrements ne contiennent qu'un énoncé général ou un résultat d'expérience.
-2. **La technique ATLAS attribuée est-elle correcte ?** Par exemple, une attaque de type *jailbreak* peut avoir été classée à tort comme une injection de prompt.
-3. **La défense extraite est-elle une véritable contre-mesure ?** Le résumé peut décrire un résultat ou un protocole d'évaluation plutôt qu'une mesure de protection.
-4. **Lorsque la défense vaut « null », cette absence est-elle justifiée ?** Autrement dit, le passage d'origine ne propose-t-il effectivement aucune défense ?
+**Requêtes d'attaque.** Une requête est une courte description d'attaque, comme celle qu'un analyste pourrait soumettre à CARL. Nous en avons rédigé 18, avant de regarder le contenu de la base :
 
-La revue s'est déroulée en deux temps. Un assistant LLM a d'abord proposé, pour chaque cas, une réponse à ces questions accompagnée d'une justification (pré-annotation). Chaque proposition a ensuite été vérifiée par nous-même, en revenant au résumé du cas et, si nécessaire, au passage d'origine. Par exemple, pour un cas issu de l'article de Chao et al. (2023), l'assistant proposait de considérer la valeur « null » comme justifiée, car le passage décrit l'attaque PAIR sans proposer de défense ; ce jugement a été confirmé.
+- **14 requêtes couvertes** : elles portent sur des attaques présentes dans la base (injection de prompt, *jailbreak*, empoisonnement…). CARL doit retrouver un cas pertinent et proposer une défense ;
+- **4 requêtes hors corpus** : elles portent sur des attaques volontairement exclues du corpus (inférence d'appartenance, extraction de modèle, extraction de données d'entraînement, perturbation adverse d'image). CARL doit signaler qu'aucun cas ne les couvre.
 
-Cette revue a une limite : elle a été réalisée par une seule personne, qui est aussi l'auteure du système, et aucun second annotateur indépendant n'était disponible. Pour en mesurer au moins la cohérence, 30 cas tirés au hasard ont été annotés une seconde fois, sans l'assistant et en suivant un guide de décision écrit, puis comparés à la première revue. Cette comparaison mesure un accord *intra-annotateur* : elle indique si la revue est reproductible par la même personne, mais elle ne garantit pas l'absence de biais.
+**Paires de calibration.** 20 paires de cas de même technique servent à fixer les seuils du vérificateur causal, sans utiliser les requêtes de test.
 
-La revue sert trois usages dans la suite du chapitre : mesurer l'exactitude de la classification, juger si un cas retrouvé est pertinent pour une requête et construire la base révisée de 108 cas.
-
-**Requêtes d'attaque.** Pour évaluer la recherche de cas et les recommandations, nous avons rédigé 18 requêtes. Une requête est une courte description d'attaque en texte libre, semblable à ce qu'un analyste pourrait soumettre à CARL, accompagnée de la technique ATLAS que nous lui avons attribuée manuellement. Par exemple : « une page web consultée par l'assistant contient des instructions cachées qui lui font envoyer la conversation de l'utilisateur vers une adresse contrôlée par l'attaquant » (injection de prompt indirecte). Toutes les requêtes ont été rédigées **avant d'examiner le contenu de la base**, afin de ne pas les formuler, même involontairement, de manière à retrouver des cas existants. Elles sont de deux types.
-
-- **14 requêtes couvertes par le corpus.** Elles portent sur des techniques pour lesquelles la base contient des cas : injection de prompt indirecte (par une page web, un courriel ou un document), injection directe, injection déclenchée, *jailbreak* (jeu de rôle, mode développeur, encodage), infiltration par une application publique, empoisonnement des données d'entraînement et extraction du prompt système. Pour ces requêtes, CARL doit retrouver un cas pertinent et proposer une défense.
-- **4 requêtes hors corpus.** Elles portent sur des attaques que nous avons volontairement exclues du corpus lors de sa constitution. La base ne contient donc, par construction, aucun cas pour ces attaques. Le tableau 5.4 les présente.
-
-*Tableau 5.4 — Attaques des quatre requêtes hors corpus*
-
-| Attaque | Description |
-|---|---|
-| Inférence d'appartenance | Déterminer si une donnée précise faisait partie des données d'entraînement du modèle |
-| Extraction de modèle | Reproduire un modèle en l'interrogeant un grand nombre de fois |
-| Extraction de données d'entraînement | Amener le modèle à restituer des données qu'il a mémorisées pendant son entraînement |
-| Perturbation adverse d'image | Modifier légèrement une image pour tromper un classifieur |
-
-Ces quatre requêtes jouent le rôle d'exemples négatifs. Pour elles, la réponse attendue de CARL n'est pas une défense, mais le signalement qu'aucun cas de sa base ne couvre l'attaque. Ce signalement repose sur le seuil de similarité θ : si le cas le plus proche obtient un score inférieur à θ, la base est considérée comme ne couvrant pas la requête. Les requêtes hors corpus permettent donc de vérifier si ce seuil distingue réellement une attaque connue de la base d'une attaque inconnue.
-
-**Paires de calibration.** Les seuils du vérificateur causal ne sont pas ajustés sur les requêtes de test. Ils sont calibrés sur la base elle-même, à partir de 20 paires de cas partageant la même technique : le modèle adapte la défense de l'un à l'attaque de l'autre, ce qui fournit des exemples positifs et négatifs.
-
-**Évaluation humaine.** Enfin, 76 recommandations distinctes, tirées des différentes configurations comparées, ont été soumises à deux évaluateurs externes, doctorants, qui ne sont pas impliqués dans le projet.
+**Évaluation humaine.** 76 recommandations ont été notées par deux évaluateurs externes, doctorants.
 
 ## 5.2 Protocole expérimental
 
@@ -137,9 +115,9 @@ L'extraction des entités, qui précède ces trois étapes, est évaluée en pre
 
 ### 5.2.2 Mesures utilisées à chaque étape
 
-Le tableau 5.5 récapitule, pour chaque étape, le jeu de données, ce qui est comparé et les mesures utilisées.
+Le tableau 5.4 récapitule, pour chaque étape, le jeu de données, ce qui est comparé et les mesures utilisées.
 
-*Tableau 5.5 — Protocole d'évaluation par étape*
+*Tableau 5.4 — Protocole d'évaluation par étape*
 
 | Étape | Jeu de données | Ce qui est comparé | Mesures |
 |---|---|---|---|
@@ -159,7 +137,7 @@ Cette étape compare les méthodes envisagées pour la couche 1 sur l'article an
 
 ### 5.3.1 Choix de l'extracteur
 
-*Tableau 5.6 — Comparaison des extracteurs de la couche 1 sur l'annotation manuelle (45 entités) (rapporté)*
+*Tableau 5.5 — Comparaison des extracteurs de la couche 1 sur l'annotation manuelle (45 entités) (rapporté)*
 
 | Méthode | Précision | Rappel | F1 | Taux d'hallucination |
 |---|---|---|---|---|
@@ -177,7 +155,7 @@ GLiNER obtient la meilleure précision et le meilleur F1, et n'extrait aucune en
 
 Les filtres ont été évalués sur la variante thématique de Mistral-7B, en les ajoutant un par un aux mêmes sorties enregistrées du modèle.
 
-*Tableau 5.7 — Contribution de chaque filtre (Mistral-7B, variante thématique) (rapporté)*
+*Tableau 5.6 — Contribution de chaque filtre (Mistral-7B, variante thématique) (rapporté)*
 
 | Configuration | Précision | Rappel | F1 | Taux d'hallucination |
 |---|---|---|---|---|
@@ -194,7 +172,7 @@ Le filtre de longueur maximale apporte le plus : il retire 54 prédictions, surt
 
 Les précisions sont faibles pour toutes les méthodes, mais elles sous-estiment la qualité réelle de l'extraction. Un contrôle de 30 faux positifs tirés au hasard dans la sortie de la variante thématique a montré que 17 d'entre eux (57 % ; intervalle de Wilson 39 %–73 %) étaient de vraies entités de l'article, que l'annotation avait omises : types d'applications, impacts cités dans la taxonomie propre à l'article, ou défense proposée. Les 13 autres étaient des fragments descriptifs, des étiquettes erronées ou du bruit d'extraction. La précision de 0,121 est donc une borne inférieure ; extrapolée aux 153 faux positifs, elle correspondrait à environ 0,62 (0,47–0,76), un ordre de grandeur donné à titre indicatif seulement.
 
-Deux conséquences en découlent. D'une part, la précision absolue de toutes les méthodes du tableau 5.6 est sous-estimée. D'autre part, le classement des méthodes ne reste valable que si la part d'entités valides non annotées est comparable d'une méthode à l'autre, ce qui n'a pas été vérifié. C'est une raison supplémentaire de fonder le choix de GLiNER sur l'absence d'hallucination plutôt que sur le F1. Ces résultats portent enfin sur un seul article et une seule configuration.
+Deux conséquences en découlent. D'une part, la précision absolue de toutes les méthodes du tableau 5.5 est sous-estimée. D'autre part, le classement des méthodes ne reste valable que si la part d'entités valides non annotées est comparable d'une méthode à l'autre, ce qui n'a pas été vérifié. C'est une raison supplémentaire de fonder le choix de GLiNER sur l'absence d'hallucination plutôt que sur le F1. Ces résultats portent enfin sur un seul article et une seule configuration.
 
 ## 5.4 Classification : validité et exactitude (RQ1)
 
@@ -208,7 +186,7 @@ La validation de CARL vérifie qu'un identifiant existe dans MITRE ATLAS et qu'i
 
 ### 5.4.3 Résultats de la classification
 
-*Tableau 5.8 — Validité et exactitude de la classification (rapporté ; intervalles de Wilson à 95 %)*
+*Tableau 5.7 — Validité et exactitude de la classification (rapporté ; intervalles de Wilson à 95 %)*
 
 | Mesure | Résultat | Intervalle |
 |---|---|---|
@@ -242,7 +220,7 @@ Le seuil θ est censé garantir deux choses : que le meilleur cas retrouvé est 
 
 ### 5.5.3 Résultats de la recherche
 
-*Tableau 5.9 — Recherche sur les 14 requêtes couvertes : base construite et base révisée (rapporté)*
+*Tableau 5.8 — Recherche sur les 14 requêtes couvertes : base construite et base révisée (rapporté)*
 
 | Configuration | Hit@1 (construite) | Hit@3 (construite) | MRR (construite) | Hit@1 (révisée) | Hit@3 (révisée) | MRR (révisée) |
 |---|---|---|---|---|---|---|
@@ -276,7 +254,7 @@ La vérification garantit qu'une mesure est rattachée à un cas retrouvé. L'ex
 
 ### 5.6.3 Résultats
 
-*Tableau 5.10 — Qualité des recommandations sur la base construite (rapporté)*
+*Tableau 5.9 — Qualité des recommandations sur la base construite (rapporté)*
 
 | Configuration | Recommandations (requêtes servies) | Ancrage | Adaptation | Adéquation causale | Hors corpus |
 |---|---|---|---|---|---|
