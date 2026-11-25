@@ -130,7 +130,7 @@ def caption_style(doc, name):
     st.base_style = doc.styles["Normal"]
     st.font.name = FONT
     st.font.size = Pt(12)
-    st.font.italic = True
+    st.font.italic = False
     st.font.bold = False
     st.font.color.rgb = BLACK
     set_fonts(st)
@@ -277,7 +277,7 @@ def add_table(doc, block):
     rows = [r for r in rows if not re.match(r"^\|[\s:|-]+\|$", r)]
     cells = [[c.strip() for c in r.strip("|").split("|")] for r in rows]
     ncol = max(len(r) for r in cells)
-    size = 12 if ncol <= 4 else 11 if ncol <= 6 else 10
+    size = 11  # tous les tableaux : Times New Roman 11, sans italique sauf termes anglais
     table = doc.add_table(rows=0, cols=ncol)
     table.style = doc.styles["Table Grid"]
     table.alignment = 1
@@ -328,7 +328,7 @@ def add_markdown(doc, path, body, first):
         elif re.match(r"^\*(Tableau|Figure) \d", block):
             style = "Legende tableau" if block.startswith("*Tableau") else "Legende figure"
             p = doc.add_paragraph(style=style)
-            add_inline(p, block.strip("*"), italic=True)
+            add_inline(p, block[1:-1] if block.endswith("*") else block[1:])
         elif block.startswith("|"):
             add_table(doc, block)
         elif block.startswith("> "):
@@ -374,8 +374,9 @@ def add_markdown(doc, path, body, first):
             text, italic = strip_outer_italic(" ".join(lines))
             p = doc.add_paragraph(style=body)
             if italic:
+                # note sous un tableau : droite, taille 11, seuls les termes anglais restent en italique
                 p.paragraph_format.first_line_indent = Cm(0)
-                add_inline(p, text, italic=True)
+                add_inline(p, text, size=11)
             else:
                 add_inline(p, text)
     return first
