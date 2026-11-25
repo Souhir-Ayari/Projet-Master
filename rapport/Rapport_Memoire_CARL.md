@@ -965,6 +965,8 @@ CARL retrouve les trois cas les plus similaires (k = 3) si le meilleur dépasse 
 | Filtre par technique (retenu) | Automatique | 0,571 | 0,786 | 0,716 |
 | Filtre par technique (retenu) | Référence (108 cas) | 1,000 | 1,000 | 1,000 |
 
+*Définitions — **Hit@1** : part des requêtes pour lesquelles le premier cas retrouvé est pertinent. **Hit@3** : part des requêtes pour lesquelles au moins un des trois cas retrouvés est pertinent. **MRR** (*Mean Reciprocal Rank*) : moyenne, sur les requêtes, de 1 divisé par le rang du premier cas pertinent (1 s'il est en première position, 0,5 en deuxième, 0,33 en troisième, 0 s'il n'y en a aucun). Les trois mesures vont de 0 à 1 ; plus la valeur est élevée, meilleure est la récupération.*
+
 Sur la base automatique, le premier cas retrouvé est pertinent pour 8 requêtes sur 14 (Hit@1 = 0,571), quelle que soit la configuration. Les intervalles de confiance sont larges (environ 0,29 à 0,86), donc les configurations ne se distinguent pas entre elles.
 
 ### 5.5.3 Impact des erreurs de classification sur la récupération
