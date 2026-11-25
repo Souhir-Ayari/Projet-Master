@@ -924,7 +924,7 @@ CARL valide chaque identifiant ATLAS : il vérifie que l'identifiant existe et q
 
 *Tableau 5.7 — Résultats de la classification (rapporté)*
 
-| Mesure | Résultat | Signification |
+| Mesure | Résultat | Interprétation |
 |---|---|---|
 | Validité des identifiants ATLAS | 107 / 119 = 89,9 % | L'identifiant existe dans ATLAS et concerne les LLM |
 | Exactitude des identifiants validés | 47 / 99 = 47,5 % | L'identifiant désigne la bonne technique selon la revue |
