@@ -42,9 +42,8 @@ Le rapport complet est assemblé dans `rapport/Rapport_Memoire_CARL.docx` par `p
 | 5.3 Méthodes d'extraction (GLiNER vs Mistral, filtres) | 2 |
 | 5.4 Classification : validité et exactitude (RQ1) | 2 |
 | 5.5 Recherche de cas : similarité et couverture (RQ2) | 2 |
-| 5.6 Adaptation et recommandations : traçabilité et solidité (RQ3) | 3 |
-| 5.7 Évaluation humaine | 1 |
-| 5.8 Synthèse des résultats et des métriques | 1 |
+| 5.6 Recommandations : qualité et vérification, avec évaluation humaine (RQ3) | 4 |
+| 5.7 Synthèse globale des résultats expérimentaux | 1 |
 | 6. Discussion et limites | 5 |
 | Conclusion générale et perspectives | 3 |
 | Résumé / Abstract | 1 |
