@@ -156,7 +156,7 @@ Encadrante : Dr Amal TARIFA, Maître Assistante · Année universitaire 2025/202
 - Tableau 5.4 — Protocole d'évaluation par étape
 - Tableau 5.5 — Comparaison des extracteurs de la couche 1 sur l'annotation manuelle (45 entités) (rapporté)
 - Tableau 5.6 — Contribution de chaque filtre (Mistral-7B, variante thématique) (rapporté)
-- Tableau 5.7 — Résultats de la classification (rapporté ; intervalles de Wilson à 95 %)
+- Tableau 5.7 — Résultats de la classification (rapporté)
 - Tableau 5.8 — Récupération sur les 14 requêtes couvertes (rapporté)
 - Tableau 5.9 — Qualité des recommandations sur la base automatique (13 requêtes couvertes) (rapporté)
 - Tableau 5.10 — Synthèse des réponses aux questions de recherche
@@ -922,16 +922,14 @@ CARL valide chaque identifiant ATLAS : il vérifie que l'identifiant existe et q
 
 ### 5.4.2 Résultats de la classification
 
-*Tableau 5.7 — Résultats de la classification (rapporté ; intervalles de Wilson à 95 %)*
+*Tableau 5.7 — Résultats de la classification (rapporté)*
 
-| Mesure | Résultat | Intervalle de confiance à 95 % |
-|---|---|---|
-| Validité des identifiants ATLAS | 107 / 119 = 89,9 % | n.r. |
-| Exactitude des identifiants validés | 47 / 99 = 47,5 % | 37,9 %–57,2 % |
-| Fiabilité des valeurs « null » | 21 / 22 = 95,5 % | 78,2 %–99,2 % |
-| Abstentions justifiées | 0 / 9 | n.r. |
-
-*Intervalle de confiance à 95 % (méthode de Wilson) : plage de valeurs dans laquelle se situe probablement le vrai taux, compte tenu du petit nombre de cas. Par exemple, l'exactitude mesurée est de 47,5 %, mais le vrai taux se situe probablement entre 37,9 % et 57,2 %. n.r. : non rapporté.*
+| Mesure | Résultat |
+|---|---|
+| Validité des identifiants ATLAS | 107 / 119 = 89,9 % |
+| Exactitude des identifiants validés | 47 / 99 = 47,5 % |
+| Fiabilité des valeurs « null » | 21 / 22 = 95,5 % |
+| Abstentions justifiées | 0 / 9 |
 
 - **Validité** : presque tous les identifiants passent la validation.
 - **Exactitude** : moins de la moitié des identifiants validés désignent la bonne technique.
