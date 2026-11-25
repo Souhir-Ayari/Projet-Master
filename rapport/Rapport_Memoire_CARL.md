@@ -893,14 +893,14 @@ Les filtres ont été évalués sur la variante thématique de Mistral-7B, en le
 
 *Tableau 5.6 — Contribution de chaque filtre (Mistral-7B, variante thématique) (rapporté)*
 
-| Configuration | Précision | Rappel | F1 | Taux d'hallucination |
-|---|---|---|---|---|
-| Sans filtre | 0,083 | 0,511 | 0,143 | 0,011 |
-| + liste blanche d'étiquettes | 0,089 | 0,467 | 0,150 | 0,013 |
-| + longueur maximale | 0,116 | 0,467 | 0,186 | 0,017 |
-| + fuite de l'exemple | 0,116 | 0,467 | 0,186 | 0,017 |
-| + valeurs de remplissage | 0,116 | 0,467 | 0,186 | 0,017 |
-| Système complet (+ format, bruit des citations) | 0,121 | 0,467 | 0,192 | 0,017 |
+| Configuration | Principe | Précision | Rappel | F1 | Taux d'hallucination |
+|---|---|---|---|---|---|
+| Sans filtre | Sortie brute de Mistral-7B, sans aucun contrôle | 0,083 | 0,511 | 0,143 | 0,011 |
+| + liste blanche d'étiquettes | Rejette toute entité dont l'étiquette ne fait pas partie des sept étiquettes de la taxonomie | 0,089 | 0,467 | 0,150 | 0,013 |
+| + longueur maximale | Rejette les segments trop longs, qui sont en général des phrases descriptives et non des entités | 0,116 | 0,467 | 0,186 | 0,017 |
+| + fuite de l'exemple | Rejette toute entité qui recopie une valeur de l'exemple donné dans le prompt | 0,116 | 0,467 | 0,186 | 0,017 |
+| + valeurs de remplissage | Rejette les textes vides de sens, comme « non spécifié », utilisés à la place d'une absence | 0,116 | 0,467 | 0,186 | 0,017 |
+| Système complet (+ format, bruit des citations) | Ajoute le contrôle du format de sortie et le retrait des fragments issus des citations bibliographiques | 0,121 | 0,467 | 0,192 | 0,017 |
 
 Le filtre de longueur maximale apporte le plus : il retire 54 prédictions, surtout des propositions descriptives plutôt que des entités, et fait passer la précision de 0,089 à 0,116 sans perdre aucune entité correcte. La liste blanche d'étiquettes est le seul filtre qui présente un compromis : elle écarte deux entités correctes que le modèle avait extraites sous une étiquette hors taxonomie, ce qui fait baisser le rappel de 0,511 à 0,467. Les filtres de fuite de l'exemple et des valeurs de remplissage n'ont aucun effet sur cet article ; ils corrigent des erreurs observées sur un corpus antérieur et servent ici de garde-fous. Au total, les filtres font passer le F1 de 0,143 à 0,192 (+34 %). La hausse apparente du taux d'hallucination, de 0,011 à 0,017, est un effet de dénominateur : les trois mêmes entités non présentes dans le texte restent, parmi un nombre plus faible de prédictions.
 
