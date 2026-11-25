@@ -8,11 +8,11 @@ Ce chapitre évalue CARL étape par étape. Il présente d'abord les données ut
 
 **Présentation des articles.** La base de cas de CARL est construite à partir d'un corpus de quatorze articles scientifiques consacrés aux attaques contre les LLM et à leurs défenses. Le corpus a été constitué en deux temps.
 
-Trois articles ont servi au développement initial du pipeline :
+Trois articles ont servi au développement initial du *pipeline* :
 
-- une étude de l'injection de prompt indirecte contre les applications intégrant un LLM (Greshake et al., 2023) ;
+- une étude de l'injection de *prompt* indirecte contre les applications intégrant un LLM (Greshake et al., 2023) ;
 - une analyse théorique des limites de l'alignement des LLM (Wolf et al., 2023) ;
-- une formalisation et un banc d'essai des attaques par injection de prompt et de leurs défenses (Liu et al., 2024).
+- une formalisation et un banc d'essai des attaques par injection de *prompt* et de leurs défenses (Liu et al., 2024).
 
 Le corpus a ensuite été élargi avec onze articles publiés sur arXiv, présentés dans le tableau 5.1 et regroupés par famille d'attaques.
 
@@ -20,9 +20,9 @@ Le corpus a ensuite été élargi avec onze articles publiés sur arXiv, présen
 
 | Famille | Article | Nature de la contribution |
 |---|---|---|
-| Injection de prompt directe | *Ignore Previous Prompt: Attack Techniques For Language Models* (Perez et Ribeiro, 2022) | Attaque |
-| Injection de prompt indirecte | *Benchmarking and Defending Against Indirect Prompt Injection Attacks on Large Language Models* (Yi et al., 2023) | Banc d'essai et défense |
-| Injection de prompt | *StruQ: Defending Against Prompt Injection with Structured Queries* (Chen et al., 2024) | Défense |
+| Injection de *prompt* directe | *Ignore Previous Prompt: Attack Techniques For Language Models* (Perez et Ribeiro, 2022) | Attaque |
+| Injection de *prompt* indirecte | *Benchmarking and Defending Against Indirect Prompt Injection Attacks on Large Language Models* (Yi et al., 2023) | Banc d'essai et défense |
+| Injection de *prompt* | *StruQ: Defending Against Prompt Injection with Structured Queries* (Chen et al., 2024) | Défense |
 | Agents avec outils | *InjecAgent: Benchmarking Indirect Prompt Injections in Tool-Integrated Large Language Model Agents* (Zhan et al., 2024) | Banc d'essai |
 | *Jailbreak* | *Jailbroken: How Does LLM Safety Training Fail?* (Wei et al., 2023) | Analyse des attaques |
 | *Jailbreak* | *Universal and Transferable Adversarial Attacks on Aligned Language Models* (Zou et al., 2023) | Attaque |
@@ -39,15 +39,15 @@ Le corpus a ensuite été élargi avec onze articles publiés sur arXiv, présen
 - des **bancs d'essai** (*benchmarks*), qui évaluent de manière systématique plusieurs attaques et défenses ;
 - des **analyses** des attaques, empiriques ou théoriques, qui expliquent pourquoi les protections échouent.
 
-Cette variété est volontaire. Un article d'attaque fournit surtout la description d'une attaque, souvent sans défense : il produit des cas avec une défense « null ». Un article de défense ou un banc d'essai fournit au contraire des mesures de protection. Le corpus permet ainsi de vérifier que le pipeline sait distinguer ces deux situations.
+Cette variété est volontaire. Un article d'attaque fournit surtout la description d'une attaque, souvent sans défense : il produit des cas avec une défense « null ». Un article de défense ou un banc d'essai fournit au contraire des mesures de protection. Le corpus permet ainsi de vérifier que le *pipeline* sait distinguer ces deux situations.
 
 **Pourquoi ces articles ont été sélectionnés.** Les articles ajoutés ont été choisis selon trois critères.
 
-1. *Couvrir plusieurs fois les mêmes techniques.* Les articles portent sur les techniques déjà présentes dans les trois premiers articles : injection de prompt directe, indirecte et déclenchée, *jailbreak* et empoisonnement. Avoir plusieurs cas d'une même technique, issus d'articles différents, donne à la recherche de cas de vrais choix à faire.
+1. *Couvrir plusieurs fois les mêmes techniques.* Les articles portent sur les techniques déjà présentes dans les trois premiers articles : injection de *prompt* directe, indirecte et déclenchée, *jailbreak* et empoisonnement. Avoir plusieurs cas d'une même technique, issus d'articles différents, donne à la recherche de cas de vrais choix à faire.
 2. *Inclure des articles de défense.* Un cas sans défense n'aide pas à recommander une mesure. Des articles centrés sur la défense (StruQ, BIPIA, SmoothLLM et les défenses de base de Jain et al.) ont donc été ajoutés.
 3. *Exclure volontairement certaines attaques.* Aucun article ne porte sur l'inférence d'appartenance, l'extraction de modèle, l'extraction de données d'entraînement ou les exemples adverses sur des images. Ces attaques sont réservées aux requêtes de test hors corpus : elles servent à vérifier si CARL signale correctement qu'aucun cas de sa base ne couvre une attaque. Les inclure dans le corpus supprimerait ces exemples négatifs.
 
-Avant chaque téléchargement, le titre de l'article sur arXiv est comparé au titre attendu, afin d'éviter d'intégrer un mauvais document. Il faut noter enfin que le corpus est dominé par l'injection de prompt et le *jailbreak*. Il suffit pour construire et tester le pipeline, mais pas pour prétendre couvrir l'ensemble des attaques contre les LLM.
+Avant chaque téléchargement, le titre de l'article sur arXiv est comparé au titre attendu, afin d'éviter d'intégrer un mauvais document. Il faut noter enfin que le corpus est dominé par l'injection de *prompt* et le *jailbreak*. Il suffit pour construire et tester le *pipeline*, mais pas pour prétendre couvrir l'ensemble des attaques contre les LLM.
 
 ### 5.1.2 Constitution de la base de cas
 
@@ -70,7 +70,7 @@ Les quatorze articles ont été traités par la phase hors ligne décrite au cha
 
 **Base construite.** La couche 2 a analysé 263 passages, dont 212 décrivent une attaque confirmée. La déduplication, qui conserve au plus trois cas par couple (article, technique), ramène ce nombre à 119 cas. Parmi eux, 107 ont reçu un identifiant ATLAS qui a passé la validation, et 12 une abstention ; 92 comportent une défense extraite, et 27 une valeur « null » explicite. Toutes les expériences sont menées sur cette base, **telle que le pipeline l'a produite, sans correction manuelle**. C'est en effet la construction automatique qui distingue CARL des bases construites à la main, comme la LVD d'ATAG (Gandhi et al., 2025) : il faut donc évaluer ce que produit réellement l'automatisation.
 
-**Base révisée.** Les 119 cas ont ensuite été relus un par un. Cette revue a conduit à une seconde version de la base, dite *révisée* : 11 enregistrements qui ne décrivent pas une attaque ont été retirés, les identifiants erronés ont été corrigés, et les défenses qui ne sont pas de véritables contre-mesures ont été remplacées par « null ». Elle compte 108 cas, dont 84 concernent le *jailbreak* ou l'injection de prompt. Cette base révisée n'est jamais utilisée comme base de travail : elle sert seulement de **borne supérieure**, pour estimer ce qu'obtiendrait CARL si sa classification était sans erreur.
+**Base révisée.** Les 119 cas ont ensuite été relus un par un. Cette revue a conduit à une seconde version de la base, dite *révisée* : 11 enregistrements qui ne décrivent pas une attaque ont été retirés, les identifiants erronés ont été corrigés, et les défenses qui ne sont pas de véritables contre-mesures ont été remplacées par « null ». Elle compte 108 cas, dont 84 concernent le *jailbreak* ou l'injection de *prompt*. Cette base révisée n'est jamais utilisée comme base de travail : elle sert seulement de **borne supérieure**, pour estimer ce qu'obtiendrait CARL si sa classification était sans erreur.
 
 ### 5.1.3 Jeux de données de test
 
@@ -88,11 +88,11 @@ Chaque étape de CARL est évaluée sur un jeu de données adapté à ce qu'elle
 
 **Annotation des entités.** Un article du corpus (Greshake et al., 2023) a été annoté à la main avec les sept étiquettes de la couche 1 : il contient 45 entités. Cette annotation sert de référence pour évaluer l'extraction.
 
-**Revue de la base de cas.** Le pipeline vérifie qu'un identifiant ATLAS est *valide*, mais pas qu'il est *correct*. Pour le savoir, chacun des 119 cas a été relu afin de répondre à quatre questions : le cas décrit-il une attaque ? la technique est-elle correcte ? la défense est-elle une vraie contre-mesure ? la valeur « null » est-elle justifiée ? Un assistant LLM a proposé une première réponse, que nous avons vérifiée cas par cas. Comme aucun second annotateur n'était disponible, 30 cas ont été annotés une seconde fois pour mesurer la cohérence de la revue.
+**Revue de la base de cas.** Le *pipeline* vérifie qu'un identifiant ATLAS est *valide*, mais pas qu'il est *correct*. Pour le savoir, chacun des 119 cas a été relu afin de répondre à quatre questions : le cas décrit-il une attaque ? la technique est-elle correcte ? la défense est-elle une vraie contre-mesure ? la valeur « null » est-elle justifiée ? Un assistant LLM a proposé une première réponse, que nous avons vérifiée cas par cas. Comme aucun second annotateur n'était disponible, 30 cas ont été annotés une seconde fois pour mesurer la cohérence de la revue.
 
 **Requêtes d'attaque.** Une requête est une courte description d'attaque, comme celle qu'un analyste pourrait soumettre à CARL. Nous en avons rédigé 18, avant de regarder le contenu de la base :
 
-- **14 requêtes couvertes** : elles portent sur des attaques présentes dans la base (injection de prompt, *jailbreak*, empoisonnement…). CARL doit retrouver un cas pertinent et proposer une défense ;
+- **14 requêtes couvertes** : elles portent sur des attaques présentes dans la base (injection de *prompt*, *jailbreak*, empoisonnement…). CARL doit retrouver un cas pertinent et proposer une défense ;
 - **4 requêtes hors corpus** : elles portent sur des attaques volontairement exclues du corpus (inférence d'appartenance, extraction de modèle, extraction de données d'entraînement, perturbation adverse d'image). CARL doit signaler qu'aucun cas ne les couvre.
 
 **Paires de calibration.** 20 paires de cas de même technique servent à fixer les seuils du vérificateur causal, sans utiliser les requêtes de test.
@@ -103,7 +103,7 @@ Chaque étape de CARL est évaluée sur un jeu de données adapté à ce qu'elle
 
 ### 5.2.1 Principe de l'évaluation
 
-L'évaluation ne se limite pas à juger la recommandation finale. Chaque étape de CARL est évaluée séparément, sur les mêmes cas, pour deux raisons. D'une part, une erreur commise au début du pipeline peut rester invisible à la fin : une recommandation peut être bien formée et citer un cas, alors que ce cas a été mal classé deux étapes plus tôt. D'autre part, chaque mécanisme de contrôle de CARL vérifie une propriété facile à mesurer, qui n'est pas exactement la propriété recherchée. L'évaluation compare donc, à chaque étape, ce que le mécanisme vérifie et ce qu'il est censé garantir.
+L'évaluation ne se limite pas à juger la recommandation finale. Chaque étape de CARL est évaluée séparément, sur les mêmes cas, pour deux raisons. D'une part, une erreur commise au début du *pipeline* peut rester invisible à la fin : une recommandation peut être bien formée et citer un cas, alors que ce cas a été mal classé deux étapes plus tôt. D'autre part, chaque mécanisme de contrôle de CARL vérifie une propriété facile à mesurer, qui n'est pas exactement la propriété recherchée. L'évaluation compare donc, à chaque étape, ce que le mécanisme vérifie et ce qu'il est censé garantir.
 
 Trois questions de recherche structurent cette comparaison, une par mécanisme de contrôle :
 
@@ -111,7 +111,7 @@ Trois questions de recherche structurent cette comparaison, une par mécanisme d
 - **RQ2 — Recherche de cas.** Le cas le plus *proche* est-il vraiment un cas *pertinent* ? Le seuil de similarité est censé indiquer que la base couvre l'attaque ; la question est de savoir s'il le fait réellement.
 - **RQ3 — Vérification des recommandations.** Une défense qui *cite* un cas est-elle une *bonne* défense ? La vérification garantit qu'une mesure est rattachée à un cas ; la question est de savoir si elle protège contre l'attaque.
 
-L'extraction des entités, qui précède ces trois étapes, est évaluée en premier, car elle fournit le contexte de tout le reste du pipeline. Une évaluation humaine complète enfin les mesures automatiques.
+L'extraction des entités, qui précède ces trois étapes, est évaluée en premier, car elle fournit le contexte de tout le reste du *pipeline*. Une évaluation humaine complète enfin les mesures automatiques.
 
 ### 5.2.2 Mesures utilisées à chaque étape
 
@@ -121,19 +121,19 @@ Le tableau 5.4 récapitule, pour chaque étape, le jeu de données, ce qui est c
 
 | Étape | Jeu de données | Ce qui est comparé | Mesures |
 |---|---|---|---|
-| Extraction des entités | 45 entités annotées | GLiNER et Mistral-7B guidé par prompt ; effet de chaque filtre | Précision, rappel, F1, taux d'hallucination |
+| Extraction des entités | 45 entités annotées | GLiNER et Mistral-7B guidé par *prompt* ; effet de chaque filtre | Précision, rappel, F1, taux d'hallucination |
 | RQ1 — Classification | Revue des 119 cas | Identifiant valide et identifiant correct | Taux de validité, taux d'exactitude, fiabilité des « null » et des abstentions, accord intra-annotateur |
 | RQ2 — Recherche | 18 requêtes | Base construite et base révisée ; requêtes couvertes et hors corpus | Hit@1, Hit@3, MRR, similarité du meilleur cas |
 | RQ3 — Recommandations | 18 requêtes, 20 paires de calibration | Génération sans recherche, recherche sans vérification, boucle avec vérification, variantes du vérificateur | Ancrage, taux d'hallucination, adaptation, adéquation causale, part des requêtes servies |
 | Évaluation humaine | 76 recommandations | Les configurations de RQ3 | Échelles de 1 à 5, accord entre évaluateurs |
 
-Le tableau se lit de haut en bas, dans l'ordre du pipeline. Pour l'extraction, les entités produites sont comparées à l'annotation manuelle. Pour RQ1, on compare la part d'identifiants valides à la part d'identifiants corrects selon la revue. Pour RQ2, on vérifie si les cas retrouvés sont pertinents (Hit@1 : le premier cas est pertinent ; Hit@3 : au moins un des trois l'est ; MRR : un cas pertinent compte d'autant plus qu'il est bien classé), et si le seuil θ sépare les requêtes couvertes des requêtes hors corpus. Pour RQ3, on mesure surtout l'*ancrage*, c'est-à-dire la part des recommandations rattachées à un cas qui les justifie, et la part des requêtes qui reçoivent une recommandation. L'évaluation humaine vérifie enfin si des lecteurs externes perçoivent les différences entre configurations.
+Le tableau se lit de haut en bas, dans l'ordre du *pipeline*. Pour l'extraction, les entités produites sont comparées à l'annotation manuelle. Pour RQ1, on compare la part d'identifiants valides à la part d'identifiants corrects selon la revue. Pour RQ2, on vérifie si les cas retrouvés sont pertinents (Hit@1 : le premier cas est pertinent ; Hit@3 : au moins un des trois l'est ; MRR : un cas pertinent compte d'autant plus qu'il est bien classé), et si le seuil θ sépare les requêtes couvertes des requêtes hors corpus. Pour RQ3, on mesure surtout l'*ancrage*, c'est-à-dire la part des recommandations rattachées à un cas qui les justifie, et la part des requêtes qui reçoivent une recommandation. L'évaluation humaine vérifie enfin si des lecteurs externes perçoivent les différences entre configurations.
 
 Comme les effectifs sont petits, les taux sont accompagnés d'intervalles de confiance à 95 %, et la cohérence des annotations est mesurée par un coefficient d'accord (kappa de Cohen pour la revue, alpha de Krippendorff pour l'évaluation humaine).
 
 ## 5.3 Extraction des entités
 
-Cette étape compare les méthodes envisagées pour la couche 1 sur l'article annoté (45 entités) : GLiNER, qui sélectionne des segments du texte, et quatre variantes de Mistral-7B guidé par un prompt, de plus en plus spécifiques. La variante *naïve* donne une simple consigne ; la variante *travaillée* (*engineered*) structure davantage la demande ; la variante *personnalisée* (*custom*) part d'un besoin formulé par l'utilisateur ; la variante *thématique* (*topic*) fournit la taxonomie des sept étiquettes avec leur description.
+Cette étape compare les méthodes envisagées pour la couche 1 sur l'article annoté (45 entités) : GLiNER, qui sélectionne des segments du texte, et quatre variantes de Mistral-7B guidé par un *prompt*, de plus en plus spécifiques. La variante *naïve* donne une simple consigne ; la variante *travaillée* (*engineered*) structure davantage la demande ; la variante *personnalisée* (*custom*) part d'un besoin formulé par l'utilisateur ; la variante *thématique* (*topic*) fournit la taxonomie des sept étiquettes avec leur description.
 
 ### 5.3.1 Choix de l'extracteur
 
@@ -162,7 +162,7 @@ Les filtres ont été évalués sur la variante thématique de Mistral-7B, en le
 | Sans filtre | Sortie brute de Mistral-7B, sans aucun contrôle | 0,083 | 0,511 | 0,143 | 0,011 |
 | + liste blanche d'étiquettes | Rejette toute entité dont l'étiquette ne fait pas partie des sept étiquettes de la taxonomie | 0,089 | 0,467 | 0,150 | 0,013 |
 | + longueur maximale | Rejette les segments trop longs, qui sont en général des phrases descriptives et non des entités | 0,116 | 0,467 | 0,186 | 0,017 |
-| + fuite de l'exemple | Rejette toute entité qui recopie une valeur de l'exemple donné dans le prompt | 0,116 | 0,467 | 0,186 | 0,017 |
+| + fuite de l'exemple | Rejette toute entité qui recopie une valeur de l'exemple donné dans le *prompt* | 0,116 | 0,467 | 0,186 | 0,017 |
 | + valeurs de remplissage | Rejette les textes vides de sens, comme « non spécifié », utilisés à la place d'une absence | 0,116 | 0,467 | 0,186 | 0,017 |
 | Système complet (+ format, bruit des citations) | Ajoute le contrôle du format de sortie et le retrait des fragments issus des citations bibliographiques | 0,121 | 0,467 | 0,192 | 0,017 |
 
@@ -202,7 +202,7 @@ CARL valide chaque identifiant ATLAS : il vérifie que l'identifiant existe et q
 
 ### 5.4.3 Analyse des erreurs
 
-Les erreurs ne sont pas dues au hasard. Le modèle confond surtout le *jailbreak*, qui vise les protections du modèle, et l'injection de prompt, qui détourne les instructions d'une application : dans les deux cas, l'attaque consiste à faire suivre au modèle des instructions malveillantes. La bonne technique figurait pourtant dans la liste des candidats, et fournir au modèle les définitions officielles d'ATLAS ne corrige pas la confusion (41,1 % et 39,8 % d'identifiants corrects, contre 47,5 %).
+Les erreurs ne sont pas dues au hasard. Le modèle confond surtout le *jailbreak*, qui vise les protections du modèle, et l'injection de *prompt*, qui détourne les instructions d'une application : dans les deux cas, l'attaque consiste à faire suivre au modèle des instructions malveillantes. La bonne technique figurait pourtant dans la liste des candidats, et fournir au modèle les définitions officielles d'ATLAS ne corrige pas la confusion (41,1 % et 39,8 % d'identifiants corrects, contre 47,5 %).
 
 Ces erreurs ont des conséquences sur les étapes suivantes. La recherche de cas filtre les candidats par technique : un cas mal classé peut être écarté d'une requête à laquelle il répondait, ou proposé pour une attaque différente. La défense recommandée peut alors s'appuyer sur un cas qui ne correspond pas à l'attaque.
 
@@ -253,7 +253,7 @@ Un cas proche n'est pas forcément pertinent, et une similarité élevée ne pro
 
 ### 5.6.1 Objectif de l'expérience
 
-L'expérience vérifie si une recommandation acceptée par le vérificateur est réellement adaptée à l'attaque. Les configurations sont comparées selon l'**ancrage** (part des recommandations justifiées par un cas cité), l'**adéquation causale** (la mesure vise un maillon réel de l'attaque) et l'**adaptation** (la mesure tient compte de la nouvelle attaque). Les résultats portent sur 13 requêtes couvertes : la requête sur l'extraction du prompt système, marquée hors corpus dans le fichier de requêtes, est exclue.
+L'expérience vérifie si une recommandation acceptée par le vérificateur est réellement adaptée à l'attaque. Les configurations sont comparées selon l'**ancrage** (part des recommandations justifiées par un cas cité), l'**adéquation causale** (la mesure vise un maillon réel de l'attaque) et l'**adaptation** (la mesure tient compte de la nouvelle attaque). Les résultats portent sur 13 requêtes couvertes : la requête sur l'extraction du *prompt* système, marquée hors corpus dans le fichier de requêtes, est exclue.
 
 ### 5.6.2 Comparaison des différentes configurations
 
@@ -313,7 +313,7 @@ Dans les trois cas, la propriété vérifiée est plus faible que la propriété
 
 Les erreurs ne restent pas dans l'étape où elles apparaissent. L'erreur de classification de RQ1 se retrouve d'abord dans la récupération : corriger seulement les techniques fait passer le Hit@1 de 0,571 à 1,000. Elle se retrouve ensuite dans les recommandations, car le vérificateur accepte une mesure dès qu'elle cite un cas, même mal classé. L'exemple du *jailbreak* en Base64 le montre : tous les contrôles sont satisfaits, mais la mesure ne répond pas à l'attaque.
 
-Un ancrage de 1,00 à la dernière étape ne suffit donc pas à juger le pipeline : il faut connaître la qualité de chaque étape, mesurée sur les mêmes cas. Ces mesures héritent toutefois des limites de la revue : une seule annotatrice et peu de requêtes.
+Un ancrage de 1,00 à la dernière étape ne suffit donc pas à juger le *pipeline* : il faut connaître la qualité de chaque étape, mesurée sur les mêmes cas. Ces mesures héritent toutefois des limites de la revue : une seule annotatrice et peu de requêtes.
 
 ### 5.7.3 Conclusion
 

@@ -130,7 +130,7 @@ Encadrante : Dr Amal TARIFA, Maître Assistante · Année universitaire 2025/202
     - 5.7.2 Analyse de la propagation des erreurs
     - 5.7.3 Conclusion
 - Chapitre 6 — Discussion et limites
-  - 6.1 Interprétation des résultats : la substitution de proxies
+  - 6.1 Interprétation des résultats : la substitution de *proxies*
   - 6.2 Réponse à la problématique
   - 6.3 Apports par rapport à l'état de l'art
   - 6.4 Compromis entre couverture et solidité
@@ -204,7 +204,7 @@ Encadrante : Dr Amal TARIFA, Maître Assistante · Année universitaire 2025/202
 
 Au cours des dernières années, les progrès réalisés dans le domaine de l’intelligence artificielle (IA) ont favorisé l’émergence de modèles de langage de grande taille (*Large Language Models — LLM*), capables de comprendre, de traiter et de générer du texte en langage naturel avec des performances de plus en plus avancées. Ces modèles occupent aujourd’hui une place croissante dans le développement des applications intelligentes, notamment à travers les assistants conversationnels, les agents autonomes, les systèmes d’aide à la décision et les applications intégrant des capacités de génération et d’analyse de contenu. Leur adoption s’explique notamment par leur capacité à faciliter l’interaction entre les utilisateurs et les systèmes informatiques, à automatiser certaines tâches complexes et à exploiter de grandes quantités d’informations pour produire des réponses adaptées à différents contextes. Cependant, cette évolution s’accompagne de nouveaux enjeux en matière de sécurité, particulièrement lorsque ces modèles sont intégrés dans des applications accessibles aux utilisateurs ou connectés à des ressources externes.
 
-L’utilisation croissante des LLM élargit en effet la surface d’attaque des systèmes informatiques et introduit des vulnérabilités qui ne se limitent pas aux mécanismes traditionnels de sécurité. Contrairement aux logiciels classiques, les modèles de langage interprètent des instructions, manipulent du contenu textuel et interagissent avec des données dont la nature et la fiabilité peuvent varier. Cette particularité peut être exploitée par des acteurs malveillants afin de détourner le comportement du modèle, de contourner ses mécanismes de sécurité ou de compromettre les applications qui l’utilisent. Parmi les principales menaces identifiées dans ce domaine figurent notamment la *Prompt Injection*, qui consiste à introduire des instructions malveillantes dans les entrées ou les contenus traités par le modèle afin de modifier son comportement (MITRE ATLAS, technique AML.T0051 « LLM Prompt Injection » ; Greshake et al., 2023), le *Jailbreak*, qui vise à contourner les restrictions et les mécanismes de sécurité imposés au modèle (MITRE ATLAS, technique AML.T0054 « LLM Jailbreak » ; Wei et al., 2023), ainsi que le *Data Poisoning*, qui repose sur la manipulation des données utilisées dans les processus d’entraînement ou d’adaptation afin d’influencer les résultats du système (MITRE ATLAS, technique AML.T0020 « Poison Training Data » ; Carlini et al., 2024). Ces attaques peuvent affecter la fiabilité des réponses générées, compromettre la confidentialité des informations ou conduire à des comportements non souhaités dans les applications intégrant des LLM.
+L’utilisation croissante des LLM élargit en effet la surface d’attaque des systèmes informatiques et introduit des vulnérabilités qui ne se limitent pas aux mécanismes traditionnels de sécurité. Contrairement aux logiciels classiques, les modèles de langage interprètent des instructions, manipulent du contenu textuel et interagissent avec des données dont la nature et la fiabilité peuvent varier. Cette particularité peut être exploitée par des acteurs malveillants afin de détourner le comportement du modèle, de contourner ses mécanismes de sécurité ou de compromettre les applications qui l’utilisent. Parmi les principales menaces identifiées dans ce domaine figurent notamment la *Prompt Injection*, qui consiste à introduire des instructions malveillantes dans les entrées ou les contenus traités par le modèle afin de modifier son comportement (MITRE ATLAS, technique AML.T0051 « LLM *Prompt* Injection » ; Greshake et al., 2023), le *Jailbreak*, qui vise à contourner les restrictions et les mécanismes de sécurité imposés au modèle (MITRE ATLAS, technique AML.T0054 « LLM *Jailbreak* » ; Wei et al., 2023), ainsi que le *Data Poisoning*, qui repose sur la manipulation des données utilisées dans les processus d’entraînement ou d’adaptation afin d’influencer les résultats du système (MITRE ATLAS, technique AML.T0020 « Poison Training Data » ; Carlini et al., 2024). Ces attaques peuvent affecter la fiabilité des réponses générées, compromettre la confidentialité des informations ou conduire à des comportements non souhaités dans les applications intégrant des LLM.
 
 Face à ces menaces émergentes, de nombreux travaux scientifiques proposent des mécanismes de détection, de prévention et de mitigation destinés à renforcer la sécurité des modèles de langage et de leurs applications. Ces recherches explorent différentes stratégies, allant de la conception de mécanismes de filtrage des entrées et des sorties à l'amélioration des processus d'entraînement, en passant par l'utilisation de techniques de détection, de validation et de contrôle des comportements du modèle. Ainsi, la littérature scientifique constitue une source importante de connaissances permettant de comprendre les mécanismes des attaques, d'identifier leurs conditions d'exploitation et d'étudier les solutions de défense proposées. Néanmoins, la multiplication rapide des publications scientifiques, la diversité des types d'attaques et l'évolution constante des techniques adversariales rendent difficile l'exploitation efficace de ces connaissances.
 
@@ -240,11 +240,11 @@ Les articles scientifiques ne sont pas rédigés pour être exploités automatiq
 
 ### Ancrer chaque attaque dans une taxonomie adaptée
 
-Pour comparer des attaques issues d'articles différents, il est nécessaire de les rattacher à un référentiel commun. Le référentiel le plus utilisé en renseignement sur les menaces, MITRE ATT&CK, a été conçu pour les menaces informatiques classiques et ne couvre pas nativement des techniques comme l'injection de prompt ou le *jailbreak*. Le référentiel MITRE ATLAS, dédié aux systèmes d'intelligence artificielle, répond à ce besoin, mais il introduit une autre difficulté : certaines de ses techniques sont proches les unes des autres, et un modèle peut proposer un identifiant qui existe bien dans la taxonomie sans pour autant correspondre à l'attaque décrite.
+Pour comparer des attaques issues d'articles différents, il est nécessaire de les rattacher à un référentiel commun. Le référentiel le plus utilisé en renseignement sur les menaces, MITRE ATT&CK, a été conçu pour les menaces informatiques classiques et ne couvre pas nativement des techniques comme l'injection de *prompt* ou le *jailbreak*. Le référentiel MITRE ATLAS, dédié aux systèmes d'intelligence artificielle, répond à ce besoin, mais il introduit une autre difficulté : certaines de ses techniques sont proches les unes des autres, et un modèle peut proposer un identifiant qui existe bien dans la taxonomie sans pour autant correspondre à l'attaque décrite.
 
 ### Décrire l'attaque avec une granularité suffisante
 
-Une défense n'est utile que si elle agit sur une partie précise de l'attaque. Savoir qu'un passage décrit « une injection de prompt » ne suffit pas pour choisir une contre-mesure : il faut savoir par quel canal l'instruction malveillante entre dans le système, quel mécanisme lui permet de contourner les protections et quel effet elle produit. Sans cette granularité, la recommandation reste générique et risque de ne pas correspondre à l'attaque étudiée.
+Une défense n'est utile que si elle agit sur une partie précise de l'attaque. Savoir qu'un passage décrit « une injection de *prompt* » ne suffit pas pour choisir une contre-mesure : il faut savoir par quel canal l'instruction malveillante entre dans le système, quel mécanisme lui permet de contourner les protections et quel effet elle produit. Sans cette granularité, la recommandation reste générique et risque de ne pas correspondre à l'attaque étudiée.
 
 ### Maîtriser les hallucinations et vérifier les recommandations
 
@@ -308,7 +308,7 @@ LADDER apporte une méthode d'extraction à grande échelle des schémas d'attaq
 
 ### Limites
 
-Comme CTINexus, LADDER décrit les attaques sans proposer de défense. Son rattachement taxonomique se fait vers MITRE ATT&CK, qui couvre les menaces informatiques classiques mais pas nativement les techniques propres aux LLM, comme l'injection de prompt ou le *jailbreak*. Enfin, l'approche repose sur des modèles entraînés sur des données annotées, ce qui suppose de disposer de telles données pour un nouveau domaine.
+Comme CTINexus, LADDER décrit les attaques sans proposer de défense. Son rattachement taxonomique se fait vers MITRE ATT&CK, qui couvre les menaces informatiques classiques mais pas nativement les techniques propres aux LLM, comme l'injection de *prompt* ou le *jailbreak*. Enfin, l'approche repose sur des modèles entraînés sur des données annotées, ce qui suppose de disposer de telles données pour un nouveau domaine.
 
 ## 2.3 FALCON : génération de règles de détection à partir de la CTI
 
@@ -350,7 +350,7 @@ TechniqueRAG évalue si l'étiquette produite pour un passage est correcte ; il 
 
 ### Principe
 
-ATAG (Gandhi et al., 2025) s'intéresse à l'évaluation des risques dans les applications fondées sur plusieurs agents LLM. Ces systèmes sont difficiles à analyser, car leurs composants interagissent et les vulnérabilités des LLM évoluent rapidement. Les auteurs proposent de représenter ces risques sous la forme de graphes d'attaque, qui montrent comment un attaquant peut enchaîner plusieurs étapes, par exemple une injection de prompt qui se propage d'un agent à l'autre.
+ATAG (Gandhi et al., 2025) s'intéresse à l'évaluation des risques dans les applications fondées sur plusieurs agents LLM. Ces systèmes sont difficiles à analyser, car leurs composants interagissent et les vulnérabilités des LLM évoluent rapidement. Les auteurs proposent de représenter ces risques sous la forme de graphes d'attaque, qui montrent comment un attaquant peut enchaîner plusieurs étapes, par exemple une injection de *prompt* qui se propage d'un agent à l'autre.
 
 ### Méthodologie et techniques utilisées
 
@@ -439,7 +439,7 @@ Quatre des six approches exploitent des rapports CTI, qui décrivent des inciden
 
 ### L2 — Une taxonomie inadaptée aux attaques contre les LLM
 
-LADDER et TechniqueRAG rattachent les attaques à MITRE ATT&CK, qui ne couvre pas nativement l'injection de prompt ou le *jailbreak*. Seul ATAG utilise MITRE ATLAS, le référentiel dédié aux systèmes d'IA. Par ailleurs, les approches qui valident un identifiant vérifient qu'il appartient à la taxonomie, ce qui n'établit pas qu'il s'agit de la bonne technique ; TechniqueRAG obtient d'ailleurs des résultats nettement plus faibles sur les descriptions les moins standardisées.
+LADDER et TechniqueRAG rattachent les attaques à MITRE ATT&CK, qui ne couvre pas nativement l'injection de *prompt* ou le *jailbreak*. Seul ATAG utilise MITRE ATLAS, le référentiel dédié aux systèmes d'IA. Par ailleurs, les approches qui valident un identifiant vérifient qu'il appartient à la taxonomie, ce qui n'établit pas qu'il s'agit de la bonne technique ; TechniqueRAG obtient d'ailleurs des résultats nettement plus faibles sur les descriptions les moins standardisées.
 
 ### L3 — Une granularité limitée aux entités ou aux techniques
 
@@ -487,13 +487,13 @@ La seconde contribution est méthodologique. Chaque mécanisme de contrôle de C
 
 ## 3.6 Conclusion
 
-La comparaison des six approches avec CARL a montré que l'état de l'art fournit des composants solides mais étudiés séparément, le plus souvent pour des menaces informatiques classiques, et qu'aucun travail ne mesure ce qui se passe lorsqu'on les enchaîne pour protéger un système fondé sur un LLM. Les cinq limites identifiées ont conduit à notre positionnement : une approche, CARL, qui réunit extraction, ancrage dans MITRE ATLAS, adaptation et vérification hors du modèle, et une évaluation qui mesure la propagation des erreurs entre ces étapes. Le chapitre suivant traduit ce positionnement en objectifs précis, puis présente la méthodologie mise en œuvre pour les atteindre : le pipeline global de CARL et son architecture.
+La comparaison des six approches avec CARL a montré que l'état de l'art fournit des composants solides mais étudiés séparément, le plus souvent pour des menaces informatiques classiques, et qu'aucun travail ne mesure ce qui se passe lorsqu'on les enchaîne pour protéger un système fondé sur un LLM. Les cinq limites identifiées ont conduit à notre positionnement : une approche, CARL, qui réunit extraction, ancrage dans MITRE ATLAS, adaptation et vérification hors du modèle, et une évaluation qui mesure la propagation des erreurs entre ces étapes. Le chapitre suivant traduit ce positionnement en objectifs précis, puis présente la méthodologie mise en œuvre pour les atteindre : le *pipeline* global de CARL et son architecture.
 
 ---
 
 # Chapitre 4 — Objectifs et méthodologie
 
-Le chapitre précédent a montré que les approches existantes couvrent séparément l'extraction de connaissances, la classification des attaques et la production de défenses, mais qu'aucune ne relie ces étapes pour les attaques visant les LLM, ni ne mesure ce que devient une erreur lorsqu'elle passe d'une étape à la suivante. Ce chapitre traduit ce positionnement en objectifs, puis décrit la manière dont CARL les réalise. La section 4.1 présente l'objectif général et les cinq objectifs spécifiques. La section 4.2 donne une vue d'ensemble du pipeline, en montrant comment chaque objectif devient une étape. La section 4.3 détaille l'architecture et la mise en œuvre de chacune de ces étapes.
+Le chapitre précédent a montré que les approches existantes couvrent séparément l'extraction de connaissances, la classification des attaques et la production de défenses, mais qu'aucune ne relie ces étapes pour les attaques visant les LLM, ni ne mesure ce que devient une erreur lorsqu'elle passe d'une étape à la suivante. Ce chapitre traduit ce positionnement en objectifs, puis décrit la manière dont CARL les réalise. La section 4.1 présente l'objectif général et les cinq objectifs spécifiques. La section 4.2 donne une vue d'ensemble du *pipeline*, en montrant comment chaque objectif devient une étape. La section 4.3 détaille l'architecture et la mise en œuvre de chacune de ces étapes.
 
 ## 4.1 Objectifs
 
@@ -509,7 +509,7 @@ L'objectif général se décompose en cinq objectifs spécifiques (OS). Chacun r
 
 **OS1 — Extraire des articles l'attaque, son mécanisme et sa défense.** Les approches comme CTINexus, LADDER ou TechniqueRAG partent de rapports CTI, qui décrivent surtout des menaces informatiques classiques. Or les attaques contre les LLM sont aujourd'hui documentées principalement dans des articles scientifiques. Le premier objectif est donc d'extraire automatiquement de ces articles une description structurée de chaque attaque, de son mécanisme et, lorsqu'elle existe, de la défense proposée par les auteurs.
 
-**OS2 — Ancrer chaque cas dans MITRE ATLAS, et enregistrer un « null » si aucune défense n'est documentée.** MITRE ATT&CK, utilisé par LADDER et TechniqueRAG, ne couvre pas les attaques propres aux LLM comme l'injection de prompt ou le *jailbreak*. Le deuxième objectif est de rattacher chaque attaque extraite à une technique de MITRE ATLAS dont l'identifiant a été vérifié. Il s'agit aussi de ne pas combler artificiellement une absence d'information : si un article ne propose aucune défense, le cas l'indique explicitement par une valeur « null » plutôt que par une défense inventée par le modèle.
+**OS2 — Ancrer chaque cas dans MITRE ATLAS, et enregistrer un « null » si aucune défense n'est documentée.** MITRE ATT&CK, utilisé par LADDER et TechniqueRAG, ne couvre pas les attaques propres aux LLM comme l'injection de *prompt* ou le *jailbreak*. Le deuxième objectif est de rattacher chaque attaque extraite à une technique de MITRE ATLAS dont l'identifiant a été vérifié. Il s'agit aussi de ne pas combler artificiellement une absence d'information : si un article ne propose aucune défense, le cas l'indique explicitement par une valeur « null » plutôt que par une défense inventée par le modèle.
 
 **OS3 — Représenter l'attaque par sa chaîne causale.** Les approches étudiées décrivent les attaques par des entités isolées ou par une technique. Ce niveau de détail ne permet pas de dire où une défense doit agir. Le troisième objectif est de décrire chaque nouvelle attaque par une chaîne de trois maillons : le **vecteur d'entrée** (par où le contenu malveillant atteint le modèle), le **contournement** (comment il franchit les protections) et l'**impact** (ce que l'attaquant obtient).
 
@@ -521,7 +521,7 @@ L'objectif général se décompose en cinq objectifs spécifiques (OS). Chacun r
 - **citer la source** : chaque mesure recommandée doit indiquer le cas dont elle s'inspire, donc la technique ATLAS et l'article d'origine. Un analyste peut ainsi remonter à la source et contrôler la recommandation avant de l'appliquer ;
 - **évaluer chaque étape** : au lieu de juger seulement la recommandation finale, on mesure séparément, sur les mêmes cas, la qualité de l'extraction, de la classification, de la recherche et de la recommandation. On peut alors savoir à quelle étape une erreur est apparue et comment elle s'est transmise aux étapes suivantes.
 
-Le tableau 4.1 récapitule le lien entre chaque limite, l'objectif qui y répond et l'étape du pipeline qui le réalise.
+Le tableau 4.1 récapitule le lien entre chaque limite, l'objectif qui y répond et l'étape du *pipeline* qui le réalise.
 
 *Tableau 4.1 — Des limites de l'état de l'art aux étapes de CARL*
 
@@ -535,7 +535,7 @@ Le tableau 4.1 récapitule le lien entre chaque limite, l'objectif qui y répond
 
 ### 4.1.3 Périmètre
 
-Ces objectifs portent sur la conception de l'approche et sur la mesure de ce qu'elle garantit. Ils ne visent pas à couvrir l'ensemble des attaques contre les LLM : la base de cas est construite à partir d'un corpus de quatorze articles, centré sur l'injection de prompt et le *jailbreak*, et le chapitre 5 précise ce que cette taille permet ou non de conclure. Par ailleurs, la recherche complémentaire d'articles, utilisée lorsque la base ne contient aucun cas assez proche, est implémentée mais n'a pas été activée dans les expériences (section 4.3.8).
+Ces objectifs portent sur la conception de l'approche et sur la mesure de ce qu'elle garantit. Ils ne visent pas à couvrir l'ensemble des attaques contre les LLM : la base de cas est construite à partir d'un corpus de quatorze articles, centré sur l'injection de *prompt* et le *jailbreak*, et le chapitre 5 précise ce que cette taille permet ou non de conclure. Par ailleurs, la recherche complémentaire d'articles, utilisée lorsque la base ne contient aucun cas assez proche, est implémentée mais n'a pas été activée dans les expériences (section 4.3.8).
 
 ## 4.2 Pipeline global de CARL
 
@@ -555,7 +555,7 @@ Dans CARL, un problème est une attaque contre un LLM, et sa solution est la dé
 
 ### 4.2.2 Deux phases : construire la base, puis répondre
 
-Le pipeline de CARL se déroule en deux phases, présentées à la figure 4.1. Chaque colonne de la figure se lit de haut en bas : la limite de l'état de l'art, l'objectif spécifique qui y répond, puis l'étape qui le réalise.
+Le *pipeline* de CARL se déroule en deux phases, présentées à la figure 4.1. Chaque colonne de la figure se lit de haut en bas : la limite de l'état de l'art, l'objectif spécifique qui y répond, puis l'étape qui le réalise.
 
 ![Pipeline global de CARL](figures/fig4_1_pipeline.png)
 
@@ -578,7 +578,7 @@ Les deux phases correspondent au cycle du raisonnement à partir de cas : la pha
 
 ### 4.3.1 Vue d'ensemble
 
-La figure 4.2 présente l'architecture de CARL. Elle reprend les deux phases du pipeline et fait apparaître les services partagés qu'elles utilisent.
+La figure 4.2 présente l'architecture de CARL. Elle reprend les deux phases du *pipeline* et fait apparaître les services partagés qu'elles utilisent.
 
 ![Architecture de CARL](figures/fig4_2_architecture.png)
 
@@ -616,11 +616,11 @@ Les quatre premières étiquettes correspondent aux axes d'analyse d'une attaque
 
 Une difficulté pratique est apparue lors du développement : GLiNER ne lit qu'un nombre limité de jetons, et tronque sans avertissement la suite d'une entrée trop longue. Avec des passages de 3 000 caractères, environ un tiers de chaque passage n'était jamais lu. Chaque passage est donc lui-même parcouru par fenêtres de 200 mots, avec un chevauchement de 30 mots, afin qu'aucune partie du texte ne soit ignorée.
 
-Une alternative a été étudiée : demander directement à Mistral-7B, par un prompt, d'extraire les entités. Cette approche est exposée à des erreurs qu'un extracteur comme GLiNER ne commet pas, car le modèle génère du texte au lieu de sélectionner un segment existant. Nous avons donc développé quatre filtres de validation, chacun visant une erreur observée pendant le développement :
+Une alternative a été étudiée : demander directement à Mistral-7B, par un *prompt*, d'extraire les entités. Cette approche est exposée à des erreurs qu'un extracteur comme GLiNER ne commet pas, car le modèle génère du texte au lieu de sélectionner un segment existant. Nous avons donc développé quatre filtres de validation, chacun visant une erreur observée pendant le développement :
 
 1. une **liste blanche d'étiquettes**, qui rejette toute catégorie absente de la taxonomie ;
 2. une **longueur maximale**, car les entités de ce domaine sont courtes et un segment très long indique que le modèle a recopié une phrase descriptive ;
-3. un **filtre de fuite de l'exemple**, qui supprime toute entité reprenant littéralement une valeur de l'exemple donné dans le prompt ;
+3. un **filtre de fuite de l'exemple**, qui supprime toute entité reprenant littéralement une valeur de l'exemple donné dans le *prompt* ;
 4. un **filtre des valeurs de remplissage**, qui rejette les textes du type « non spécifié » utilisés à la place d'une véritable absence.
 
 Le choix final de GLiNER pour la couche 1 repose sur la comparaison des deux méthodes et sur la mesure de la contribution de chaque filtre, présentées à la section 5.3. Les entités extraites ne sont pas abandonnées après cette étape : elles sont transmises à la couche 2 comme contexte.
@@ -634,13 +634,13 @@ Pour chaque passage, accompagné de ses entités, un second appel à Mistral-7B 
 - un résumé de la défense, ou une valeur « null » explicite si le passage n'en propose aucune ;
 - un niveau de confiance.
 
-Le prompt impose que ces résumés reposent sur le texte du passage et sur ses entités, et non sur les connaissances générales du modèle. Les mêmes règles que pour la couche 1 s'appliquent : aucune étiquette inventée et aucune valeur de remplissage à la place de « null ». Le modèle est utilisé avec une température de 0,1, ce qui limite la variabilité des réponses.
+Le *prompt* impose que ces résumés reposent sur le texte du passage et sur ses entités, et non sur les connaissances générales du modèle. Les mêmes règles que pour la couche 1 s'appliquent : aucune étiquette inventée et aucune valeur de remplissage à la place de « null ». Le modèle est utilisé avec une température de 0,1, ce qui limite la variabilité des réponses.
 
 Les sorties brutes de chaque passage sont enregistrées avant toute agrégation. Il est ainsi possible d'examiner la qualité de l'extraction indépendamment des étapes qui l'utilisent ensuite, ce qui est indispensable pour mesurer la propagation des erreurs.
 
 ### 4.3.5 Validation de la technique MITRE ATLAS
 
-MITRE ATLAS compte environ 84 techniques réparties en 16 tactiques (MITRE ATLAS). Plutôt que de laisser le modèle choisir librement parmi toutes ces techniques, CARL lui présente une liste restreinte de candidats liés aux LLM : injection de prompt directe, indirecte et déclenchée, *jailbreak*, obfuscation de prompt, extraction du prompt système, fuite de données, empoisonnement d'un système RAG ou du contexte d'un agent, entre autres. Ce principe reprend l'idée de TechniqueRAG, appliquée ici à MITRE ATLAS. Le prompt rappelle aussi la différence entre des techniques voisines, par exemple entre un *jailbreak*, qui vise le modèle lui-même, et une injection de prompt, qui détourne une application intégrant un LLM.
+MITRE ATLAS compte environ 84 techniques réparties en 16 tactiques (MITRE ATLAS). Plutôt que de laisser le modèle choisir librement parmi toutes ces techniques, CARL lui présente une liste restreinte de candidats liés aux LLM : injection de *prompt* directe, indirecte et déclenchée, *jailbreak*, obfuscation de *prompt*, extraction du *prompt* système, fuite de données, empoisonnement d'un système RAG ou du contexte d'un agent, entre autres. Ce principe reprend l'idée de TechniqueRAG, appliquée ici à MITRE ATLAS. Le *prompt* rappelle aussi la différence entre des techniques voisines, par exemple entre un *jailbreak*, qui vise le modèle lui-même, et une injection de *prompt*, qui détourne une application intégrant un LLM.
 
 L'identifiant proposé par le modèle est ensuite contrôlé en deux temps :
 
@@ -681,7 +681,7 @@ Lorsqu'une nouvelle attaque est soumise, elle passe d'abord par les mêmes couch
 
 Le filtre par technique est un choix de conception, et non un paramètre ajusté. L'effet de α et de θ est analysé à la section 5.5. Un meilleur score au-dessus de θ est censé signifier que la base *couvre* la nouvelle attaque, ce que l'évaluation vérifie.
 
-L'architecture prévoit aussi un niveau de recherche secondaire, utilisé lorsque aucun cas n'atteint le seuil : une requête est construite à partir des éléments de l'attaque (famille de modèle visée, mécanisme de contournement, technique), des articles sont recherchés dans des bases académiques (Semantic Scholar, arXiv), traités par la phase hors ligne et ajoutés à la base avant une nouvelle recherche. Ce niveau est implémenté et paramétrable, mais il est **désactivé dans toutes les expériences de ce travail** : les cas où le seuil n'est pas atteint sont seulement enregistrés. Ce choix permet d'évaluer le pipeline principal indépendamment de toute recherche en ligne.
+L'architecture prévoit aussi un niveau de recherche secondaire, utilisé lorsque aucun cas n'atteint le seuil : une requête est construite à partir des éléments de l'attaque (famille de modèle visée, mécanisme de contournement, technique), des articles sont recherchés dans des bases académiques (Semantic Scholar, arXiv), traités par la phase hors ligne et ajoutés à la base avant une nouvelle recherche. Ce niveau est implémenté et paramétrable, mais il est **désactivé dans toutes les expériences de ce travail** : les cas où le seuil n'est pas atteint sont seulement enregistrés. Ce choix permet d'évaluer le *pipeline* principal indépendamment de toute recherche en ligne.
 
 ### 4.3.9 Chaîne causale, proposition et adaptation
 
@@ -737,13 +737,13 @@ CARL est implémenté en Python. Le tableau 4.2 récapitule les composants, les 
 | Proposition et révision | Mistral-7B-Instruct-v0.3 via Ollama | Chaîne causale à 3 maillons ; citation obligatoire ; N = 1 révision |
 | Vérification | Règle déterministe, sans modèle génératif | Lexicale : 60 % ; causale : 0,70 (défense) et 0,50 (maillon), puis calibrées |
 
-Le même modèle, Mistral-7B, réalise donc l'extraction guidée par prompt, les résumés de la couche 2 et les étapes *proposer* et *réviser*. Ce choix est volontaire : il permet de comparer, à modèle constant, une vérification par une règle et une vérification par le modèle lui-même. Le seul cas où Mistral-7B joue le rôle de vérificateur est la variante « juge LLM », utilisée comme point de comparaison.
+Le même modèle, Mistral-7B, réalise donc l'extraction guidée par *prompt*, les résumés de la couche 2 et les étapes *proposer* et *réviser*. Ce choix est volontaire : il permet de comparer, à modèle constant, une vérification par une règle et une vérification par le modèle lui-même. Le seul cas où Mistral-7B joue le rôle de vérificateur est la variante « juge LLM », utilisée comme point de comparaison.
 
 ## 4.4 Conclusion
 
-Ce chapitre a traduit le positionnement de CARL en un objectif général et cinq objectifs spécifiques, chacun répondant à une limite de l'état de l'art. Il a montré comment ces objectifs deviennent les étapes d'un pipeline en deux phases : une construction hors ligne, qui extrait des articles une base de cas ancrée dans MITRE ATLAS, et une recommandation en ligne, qui décrit une nouvelle attaque par sa chaîne causale, retrouve les cas les plus proches, adapte leur défense et la vérifie par une règle extérieure au modèle.
+Ce chapitre a traduit le positionnement de CARL en un objectif général et cinq objectifs spécifiques, chacun répondant à une limite de l'état de l'art. Il a montré comment ces objectifs deviennent les étapes d'un *pipeline* en deux phases : une construction hors ligne, qui extrait des articles une base de cas ancrée dans MITRE ATLAS, et une recommandation en ligne, qui décrit une nouvelle attaque par sa chaîne causale, retrouve les cas les plus proches, adapte leur défense et la vérifie par une règle extérieure au modèle.
 
-Il a aussi fait apparaître que chacun des trois mécanismes de contrôle du pipeline vérifie une propriété plus facile que celle qui est réellement recherchée : un identifiant valide plutôt que correct, un cas proche plutôt que pertinent, une mesure traçable plutôt qu'efficace. Le chapitre suivant évalue CARL étape par étape, en mesurant pour chacun de ces mécanismes l'écart entre ce qu'il vérifie et ce qu'il est censé garantir, puis la manière dont les erreurs se propagent d'une étape à l'autre.
+Il a aussi fait apparaître que chacun des trois mécanismes de contrôle du *pipeline* vérifie une propriété plus facile que celle qui est réellement recherchée : un identifiant valide plutôt que correct, un cas proche plutôt que pertinent, une mesure traçable plutôt qu'efficace. Le chapitre suivant évalue CARL étape par étape, en mesurant pour chacun de ces mécanismes l'écart entre ce qu'il vérifie et ce qu'il est censé garantir, puis la manière dont les erreurs se propagent d'une étape à l'autre.
 
 ---
 
@@ -757,11 +757,11 @@ Ce chapitre évalue CARL étape par étape. Il présente d'abord les données ut
 
 **Présentation des articles.** La base de cas de CARL est construite à partir d'un corpus de quatorze articles scientifiques consacrés aux attaques contre les LLM et à leurs défenses. Le corpus a été constitué en deux temps.
 
-Trois articles ont servi au développement initial du pipeline :
+Trois articles ont servi au développement initial du *pipeline* :
 
-- une étude de l'injection de prompt indirecte contre les applications intégrant un LLM (Greshake et al., 2023) ;
+- une étude de l'injection de *prompt* indirecte contre les applications intégrant un LLM (Greshake et al., 2023) ;
 - une analyse théorique des limites de l'alignement des LLM (Wolf et al., 2023) ;
-- une formalisation et un banc d'essai des attaques par injection de prompt et de leurs défenses (Liu et al., 2024).
+- une formalisation et un banc d'essai des attaques par injection de *prompt* et de leurs défenses (Liu et al., 2024).
 
 Le corpus a ensuite été élargi avec onze articles publiés sur arXiv, présentés dans le tableau 5.1 et regroupés par famille d'attaques.
 
@@ -769,9 +769,9 @@ Le corpus a ensuite été élargi avec onze articles publiés sur arXiv, présen
 
 | Famille | Article | Nature de la contribution |
 |---|---|---|
-| Injection de prompt directe | *Ignore Previous Prompt: Attack Techniques For Language Models* (Perez et Ribeiro, 2022) | Attaque |
-| Injection de prompt indirecte | *Benchmarking and Defending Against Indirect Prompt Injection Attacks on Large Language Models* (Yi et al., 2023) | Banc d'essai et défense |
-| Injection de prompt | *StruQ: Defending Against Prompt Injection with Structured Queries* (Chen et al., 2024) | Défense |
+| Injection de *prompt* directe | *Ignore Previous Prompt: Attack Techniques For Language Models* (Perez et Ribeiro, 2022) | Attaque |
+| Injection de *prompt* indirecte | *Benchmarking and Defending Against Indirect Prompt Injection Attacks on Large Language Models* (Yi et al., 2023) | Banc d'essai et défense |
+| Injection de *prompt* | *StruQ: Defending Against Prompt Injection with Structured Queries* (Chen et al., 2024) | Défense |
 | Agents avec outils | *InjecAgent: Benchmarking Indirect Prompt Injections in Tool-Integrated Large Language Model Agents* (Zhan et al., 2024) | Banc d'essai |
 | *Jailbreak* | *Jailbroken: How Does LLM Safety Training Fail?* (Wei et al., 2023) | Analyse des attaques |
 | *Jailbreak* | *Universal and Transferable Adversarial Attacks on Aligned Language Models* (Zou et al., 2023) | Attaque |
@@ -788,15 +788,15 @@ Le corpus a ensuite été élargi avec onze articles publiés sur arXiv, présen
 - des **bancs d'essai** (*benchmarks*), qui évaluent de manière systématique plusieurs attaques et défenses ;
 - des **analyses** des attaques, empiriques ou théoriques, qui expliquent pourquoi les protections échouent.
 
-Cette variété est volontaire. Un article d'attaque fournit surtout la description d'une attaque, souvent sans défense : il produit des cas avec une défense « null ». Un article de défense ou un banc d'essai fournit au contraire des mesures de protection. Le corpus permet ainsi de vérifier que le pipeline sait distinguer ces deux situations.
+Cette variété est volontaire. Un article d'attaque fournit surtout la description d'une attaque, souvent sans défense : il produit des cas avec une défense « null ». Un article de défense ou un banc d'essai fournit au contraire des mesures de protection. Le corpus permet ainsi de vérifier que le *pipeline* sait distinguer ces deux situations.
 
 **Pourquoi ces articles ont été sélectionnés.** Les articles ajoutés ont été choisis selon trois critères.
 
-1. *Couvrir plusieurs fois les mêmes techniques.* Les articles portent sur les techniques déjà présentes dans les trois premiers articles : injection de prompt directe, indirecte et déclenchée, *jailbreak* et empoisonnement. Avoir plusieurs cas d'une même technique, issus d'articles différents, donne à la recherche de cas de vrais choix à faire.
+1. *Couvrir plusieurs fois les mêmes techniques.* Les articles portent sur les techniques déjà présentes dans les trois premiers articles : injection de *prompt* directe, indirecte et déclenchée, *jailbreak* et empoisonnement. Avoir plusieurs cas d'une même technique, issus d'articles différents, donne à la recherche de cas de vrais choix à faire.
 2. *Inclure des articles de défense.* Un cas sans défense n'aide pas à recommander une mesure. Des articles centrés sur la défense (StruQ, BIPIA, SmoothLLM et les défenses de base de Jain et al.) ont donc été ajoutés.
 3. *Exclure volontairement certaines attaques.* Aucun article ne porte sur l'inférence d'appartenance, l'extraction de modèle, l'extraction de données d'entraînement ou les exemples adverses sur des images. Ces attaques sont réservées aux requêtes de test hors corpus : elles servent à vérifier si CARL signale correctement qu'aucun cas de sa base ne couvre une attaque. Les inclure dans le corpus supprimerait ces exemples négatifs.
 
-Avant chaque téléchargement, le titre de l'article sur arXiv est comparé au titre attendu, afin d'éviter d'intégrer un mauvais document. Il faut noter enfin que le corpus est dominé par l'injection de prompt et le *jailbreak*. Il suffit pour construire et tester le pipeline, mais pas pour prétendre couvrir l'ensemble des attaques contre les LLM.
+Avant chaque téléchargement, le titre de l'article sur arXiv est comparé au titre attendu, afin d'éviter d'intégrer un mauvais document. Il faut noter enfin que le corpus est dominé par l'injection de *prompt* et le *jailbreak*. Il suffit pour construire et tester le *pipeline*, mais pas pour prétendre couvrir l'ensemble des attaques contre les LLM.
 
 ### 5.1.2 Constitution de la base de cas
 
@@ -819,7 +819,7 @@ Les quatorze articles ont été traités par la phase hors ligne décrite au cha
 
 **Base construite.** La couche 2 a analysé 263 passages, dont 212 décrivent une attaque confirmée. La déduplication, qui conserve au plus trois cas par couple (article, technique), ramène ce nombre à 119 cas. Parmi eux, 107 ont reçu un identifiant ATLAS qui a passé la validation, et 12 une abstention ; 92 comportent une défense extraite, et 27 une valeur « null » explicite. Toutes les expériences sont menées sur cette base, **telle que le pipeline l'a produite, sans correction manuelle**. C'est en effet la construction automatique qui distingue CARL des bases construites à la main, comme la LVD d'ATAG (Gandhi et al., 2025) : il faut donc évaluer ce que produit réellement l'automatisation.
 
-**Base révisée.** Les 119 cas ont ensuite été relus un par un. Cette revue a conduit à une seconde version de la base, dite *révisée* : 11 enregistrements qui ne décrivent pas une attaque ont été retirés, les identifiants erronés ont été corrigés, et les défenses qui ne sont pas de véritables contre-mesures ont été remplacées par « null ». Elle compte 108 cas, dont 84 concernent le *jailbreak* ou l'injection de prompt. Cette base révisée n'est jamais utilisée comme base de travail : elle sert seulement de **borne supérieure**, pour estimer ce qu'obtiendrait CARL si sa classification était sans erreur.
+**Base révisée.** Les 119 cas ont ensuite été relus un par un. Cette revue a conduit à une seconde version de la base, dite *révisée* : 11 enregistrements qui ne décrivent pas une attaque ont été retirés, les identifiants erronés ont été corrigés, et les défenses qui ne sont pas de véritables contre-mesures ont été remplacées par « null ». Elle compte 108 cas, dont 84 concernent le *jailbreak* ou l'injection de *prompt*. Cette base révisée n'est jamais utilisée comme base de travail : elle sert seulement de **borne supérieure**, pour estimer ce qu'obtiendrait CARL si sa classification était sans erreur.
 
 ### 5.1.3 Jeux de données de test
 
@@ -837,11 +837,11 @@ Chaque étape de CARL est évaluée sur un jeu de données adapté à ce qu'elle
 
 **Annotation des entités.** Un article du corpus (Greshake et al., 2023) a été annoté à la main avec les sept étiquettes de la couche 1 : il contient 45 entités. Cette annotation sert de référence pour évaluer l'extraction.
 
-**Revue de la base de cas.** Le pipeline vérifie qu'un identifiant ATLAS est *valide*, mais pas qu'il est *correct*. Pour le savoir, chacun des 119 cas a été relu afin de répondre à quatre questions : le cas décrit-il une attaque ? la technique est-elle correcte ? la défense est-elle une vraie contre-mesure ? la valeur « null » est-elle justifiée ? Un assistant LLM a proposé une première réponse, que nous avons vérifiée cas par cas. Comme aucun second annotateur n'était disponible, 30 cas ont été annotés une seconde fois pour mesurer la cohérence de la revue.
+**Revue de la base de cas.** Le *pipeline* vérifie qu'un identifiant ATLAS est *valide*, mais pas qu'il est *correct*. Pour le savoir, chacun des 119 cas a été relu afin de répondre à quatre questions : le cas décrit-il une attaque ? la technique est-elle correcte ? la défense est-elle une vraie contre-mesure ? la valeur « null » est-elle justifiée ? Un assistant LLM a proposé une première réponse, que nous avons vérifiée cas par cas. Comme aucun second annotateur n'était disponible, 30 cas ont été annotés une seconde fois pour mesurer la cohérence de la revue.
 
 **Requêtes d'attaque.** Une requête est une courte description d'attaque, comme celle qu'un analyste pourrait soumettre à CARL. Nous en avons rédigé 18, avant de regarder le contenu de la base :
 
-- **14 requêtes couvertes** : elles portent sur des attaques présentes dans la base (injection de prompt, *jailbreak*, empoisonnement…). CARL doit retrouver un cas pertinent et proposer une défense ;
+- **14 requêtes couvertes** : elles portent sur des attaques présentes dans la base (injection de *prompt*, *jailbreak*, empoisonnement…). CARL doit retrouver un cas pertinent et proposer une défense ;
 - **4 requêtes hors corpus** : elles portent sur des attaques volontairement exclues du corpus (inférence d'appartenance, extraction de modèle, extraction de données d'entraînement, perturbation adverse d'image). CARL doit signaler qu'aucun cas ne les couvre.
 
 **Paires de calibration.** 20 paires de cas de même technique servent à fixer les seuils du vérificateur causal, sans utiliser les requêtes de test.
@@ -852,7 +852,7 @@ Chaque étape de CARL est évaluée sur un jeu de données adapté à ce qu'elle
 
 ### 5.2.1 Principe de l'évaluation
 
-L'évaluation ne se limite pas à juger la recommandation finale. Chaque étape de CARL est évaluée séparément, sur les mêmes cas, pour deux raisons. D'une part, une erreur commise au début du pipeline peut rester invisible à la fin : une recommandation peut être bien formée et citer un cas, alors que ce cas a été mal classé deux étapes plus tôt. D'autre part, chaque mécanisme de contrôle de CARL vérifie une propriété facile à mesurer, qui n'est pas exactement la propriété recherchée. L'évaluation compare donc, à chaque étape, ce que le mécanisme vérifie et ce qu'il est censé garantir.
+L'évaluation ne se limite pas à juger la recommandation finale. Chaque étape de CARL est évaluée séparément, sur les mêmes cas, pour deux raisons. D'une part, une erreur commise au début du *pipeline* peut rester invisible à la fin : une recommandation peut être bien formée et citer un cas, alors que ce cas a été mal classé deux étapes plus tôt. D'autre part, chaque mécanisme de contrôle de CARL vérifie une propriété facile à mesurer, qui n'est pas exactement la propriété recherchée. L'évaluation compare donc, à chaque étape, ce que le mécanisme vérifie et ce qu'il est censé garantir.
 
 Trois questions de recherche structurent cette comparaison, une par mécanisme de contrôle :
 
@@ -860,7 +860,7 @@ Trois questions de recherche structurent cette comparaison, une par mécanisme d
 - **RQ2 — Recherche de cas.** Le cas le plus *proche* est-il vraiment un cas *pertinent* ? Le seuil de similarité est censé indiquer que la base couvre l'attaque ; la question est de savoir s'il le fait réellement.
 - **RQ3 — Vérification des recommandations.** Une défense qui *cite* un cas est-elle une *bonne* défense ? La vérification garantit qu'une mesure est rattachée à un cas ; la question est de savoir si elle protège contre l'attaque.
 
-L'extraction des entités, qui précède ces trois étapes, est évaluée en premier, car elle fournit le contexte de tout le reste du pipeline. Une évaluation humaine complète enfin les mesures automatiques.
+L'extraction des entités, qui précède ces trois étapes, est évaluée en premier, car elle fournit le contexte de tout le reste du *pipeline*. Une évaluation humaine complète enfin les mesures automatiques.
 
 ### 5.2.2 Mesures utilisées à chaque étape
 
@@ -870,19 +870,19 @@ Le tableau 5.4 récapitule, pour chaque étape, le jeu de données, ce qui est c
 
 | Étape | Jeu de données | Ce qui est comparé | Mesures |
 |---|---|---|---|
-| Extraction des entités | 45 entités annotées | GLiNER et Mistral-7B guidé par prompt ; effet de chaque filtre | Précision, rappel, F1, taux d'hallucination |
+| Extraction des entités | 45 entités annotées | GLiNER et Mistral-7B guidé par *prompt* ; effet de chaque filtre | Précision, rappel, F1, taux d'hallucination |
 | RQ1 — Classification | Revue des 119 cas | Identifiant valide et identifiant correct | Taux de validité, taux d'exactitude, fiabilité des « null » et des abstentions, accord intra-annotateur |
 | RQ2 — Recherche | 18 requêtes | Base construite et base révisée ; requêtes couvertes et hors corpus | Hit@1, Hit@3, MRR, similarité du meilleur cas |
 | RQ3 — Recommandations | 18 requêtes, 20 paires de calibration | Génération sans recherche, recherche sans vérification, boucle avec vérification, variantes du vérificateur | Ancrage, taux d'hallucination, adaptation, adéquation causale, part des requêtes servies |
 | Évaluation humaine | 76 recommandations | Les configurations de RQ3 | Échelles de 1 à 5, accord entre évaluateurs |
 
-Le tableau se lit de haut en bas, dans l'ordre du pipeline. Pour l'extraction, les entités produites sont comparées à l'annotation manuelle. Pour RQ1, on compare la part d'identifiants valides à la part d'identifiants corrects selon la revue. Pour RQ2, on vérifie si les cas retrouvés sont pertinents (Hit@1 : le premier cas est pertinent ; Hit@3 : au moins un des trois l'est ; MRR : un cas pertinent compte d'autant plus qu'il est bien classé), et si le seuil θ sépare les requêtes couvertes des requêtes hors corpus. Pour RQ3, on mesure surtout l'*ancrage*, c'est-à-dire la part des recommandations rattachées à un cas qui les justifie, et la part des requêtes qui reçoivent une recommandation. L'évaluation humaine vérifie enfin si des lecteurs externes perçoivent les différences entre configurations.
+Le tableau se lit de haut en bas, dans l'ordre du *pipeline*. Pour l'extraction, les entités produites sont comparées à l'annotation manuelle. Pour RQ1, on compare la part d'identifiants valides à la part d'identifiants corrects selon la revue. Pour RQ2, on vérifie si les cas retrouvés sont pertinents (Hit@1 : le premier cas est pertinent ; Hit@3 : au moins un des trois l'est ; MRR : un cas pertinent compte d'autant plus qu'il est bien classé), et si le seuil θ sépare les requêtes couvertes des requêtes hors corpus. Pour RQ3, on mesure surtout l'*ancrage*, c'est-à-dire la part des recommandations rattachées à un cas qui les justifie, et la part des requêtes qui reçoivent une recommandation. L'évaluation humaine vérifie enfin si des lecteurs externes perçoivent les différences entre configurations.
 
 Comme les effectifs sont petits, les taux sont accompagnés d'intervalles de confiance à 95 %, et la cohérence des annotations est mesurée par un coefficient d'accord (kappa de Cohen pour la revue, alpha de Krippendorff pour l'évaluation humaine).
 
 ## 5.3 Extraction des entités
 
-Cette étape compare les méthodes envisagées pour la couche 1 sur l'article annoté (45 entités) : GLiNER, qui sélectionne des segments du texte, et quatre variantes de Mistral-7B guidé par un prompt, de plus en plus spécifiques. La variante *naïve* donne une simple consigne ; la variante *travaillée* (*engineered*) structure davantage la demande ; la variante *personnalisée* (*custom*) part d'un besoin formulé par l'utilisateur ; la variante *thématique* (*topic*) fournit la taxonomie des sept étiquettes avec leur description.
+Cette étape compare les méthodes envisagées pour la couche 1 sur l'article annoté (45 entités) : GLiNER, qui sélectionne des segments du texte, et quatre variantes de Mistral-7B guidé par un *prompt*, de plus en plus spécifiques. La variante *naïve* donne une simple consigne ; la variante *travaillée* (*engineered*) structure davantage la demande ; la variante *personnalisée* (*custom*) part d'un besoin formulé par l'utilisateur ; la variante *thématique* (*topic*) fournit la taxonomie des sept étiquettes avec leur description.
 
 ### 5.3.1 Choix de l'extracteur
 
@@ -911,7 +911,7 @@ Les filtres ont été évalués sur la variante thématique de Mistral-7B, en le
 | Sans filtre | Sortie brute de Mistral-7B, sans aucun contrôle | 0,083 | 0,511 | 0,143 | 0,011 |
 | + liste blanche d'étiquettes | Rejette toute entité dont l'étiquette ne fait pas partie des sept étiquettes de la taxonomie | 0,089 | 0,467 | 0,150 | 0,013 |
 | + longueur maximale | Rejette les segments trop longs, qui sont en général des phrases descriptives et non des entités | 0,116 | 0,467 | 0,186 | 0,017 |
-| + fuite de l'exemple | Rejette toute entité qui recopie une valeur de l'exemple donné dans le prompt | 0,116 | 0,467 | 0,186 | 0,017 |
+| + fuite de l'exemple | Rejette toute entité qui recopie une valeur de l'exemple donné dans le *prompt* | 0,116 | 0,467 | 0,186 | 0,017 |
 | + valeurs de remplissage | Rejette les textes vides de sens, comme « non spécifié », utilisés à la place d'une absence | 0,116 | 0,467 | 0,186 | 0,017 |
 | Système complet (+ format, bruit des citations) | Ajoute le contrôle du format de sortie et le retrait des fragments issus des citations bibliographiques | 0,121 | 0,467 | 0,192 | 0,017 |
 
@@ -951,7 +951,7 @@ CARL valide chaque identifiant ATLAS : il vérifie que l'identifiant existe et q
 
 ### 5.4.3 Analyse des erreurs
 
-Les erreurs ne sont pas dues au hasard. Le modèle confond surtout le *jailbreak*, qui vise les protections du modèle, et l'injection de prompt, qui détourne les instructions d'une application : dans les deux cas, l'attaque consiste à faire suivre au modèle des instructions malveillantes. La bonne technique figurait pourtant dans la liste des candidats, et fournir au modèle les définitions officielles d'ATLAS ne corrige pas la confusion (41,1 % et 39,8 % d'identifiants corrects, contre 47,5 %).
+Les erreurs ne sont pas dues au hasard. Le modèle confond surtout le *jailbreak*, qui vise les protections du modèle, et l'injection de *prompt*, qui détourne les instructions d'une application : dans les deux cas, l'attaque consiste à faire suivre au modèle des instructions malveillantes. La bonne technique figurait pourtant dans la liste des candidats, et fournir au modèle les définitions officielles d'ATLAS ne corrige pas la confusion (41,1 % et 39,8 % d'identifiants corrects, contre 47,5 %).
 
 Ces erreurs ont des conséquences sur les étapes suivantes. La recherche de cas filtre les candidats par technique : un cas mal classé peut être écarté d'une requête à laquelle il répondait, ou proposé pour une attaque différente. La défense recommandée peut alors s'appuyer sur un cas qui ne correspond pas à l'attaque.
 
@@ -1002,7 +1002,7 @@ Un cas proche n'est pas forcément pertinent, et une similarité élevée ne pro
 
 ### 5.6.1 Objectif de l'expérience
 
-L'expérience vérifie si une recommandation acceptée par le vérificateur est réellement adaptée à l'attaque. Les configurations sont comparées selon l'**ancrage** (part des recommandations justifiées par un cas cité), l'**adéquation causale** (la mesure vise un maillon réel de l'attaque) et l'**adaptation** (la mesure tient compte de la nouvelle attaque). Les résultats portent sur 13 requêtes couvertes : la requête sur l'extraction du prompt système, marquée hors corpus dans le fichier de requêtes, est exclue.
+L'expérience vérifie si une recommandation acceptée par le vérificateur est réellement adaptée à l'attaque. Les configurations sont comparées selon l'**ancrage** (part des recommandations justifiées par un cas cité), l'**adéquation causale** (la mesure vise un maillon réel de l'attaque) et l'**adaptation** (la mesure tient compte de la nouvelle attaque). Les résultats portent sur 13 requêtes couvertes : la requête sur l'extraction du *prompt* système, marquée hors corpus dans le fichier de requêtes, est exclue.
 
 ### 5.6.2 Comparaison des différentes configurations
 
@@ -1062,7 +1062,7 @@ Dans les trois cas, la propriété vérifiée est plus faible que la propriété
 
 Les erreurs ne restent pas dans l'étape où elles apparaissent. L'erreur de classification de RQ1 se retrouve d'abord dans la récupération : corriger seulement les techniques fait passer le Hit@1 de 0,571 à 1,000. Elle se retrouve ensuite dans les recommandations, car le vérificateur accepte une mesure dès qu'elle cite un cas, même mal classé. L'exemple du *jailbreak* en Base64 le montre : tous les contrôles sont satisfaits, mais la mesure ne répond pas à l'attaque.
 
-Un ancrage de 1,00 à la dernière étape ne suffit donc pas à juger le pipeline : il faut connaître la qualité de chaque étape, mesurée sur les mêmes cas. Ces mesures héritent toutefois des limites de la revue : une seule annotatrice et peu de requêtes.
+Un ancrage de 1,00 à la dernière étape ne suffit donc pas à juger le *pipeline* : il faut connaître la qualité de chaque étape, mesurée sur les mêmes cas. Ces mesures héritent toutefois des limites de la revue : une seule annotatrice et peu de requêtes.
 
 ### 5.7.3 Conclusion
 
@@ -1074,13 +1074,13 @@ Ce chapitre a évalué CARL étape par étape, sur les mêmes cas. À chaque ét
 
 Le chapitre précédent a présenté les résultats de CARL étape par étape. Ce chapitre les interprète : il explique ce qu'ils montrent, répond à la problématique, situe l'apport de CARL par rapport à l'état de l'art, puis présente les limites de ce travail.
 
-## 6.1 Interprétation des résultats : la substitution de proxies
+## 6.1 Interprétation des résultats : la substitution de *proxies*
 
 Les trois questions de recherche aboutissent au même constat. À chaque étape, CARL contrôle une propriété facile à vérifier, que nous appelons un *proxy*, à la place de la propriété réellement recherchée : un identifiant **valide** à la place d'un identifiant correct, un cas **proche** à la place d'un cas pertinent, une défense **citée** à la place d'une bonne défense.
 
-Chaque proxy apporte une garantie réelle. La validation empêche les identifiants inventés, le seuil écarte les requêtes clairement hors domaine, et la vérification empêche les recommandations sans source. Mais aucun ne garantit la propriété visée, et l'erreur qui reste à une étape devient l'entrée de l'étape suivante. C'est pourquoi une recommandation peut passer tous les contrôles et rester inadaptée, comme dans l'exemple du *jailbreak* encodé en Base64 : chaque contrôle est satisfait, mais l'erreur se trouve dans l'enchaînement des étapes.
+Chaque *proxy* apporte une garantie réelle. La validation empêche les identifiants inventés, le seuil écarte les requêtes clairement hors domaine, et la vérification empêche les recommandations sans source. Mais aucun ne garantit la propriété visée, et l'erreur qui reste à une étape devient l'entrée de l'étape suivante. C'est pourquoi une recommandation peut passer tous les contrôles et rester inadaptée, comme dans l'exemple du *jailbreak* encodé en Base64 : chaque contrôle est satisfait, mais l'erreur se trouve dans l'enchaînement des étapes.
 
-Ce constat dépasse probablement CARL. Tout pipeline qui enchaîne extraction, classification, recherche et génération peut afficher un bon résultat à la dernière étape tout en ayant hérité d'erreurs importantes au début. Nos résultats ne permettent pas de le démontrer en général, mais ils montrent qu'il faut mesurer la validité et l'exactitude séparément, à chaque étape et sur les mêmes cas.
+Ce constat dépasse probablement CARL. Tout *pipeline* qui enchaîne extraction, classification, recherche et génération peut afficher un bon résultat à la dernière étape tout en ayant hérité d'erreurs importantes au début. Nos résultats ne permettent pas de le démontrer en général, mais ils montrent qu'il faut mesurer la validité et l'exactitude séparément, à chaque étape et sur les mêmes cas.
 
 ## 6.2 Réponse à la problématique
 
@@ -1088,7 +1088,7 @@ La problématique de ce mémoire demandait comment exploiter la littérature sci
 
 Les résultats apportent une réponse en partie positive. CARL construit automatiquement une base de cas à partir d'articles et enregistre de manière fiable l'absence de défense (« null » justifié 21 fois sur 22). Ses recommandations sont **vérifiables** : chacune cite son cas, sa technique et son article. Les **hallucinations** sont limitées : avec vérification, aucune recommandation n'est produite sans appui sur un cas, alors que le modèle seul en propose sans aucun ancrage. La **granularité** est améliorée par la chaîne causale, puisque les mesures acceptées visent un maillon précis de l'attaque. Enfin, les **déviations** liées à l'auto-validation sont évitées, puisque la vérification est confiée à une règle extérieure au modèle.
 
-La réponse reste incomplète sur la **précision**. Une recommandation vérifiable n'est pas forcément correcte : sa qualité dépend de la classification, qui reste le point faible du pipeline avec un modèle de 7 milliards de paramètres. De plus, le seuil de similarité ne permet pas de savoir de façon fiable quand la base ne couvre pas une attaque.
+La réponse reste incomplète sur la **précision**. Une recommandation vérifiable n'est pas forcément correcte : sa qualité dépend de la classification, qui reste le point faible du *pipeline* avec un modèle de 7 milliards de paramètres. De plus, le seuil de similarité ne permet pas de savoir de façon fiable quand la base ne couvre pas une attaque.
 
 L'apport principal de CARL n'est donc pas d'éliminer les erreurs, mais de les rendre **mesurables**. Comme chaque recommandation est traçable, il est possible de remonter jusqu'à l'étape qui a produit une erreur et de mesurer comment elle se propage. Cette mesure n'aurait pas été possible avec une génération libre.
 
@@ -1100,7 +1100,7 @@ Par rapport à **ATAG**, qui construit à la main sa base de vulnérabilités, C
 
 Par rapport à **FALCON** et **Self-Refine**, qui confient le contrôle au modèle générateur, nos résultats confirment le risque d'auto-approbation dans notre domaine : la critique de Self-Refine a approuvé tous ses plans initiaux, et seulement 13 % de ses recommandations sont ancrées. Le juge LLM accepte également plus de recommandations, avec une adéquation causale plus faible. La séparation entre génération et vérification est donc justifiée.
 
-Par rapport à **TechniqueRAG**, qui restreint les techniques proposées au modèle, nos résultats montrent la limite de ce principe avec un petit modèle : la restriction empêche les identifiants inventés, mais ne suffit pas à séparer des techniques voisines comme le *jailbreak* et l'injection de prompt, même avec les définitions officielles.
+Par rapport à **TechniqueRAG**, qui restreint les techniques proposées au modèle, nos résultats montrent la limite de ce principe avec un petit modèle : la restriction empêche les identifiants inventés, mais ne suffit pas à séparer des techniques voisines comme le *jailbreak* et l'injection de *prompt*, même avec les définitions officielles.
 
 Enfin, aucune des approches étudiées ne mesure la propagation des erreurs entre étapes. C'est l'apport méthodologique de ce travail.
 
@@ -1112,7 +1112,7 @@ Il n'existe donc pas de « meilleur » vérificateur dans l'absolu : chaque conf
 
 ## 6.5 Limites
 
-**Taille du corpus.** La base contient 119 cas extraits de 14 articles, et l'évaluation repose sur 18 requêtes. Le corpus est dominé par le *jailbreak* et l'injection de prompt, et plusieurs techniques ATLAS n'ont qu'un seul cas. Les résultats sont donc indicatifs : ils ne prétendent pas couvrir l'ensemble des attaques contre les LLM, et la structure des confusions observées peut être propre à cette répartition.
+**Taille du corpus.** La base contient 119 cas extraits de 14 articles, et l'évaluation repose sur 18 requêtes. Le corpus est dominé par le *jailbreak* et l'injection de *prompt*, et plusieurs techniques ATLAS n'ont qu'un seul cas. Les résultats sont donc indicatifs : ils ne prétendent pas couvrir l'ensemble des attaques contre les LLM, et la structure des confusions observées peut être propre à cette répartition.
 
 **Annotation unique.** La revue des cas, qui sert de référence pour RQ1 et RQ2, a été pré-annotée avec un assistant LLM puis vérifiée par une seule personne, qui est aussi l'auteure du système. L'accord mesuré est un accord intra-annotateur (kappa de 0,62 pour la technique et de 0,75 pour la défense) : il indique la cohérence de la revue, mais pas son absence de biais. Les taux d'exactitude doivent donc être lus comme des bornes supérieures, et la base de référence comme une borne optimiste. Les mesures de propagation héritent de ces limites.
 
@@ -1126,13 +1126,13 @@ Il n'existe donc pas de « meilleur » vérificateur dans l'absolu : chaque conf
 
 ## 6.6 Conclusion
 
-Les résultats de CARL s'expliquent par une même substitution de proxies, répétée à chaque étape et propagée d'une étape à l'autre. CARL répond en partie à la problématique : ses recommandations sont vérifiables, traçables et mieux ciblées, mais leur précision reste limitée par la classification. Son apport principal est de rendre ces erreurs mesurables. Ces conclusions doivent être lues à la lumière des limites présentées, en particulier la taille du corpus et l'annotation unique. La conclusion générale reprend ces apports et propose des perspectives.
+Les résultats de CARL s'expliquent par une même substitution de *proxies*, répétée à chaque étape et propagée d'une étape à l'autre. CARL répond en partie à la problématique : ses recommandations sont vérifiables, traçables et mieux ciblées, mais leur précision reste limitée par la classification. Son apport principal est de rendre ces erreurs mesurables. Ces conclusions doivent être lues à la lumière des limites présentées, en particulier la taille du corpus et l'annotation unique. La conclusion générale reprend ces apports et propose des perspectives.
 
 ---
 
 # Conclusion générale et perspectives
 
-Ce mémoire est parti d'un constat : les attaques contre les LLM, comme l'injection de prompt, le *jailbreak* ou l'empoisonnement des données, sont documentées dans une littérature scientifique abondante et en évolution rapide, mais un analyste ne peut pas la lire et la transformer à la main en mesures de défense. Laisser un modèle de langage générer librement ces défenses n'est pas une solution satisfaisante, car le modèle peut produire des recommandations non fondées, trop générales, ou valider ses propres erreurs.
+Ce mémoire est parti d'un constat : les attaques contre les LLM, comme l'injection de *prompt*, le *jailbreak* ou l'empoisonnement des données, sont documentées dans une littérature scientifique abondante et en évolution rapide, mais un analyste ne peut pas la lire et la transformer à la main en mesures de défense. Laisser un modèle de langage générer librement ces défenses n'est pas une solution satisfaisante, car le modèle peut produire des recommandations non fondées, trop générales, ou valider ses propres erreurs.
 
 Pour répondre à ce problème, nous avons proposé CARL (*Case-based Attack Remediation for LLMs*), une approche fondée sur le raisonnement à partir de cas. CARL construit automatiquement une base de cas à partir d'articles scientifiques : GLiNER extrait les entités, Mistral-7B résume l'attaque et la défense, et chaque cas est rattaché à une technique MITRE ATLAS validée, avec une valeur « null » explicite lorsque l'article ne propose aucune défense. Face à une nouvelle attaque, CARL la décrit par sa chaîne causale, retrouve les cas les plus proches, adapte leur défense au maillon de l'attaque qu'elle doit casser, puis vérifie la recommandation par une règle déterministe, extérieure au modèle.
 
@@ -1140,23 +1140,23 @@ Pour répondre à ce problème, nous avons proposé CARL (*Case-based Attack Rem
 
 L'évaluation a porté sur chaque étape séparément, sur les mêmes cas, à partir d'une base de 119 cas extraits de 14 articles et de 18 requêtes de test. Elle montre qu'à chaque étape, le contrôle de CARL vérifie une propriété plus faible que celle recherchée :
 
-- **classer** : 89,9 % des identifiants ATLAS sont valides, mais seulement 47,5 % sont corrects ; le modèle confond surtout le *jailbreak* et l'injection de prompt ;
+- **classer** : 89,9 % des identifiants ATLAS sont valides, mais seulement 47,5 % sont corrects ; le modèle confond surtout le *jailbreak* et l'injection de *prompt* ;
 - **chercher** : le premier cas retrouvé n'est pertinent que pour 57,1 % des requêtes, contre 100 % lorsque les techniques sont corrigées ; les erreurs de classification coûtent 43 points, et le seuil de similarité ne signale pas de manière fiable les attaques non couvertes ;
 - **vérifier** : toutes les recommandations retenues sont ancrées (1,00), mais une recommandation peut citer un cas et rester inadaptée à l'attaque.
 
-Ces écarts ne restent pas isolés : l'erreur d'une étape devient l'entrée de la suivante. C'est ce que nous avons appelé la substitution de proxies.
+Ces écarts ne restent pas isolés : l'erreur d'une étape devient l'entrée de la suivante. C'est ce que nous avons appelé la substitution de *proxies*.
 
 ## Contributions
 
 Ce travail apporte deux contributions. La première est une approche de recommandation dont chaque réponse est **vérifiable** : elle est accompagnée du cas cité, de sa technique ATLAS, de son article d'origine et du verdict du vérificateur. La seconde est **méthodologique** : grâce à cette traçabilité, il devient possible de mesurer où naît une erreur et comment elle se propage d'une étape à l'autre.
 
-CARL est donc vérifiable, mais pas sûr par nature : c'est sa traçabilité qui permet de mesurer l'erreur. Ce résultat rappelle qu'un bon score à la dernière étape d'un pipeline ne suffit pas, et qu'il faut mesurer séparément, à chaque étape, ce que le système vérifie et ce qu'il est censé garantir.
+CARL est donc vérifiable, mais pas sûr par nature : c'est sa traçabilité qui permet de mesurer l'erreur. Ce résultat rappelle qu'un bon score à la dernière étape d'un *pipeline* ne suffit pas, et qu'il faut mesurer séparément, à chaque étape, ce que le système vérifie et ce qu'il est censé garantir.
 
 ## Perspectives
 
 Les limites mises en évidence ouvrent plusieurs pistes de travail.
 
-**Améliorer la classification.** La classification est le point faible du pipeline, et son erreur se propage aux étapes suivantes. Une première piste consiste à tester des modèles plus grands, ou à mieux séparer les techniques voisines comme le *jailbreak* et l'injection de prompt. Il faudra vérifier si l'écart entre validité et exactitude diminue réellement.
+**Améliorer la classification.** La classification est le point faible du *pipeline*, et son erreur se propage aux étapes suivantes. Une première piste consiste à tester des modèles plus grands, ou à mieux séparer les techniques voisines comme le *jailbreak* et l'injection de *prompt*. Il faudra vérifier si l'écart entre validité et exactitude diminue réellement.
 
 **Trouver un meilleur signal de couverture.** La similarité seule ne permet pas de savoir quand la base ne couvre pas une attaque. Un autre critère devra être étudié, afin que CARL sache dire de façon fiable qu'il ne connaît pas une attaque.
 
@@ -1246,7 +1246,7 @@ Les références sont classées par ordre alphabétique du premier auteur. Dans 
 
 # Résumé
 
-Les grands modèles de langage (LLM) sont de plus en plus intégrés dans des applications exposées à des attaques spécifiques, comme l'injection de prompt, le *jailbreak* ou l'empoisonnement des données. Ces attaques et leurs défenses sont décrites dans une littérature scientifique abondante, difficile à exploiter manuellement, tandis qu'un modèle de langage utilisé seul peut proposer des défenses non fondées. Ce mémoire présente CARL (*Case-based Attack Remediation for LLMs*), une approche de raisonnement à partir de cas qui construit automatiquement une base de cas à partir d'articles scientifiques, rattache chaque cas à une technique MITRE ATLAS validée, puis recommande des défenses adaptées à une nouvelle attaque et vérifiées par une règle déterministe extérieure au modèle. L'évaluation, menée étape par étape sur une base de 119 cas extraits de 14 articles, montre qu'à chaque étape le contrôle vérifie une propriété plus faible que celle recherchée : 89,9 % des identifiants sont valides mais 47,5 % seulement sont corrects ; ces erreurs de classification font perdre 43 points au premier cas retrouvé ; et une recommandation peut citer un cas tout en restant inadaptée à l'attaque. Ces écarts se propagent d'une étape à l'autre. L'apport de CARL est de rendre chaque recommandation vérifiable et, grâce à cette traçabilité, de permettre de mesurer où naissent les erreurs et comment elles se propagent.
+Les grands modèles de langage (LLM) sont de plus en plus intégrés dans des applications exposées à des attaques spécifiques, comme l'injection de *prompt*, le *jailbreak* ou l'empoisonnement des données. Ces attaques et leurs défenses sont décrites dans une littérature scientifique abondante, difficile à exploiter manuellement, tandis qu'un modèle de langage utilisé seul peut proposer des défenses non fondées. Ce mémoire présente CARL (*Case-based Attack Remediation for LLMs*), une approche de raisonnement à partir de cas qui construit automatiquement une base de cas à partir d'articles scientifiques, rattache chaque cas à une technique MITRE ATLAS validée, puis recommande des défenses adaptées à une nouvelle attaque et vérifiées par une règle déterministe extérieure au modèle. L'évaluation, menée étape par étape sur une base de 119 cas extraits de 14 articles, montre qu'à chaque étape le contrôle vérifie une propriété plus faible que celle recherchée : 89,9 % des identifiants sont valides mais 47,5 % seulement sont corrects ; ces erreurs de classification font perdre 43 points au premier cas retrouvé ; et une recommandation peut citer un cas tout en restant inadaptée à l'attaque. Ces écarts se propagent d'une étape à l'autre. L'apport de CARL est de rendre chaque recommandation vérifiable et, grâce à cette traçabilité, de permettre de mesurer où naissent les erreurs et comment elles se propagent.
 
 **Mots clés :** grands modèles de langage, sécurité des LLM, raisonnement à partir de cas, MITRE ATLAS, recommandation de défenses, vérification, propagation des erreurs.
 

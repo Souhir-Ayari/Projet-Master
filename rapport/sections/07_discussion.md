@@ -2,13 +2,13 @@
 
 Le chapitre précédent a présenté les résultats de CARL étape par étape. Ce chapitre les interprète : il explique ce qu'ils montrent, répond à la problématique, situe l'apport de CARL par rapport à l'état de l'art, puis présente les limites de ce travail.
 
-## 6.1 Interprétation des résultats : la substitution de proxies
+## 6.1 Interprétation des résultats : la substitution de *proxies*
 
 Les trois questions de recherche aboutissent au même constat. À chaque étape, CARL contrôle une propriété facile à vérifier, que nous appelons un *proxy*, à la place de la propriété réellement recherchée : un identifiant **valide** à la place d'un identifiant correct, un cas **proche** à la place d'un cas pertinent, une défense **citée** à la place d'une bonne défense.
 
-Chaque proxy apporte une garantie réelle. La validation empêche les identifiants inventés, le seuil écarte les requêtes clairement hors domaine, et la vérification empêche les recommandations sans source. Mais aucun ne garantit la propriété visée, et l'erreur qui reste à une étape devient l'entrée de l'étape suivante. C'est pourquoi une recommandation peut passer tous les contrôles et rester inadaptée, comme dans l'exemple du *jailbreak* encodé en Base64 : chaque contrôle est satisfait, mais l'erreur se trouve dans l'enchaînement des étapes.
+Chaque *proxy* apporte une garantie réelle. La validation empêche les identifiants inventés, le seuil écarte les requêtes clairement hors domaine, et la vérification empêche les recommandations sans source. Mais aucun ne garantit la propriété visée, et l'erreur qui reste à une étape devient l'entrée de l'étape suivante. C'est pourquoi une recommandation peut passer tous les contrôles et rester inadaptée, comme dans l'exemple du *jailbreak* encodé en Base64 : chaque contrôle est satisfait, mais l'erreur se trouve dans l'enchaînement des étapes.
 
-Ce constat dépasse probablement CARL. Tout pipeline qui enchaîne extraction, classification, recherche et génération peut afficher un bon résultat à la dernière étape tout en ayant hérité d'erreurs importantes au début. Nos résultats ne permettent pas de le démontrer en général, mais ils montrent qu'il faut mesurer la validité et l'exactitude séparément, à chaque étape et sur les mêmes cas.
+Ce constat dépasse probablement CARL. Tout *pipeline* qui enchaîne extraction, classification, recherche et génération peut afficher un bon résultat à la dernière étape tout en ayant hérité d'erreurs importantes au début. Nos résultats ne permettent pas de le démontrer en général, mais ils montrent qu'il faut mesurer la validité et l'exactitude séparément, à chaque étape et sur les mêmes cas.
 
 ## 6.2 Réponse à la problématique
 
@@ -16,7 +16,7 @@ La problématique de ce mémoire demandait comment exploiter la littérature sci
 
 Les résultats apportent une réponse en partie positive. CARL construit automatiquement une base de cas à partir d'articles et enregistre de manière fiable l'absence de défense (« null » justifié 21 fois sur 22). Ses recommandations sont **vérifiables** : chacune cite son cas, sa technique et son article. Les **hallucinations** sont limitées : avec vérification, aucune recommandation n'est produite sans appui sur un cas, alors que le modèle seul en propose sans aucun ancrage. La **granularité** est améliorée par la chaîne causale, puisque les mesures acceptées visent un maillon précis de l'attaque. Enfin, les **déviations** liées à l'auto-validation sont évitées, puisque la vérification est confiée à une règle extérieure au modèle.
 
-La réponse reste incomplète sur la **précision**. Une recommandation vérifiable n'est pas forcément correcte : sa qualité dépend de la classification, qui reste le point faible du pipeline avec un modèle de 7 milliards de paramètres. De plus, le seuil de similarité ne permet pas de savoir de façon fiable quand la base ne couvre pas une attaque.
+La réponse reste incomplète sur la **précision**. Une recommandation vérifiable n'est pas forcément correcte : sa qualité dépend de la classification, qui reste le point faible du *pipeline* avec un modèle de 7 milliards de paramètres. De plus, le seuil de similarité ne permet pas de savoir de façon fiable quand la base ne couvre pas une attaque.
 
 L'apport principal de CARL n'est donc pas d'éliminer les erreurs, mais de les rendre **mesurables**. Comme chaque recommandation est traçable, il est possible de remonter jusqu'à l'étape qui a produit une erreur et de mesurer comment elle se propage. Cette mesure n'aurait pas été possible avec une génération libre.
 
@@ -28,7 +28,7 @@ Par rapport à **ATAG**, qui construit à la main sa base de vulnérabilités, C
 
 Par rapport à **FALCON** et **Self-Refine**, qui confient le contrôle au modèle générateur, nos résultats confirment le risque d'auto-approbation dans notre domaine : la critique de Self-Refine a approuvé tous ses plans initiaux, et seulement 13 % de ses recommandations sont ancrées. Le juge LLM accepte également plus de recommandations, avec une adéquation causale plus faible. La séparation entre génération et vérification est donc justifiée.
 
-Par rapport à **TechniqueRAG**, qui restreint les techniques proposées au modèle, nos résultats montrent la limite de ce principe avec un petit modèle : la restriction empêche les identifiants inventés, mais ne suffit pas à séparer des techniques voisines comme le *jailbreak* et l'injection de prompt, même avec les définitions officielles.
+Par rapport à **TechniqueRAG**, qui restreint les techniques proposées au modèle, nos résultats montrent la limite de ce principe avec un petit modèle : la restriction empêche les identifiants inventés, mais ne suffit pas à séparer des techniques voisines comme le *jailbreak* et l'injection de *prompt*, même avec les définitions officielles.
 
 Enfin, aucune des approches étudiées ne mesure la propagation des erreurs entre étapes. C'est l'apport méthodologique de ce travail.
 
@@ -40,7 +40,7 @@ Il n'existe donc pas de « meilleur » vérificateur dans l'absolu : chaque conf
 
 ## 6.5 Limites
 
-**Taille du corpus.** La base contient 119 cas extraits de 14 articles, et l'évaluation repose sur 18 requêtes. Le corpus est dominé par le *jailbreak* et l'injection de prompt, et plusieurs techniques ATLAS n'ont qu'un seul cas. Les résultats sont donc indicatifs : ils ne prétendent pas couvrir l'ensemble des attaques contre les LLM, et la structure des confusions observées peut être propre à cette répartition.
+**Taille du corpus.** La base contient 119 cas extraits de 14 articles, et l'évaluation repose sur 18 requêtes. Le corpus est dominé par le *jailbreak* et l'injection de *prompt*, et plusieurs techniques ATLAS n'ont qu'un seul cas. Les résultats sont donc indicatifs : ils ne prétendent pas couvrir l'ensemble des attaques contre les LLM, et la structure des confusions observées peut être propre à cette répartition.
 
 **Annotation unique.** La revue des cas, qui sert de référence pour RQ1 et RQ2, a été pré-annotée avec un assistant LLM puis vérifiée par une seule personne, qui est aussi l'auteure du système. L'accord mesuré est un accord intra-annotateur (kappa de 0,62 pour la technique et de 0,75 pour la défense) : il indique la cohérence de la revue, mais pas son absence de biais. Les taux d'exactitude doivent donc être lus comme des bornes supérieures, et la base de référence comme une borne optimiste. Les mesures de propagation héritent de ces limites.
 
@@ -54,4 +54,4 @@ Il n'existe donc pas de « meilleur » vérificateur dans l'absolu : chaque conf
 
 ## 6.6 Conclusion
 
-Les résultats de CARL s'expliquent par une même substitution de proxies, répétée à chaque étape et propagée d'une étape à l'autre. CARL répond en partie à la problématique : ses recommandations sont vérifiables, traçables et mieux ciblées, mais leur précision reste limitée par la classification. Son apport principal est de rendre ces erreurs mesurables. Ces conclusions doivent être lues à la lumière des limites présentées, en particulier la taille du corpus et l'annotation unique. La conclusion générale reprend ces apports et propose des perspectives.
+Les résultats de CARL s'expliquent par une même substitution de *proxies*, répétée à chaque étape et propagée d'une étape à l'autre. CARL répond en partie à la problématique : ses recommandations sont vérifiables, traçables et mieux ciblées, mais leur précision reste limitée par la classification. Son apport principal est de rendre ces erreurs mesurables. Ces conclusions doivent être lues à la lumière des limites présentées, en particulier la taille du corpus et l'annotation unique. La conclusion générale reprend ces apports et propose des perspectives.

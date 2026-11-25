@@ -36,7 +36,8 @@ GARDE = {
 }
 
 FONT = "Times New Roman"
-NAVY = RGBColor(0x14, 0x21, 0x3D)
+NAVY = RGBColor(0, 0, 0)  # tout le texte est en noir
+BLACK = NAVY
 
 
 def set_text(paragraph, text, bold=None, size=None):
@@ -76,6 +77,20 @@ def fill_cover(doc):
         paras[idx - 1]._p.getparent().remove(paras[idx - 1]._p)
 
 
+def set_fonts(rpr_owner):
+    """Applique Times New Roman à toutes les familles de caractères d'un style ou d'un run."""
+    rpr = rpr_owner.element.get_or_add_rPr() if hasattr(rpr_owner, "element") else rpr_owner._r.get_or_add_rPr()
+    fonts = rpr.find(qn("w:rFonts"))
+    if fonts is None:
+        fonts = OxmlElement("w:rFonts")
+        rpr.insert(0, fonts)
+    for attr in ("w:ascii", "w:hAnsi", "w:cs", "w:eastAsia"):
+        fonts.set(qn(attr), FONT)
+    for attr in ("w:asciiTheme", "w:hAnsiTheme", "w:cstheme", "w:eastAsiaTheme"):
+        if fonts.get(qn(attr)) is not None:
+            del fonts.attrib[qn(attr)]
+
+
 def heading_style(doc, name, size, level, before, after, color=NAVY):
     styles = doc.styles
     try:
@@ -87,6 +102,8 @@ def heading_style(doc, name, size, level, before, after, color=NAVY):
     st.font.size = Pt(size)
     st.font.bold = True
     st.font.color.rgb = color
+    st.font.italic = False
+    set_fonts(st)
     pf = st.paragraph_format
     pf.space_before = Pt(before)
     pf.space_after = Pt(after)
@@ -112,10 +129,11 @@ def caption_style(doc, name):
     st = get_style(doc, name)
     st.base_style = doc.styles["Normal"]
     st.font.name = FONT
-    st.font.size = Pt(11)
+    st.font.size = Pt(12)
     st.font.italic = True
     st.font.bold = False
-    st.font.color.rgb = NAVY
+    st.font.color.rgb = BLACK
+    set_fonts(st)
     pf = st.paragraph_format
     pf.alignment = WD_ALIGN_PARAGRAPH.CENTER
     pf.space_before = Pt(6)
@@ -128,6 +146,8 @@ def body_style(doc):
     st.base_style = doc.styles["Normal"]
     st.font.name = FONT
     st.font.size = Pt(12)
+    st.font.color.rgb = BLACK
+    set_fonts(st)
     pf = st.paragraph_format
     pf.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     pf.line_spacing = 1.5
@@ -203,14 +223,13 @@ def add_inline(paragraph, text, italic=False, size=None):
             run.italic = not italic
         elif piece.startswith("`") and piece.endswith("`"):
             run = paragraph.add_run(piece[1:-1])
-            run.font.name = "Courier New"
-            run.font.size = Pt(size - 1 if size else 11)
             run.italic = italic or None
         else:
             run = paragraph.add_run(piece)
             run.italic = italic or None
-        if size and not piece.startswith("`"):
+        if size:
             run.font.size = Pt(size)
+        run.font.name = FONT
 
 
 def strip_outer_italic(text):
@@ -237,7 +256,7 @@ def add_table(doc, block):
     rows = [r for r in rows if not re.match(r"^\|[\s:|-]+\|$", r)]
     cells = [[c.strip() for c in r.strip("|").split("|")] for r in rows]
     ncol = max(len(r) for r in cells)
-    size = 10 if ncol <= 4 else 9 if ncol <= 6 else 8
+    size = 12 if ncol <= 4 else 11 if ncol <= 6 else 10
     table = doc.add_table(rows=0, cols=ncol)
     table.style = doc.styles["Table Grid"]
     table.alignment = 1
@@ -256,9 +275,7 @@ def add_table(doc, block):
                 set_cell_shading(tr[j], "DCE6F0")
             else:
                 add_inline(para, text, size=size)
-                for run in para.runs:
-                    if run.font.name != "Courier New":
-                        run.font.name = FONT
+
     doc.add_paragraph().paragraph_format.space_after = Pt(2)
 
 
@@ -332,7 +349,7 @@ def add_markdown(doc, path, body, first):
             p = doc.add_paragraph(style=body)
             if italic:
                 p.paragraph_format.first_line_indent = Cm(0)
-                add_inline(p, text, italic=True, size=10)
+                add_inline(p, text, italic=True)
             else:
                 add_inline(p, text)
     return first
@@ -370,10 +387,16 @@ def main(garde, out, remplir=False):
     doc = docx.Document(garde)
     if remplir:
         fill_cover(doc)
-    heading_style(doc, "Heading 1", 18, 0, 0, 18)
+    normal = doc.styles["Normal"]
+    normal.font.name = FONT
+    normal.font.size = Pt(12)
+    normal.font.color.rgb = BLACK
+    set_fonts(normal)
+    # Titres : styles Word intégrés (Titre 1, Titre 2, Titre 3)
+    heading_style(doc, "Heading 1", 16, 0, 0, 18)
     heading_style(doc, "Heading 2", 14, 1, 14, 8)
     heading_style(doc, "Heading 3", 12, 2, 10, 6)
-    unnumbered = heading_style(doc, "Unnumbered heading", 18, 9, 0, 18)
+    unnumbered = heading_style(doc, "Unnumbered heading", 16, 9, 0, 18)
     unnumbered.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
     caption_style(doc, "Legende tableau")
     caption_style(doc, "Legende figure")
