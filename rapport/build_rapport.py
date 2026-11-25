@@ -138,6 +138,7 @@ def caption_style(doc, name):
     pf.alignment = WD_ALIGN_PARAGRAPH.CENTER
     pf.space_before = Pt(6)
     pf.space_after = Pt(10)
+    pf.keep_with_next = name == "Legende tableau"  # la légende reste avec son tableau
     return st
 
 
@@ -300,12 +301,16 @@ def add_table(doc, block):
     table.style = doc.styles["Table Grid"]
     table.alignment = 1
     for i, row in enumerate(cells):
-        tr = table.add_row().cells
+        new_row = table.add_row()
+        new_row._tr.get_or_add_trPr().append(OxmlElement("w:cantSplit"))  # une ligne ne se coupe pas
+        tr = new_row.cells
         for j in range(ncol):
             text = row[j] if j < len(row) else ""
             para = tr[j].paragraphs[0]
             para.paragraph_format.space_after = Pt(0)
             para.paragraph_format.first_line_indent = Cm(0)
+            para.paragraph_format.keep_together = True
+            para.paragraph_format.keep_with_next = i < len(cells) - 1  # le tableau reste sur une page
             if i == 0:
                 run = para.add_run(text.replace("**", ""))
                 run.bold = True
