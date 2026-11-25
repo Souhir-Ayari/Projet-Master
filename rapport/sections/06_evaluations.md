@@ -214,8 +214,6 @@ La validation ATLAS apporte une garantie réelle mais limitée : elle empêche l
 
 **Question de recherche : le cas le plus proche retrouvé par CARL est-il vraiment un cas pertinent, et le seuil de similarité indique-t-il correctement quand la base ne couvre pas une attaque ?**
 
-RQ1 a montré qu'un identifiant valide n'est correct qu'environ une fois sur deux. Cette section examine l'étape suivante : la recherche des cas sur lesquels s'appuiera la recommandation.
-
 ### 5.5.1 Objectif de l'expérience
 
 CARL retrouve les trois cas les plus similaires (k = 3) si le meilleur dépasse le seuil θ = 0,6. L'expérience vérifie, sur les 18 requêtes, si le premier cas retrouvé est pertinent (Hit@1) et si le seuil signale les attaques non couvertes. La recherche est lancée sur la base automatique (119 cas) puis sur la base de référence (108 cas) : comme seules les techniques diffèrent, cette comparaison mesure l'effet des erreurs de classification.
@@ -231,43 +229,29 @@ CARL retrouve les trois cas les plus similaires (k = 3) si le meilleur dépasse 
 | Filtre par technique (retenu) | Automatique | 0,571 | 0,786 | 0,716 |
 | Filtre par technique (retenu) | Référence (108 cas) | 1,000 | 1,000 | 1,000 |
 
-Sur la base automatique, le premier cas retrouvé est pertinent pour 8 requêtes sur 14 (Hit@1 = 0,571), et ce résultat ne change pas selon la configuration choisie. Le Hit@3 est plus élevé (0,786 avec le filtre retenu) : un cas pertinent se trouve souvent parmi les trois cas retournés, mais pas toujours en première position.
-
-Les intervalles de confiance sont larges, car ils reposent sur 14 requêtes : pour toutes les configurations sur la base automatique, l'intervalle du Hit@1 va environ de 0,29 à 0,86. Les différences entre ces configurations ne sont donc pas significatives.
+Sur la base automatique, le premier cas retrouvé est pertinent pour 8 requêtes sur 14 (Hit@1 = 0,571), quelle que soit la configuration. Les intervalles de confiance sont larges (environ 0,29 à 0,86), donc les configurations ne se distinguent pas entre elles.
 
 ### 5.5.3 Impact des erreurs de classification sur la récupération
 
-Avec la même configuration, la base de référence atteint un Hit@1 de 1,000, contre 0,571 pour la base automatique. Cette différence de 43 points est le seul écart du tableau que les intervalles de confiance permettent d'affirmer.
-
-Ce résultat s'explique par le filtre par technique. Sur la base automatique, favoriser les cas qui portent la même technique que la requête fait remonter les cas mal classés autant que les cas pertinents. Une fois les techniques corrigées, le même filtre devient très efficace. Le point faible n'est donc pas le mécanisme de recherche lui-même, mais la classification de la couche 2 : l'erreur mesurée en RQ1 se retrouve directement dans la recherche.
-
-Cette borne de 1,000 doit toutefois être lue avec prudence. Les techniques des requêtes et celles de la base de référence ont été attribuées par la même personne, ce qui rend cette borne optimiste.
+Sur la base de référence, le Hit@1 atteint 1,000, soit 43 points de plus. C'est le seul écart confirmé par les intervalles de confiance. Le filtre par technique favorise en effet les cas mal classés autant que les cas pertinents : la faiblesse vient donc de la classification, et non du mécanisme de recherche. Cette borne de 1,000 reste optimiste, car les techniques des requêtes et de la base de référence ont été attribuées par la même personne.
 
 ### 5.5.4 Détection des attaques hors corpus
 
-Pour tester le signal de couverture, nous avons comparé la similarité du meilleur cas retrouvé pour les requêtes couvertes et pour les requêtes hors corpus. Les deux groupes ne se séparent pas : trois des quatre requêtes hors corpus obtiennent une similarité de 0,689 à 0,747, supérieure au seuil de 0,6 et même supérieure à celle de plusieurs requêtes couvertes (0,617 à 0,683).
-
-Aucun seuil ne corrige complètement ce problème. Le meilleur seuil sur ces requêtes (θ = 0,75) atteint une exactitude équilibrée de seulement 0,68, et le seuil retenu (θ = 0,6) atteint 0,63. Nous avons conservé θ = 0,6 pour ne pas ajuster le seuil sur les requêtes de test.
-
-L'explication la plus probable est liée au corpus : comme tous les articles portent sur des attaques contre les LLM, toute requête qui décrit une attaque de ce type trouve un cas qui lui ressemble, même lorsque cette attaque n'est pas documentée dans la base.
+Trois des quatre requêtes hors corpus obtiennent une similarité de 0,689 à 0,747, au-dessus du seuil et au-dessus de plusieurs requêtes couvertes (0,617 à 0,683). Même le meilleur seuil possible (θ = 0,75) n'atteint qu'une exactitude équilibrée de 0,68. Comme tout le corpus porte sur des attaques contre les LLM, une attaque de ce type trouve toujours un cas qui lui ressemble.
 
 ### 5.5.5 Discussion des résultats
 
-Ces résultats montrent qu'un cas proche n'est pas forcément un cas pertinent. Sur la base automatique, le premier cas retrouvé n'est pertinent que dans un peu plus d'une requête sur deux, et cette limite vient surtout des erreurs de classification plutôt que de la recherche elle-même.
+Un cas proche n'est pas forcément pertinent, et une similarité élevée ne prouve pas que la base couvre l'attaque. Le seuil écarte les requêtes clairement hors domaine, mais pas les attaques plausibles absentes de la base, qui sont pourtant celles qu'il devrait signaler.
 
-Ils montrent aussi qu'une similarité élevée ne prouve pas que la base couvre l'attaque. Le seuil θ permet d'écarter les requêtes clairement étrangères au domaine, mais pas les attaques plausibles absentes de la base. C'est pourtant dans ce cas qu'un signal de couverture serait le plus utile, puisqu'il devrait déclencher l'ajout de nouveaux articles à la base.
-
-**Réponse à RQ2.** Le cas le plus proche n'est pertinent que pour 57,1 % des requêtes sur la base automatique, contre 100 % sur la base de référence : les erreurs de classification coûtent 43 points de Hit@1. Le seuil de similarité ne signale pas de manière fiable les attaques non couvertes. La similarité ne garantit donc ni la pertinence du cas, ni la couverture de la base.
+**Réponse à RQ2.** Non : le premier cas est pertinent pour 57,1 % des requêtes seulement, et les erreurs de classification coûtent 43 points de Hit@1. Le seuil ne signale pas de manière fiable les attaques non couvertes.
 
 ## 5.6 RQ3 — Évaluation de la qualité et de la vérification des recommandations de défense
 
 **Question de recherche : une recommandation qui cite un cas, et passe donc la vérification, est-elle vraiment une bonne défense ?**
 
-Les deux premières étapes ont montré que les cas retrouvés peuvent être mal classés ou peu pertinents. Cette section évalue la dernière étape : la production et la vérification des recommandations qui s'appuient sur ces cas.
-
 ### 5.6.1 Objectif de l'expérience
 
-L'expérience vérifie si une recommandation rattachée à un cas, et donc acceptée par le vérificateur, est réellement adaptée à l'attaque. Plusieurs configurations sont comparées selon l'**ancrage** (part des recommandations justifiées par un cas cité), l'**adéquation causale** (la mesure vise un maillon réel de l'attaque) et l'**adaptation** (la mesure tient compte de la nouvelle attaque). Les résultats portent sur 13 requêtes couvertes : la requête sur l'extraction du prompt système, marquée hors corpus dans le fichier de requêtes, est exclue.
+L'expérience vérifie si une recommandation acceptée par le vérificateur est réellement adaptée à l'attaque. Les configurations sont comparées selon l'**ancrage** (part des recommandations justifiées par un cas cité), l'**adéquation causale** (la mesure vise un maillon réel de l'attaque) et l'**adaptation** (la mesure tient compte de la nouvelle attaque). Les résultats portent sur 13 requêtes couvertes : la requête sur l'extraction du prompt système, marquée hors corpus dans le fichier de requêtes, est exclue.
 
 ### 5.6.2 Comparaison des différentes configurations
 
@@ -287,35 +271,25 @@ L'expérience vérifie si une recommandation rattachée à un cas, et donc accep
 
 *Hors corpus : recommandations renvoyées pour les attaques non couvertes, qui devraient être nulles. Utilité moyenne : note des deux évaluateurs humains (5.6.4).*
 
-Sans récupération, le LLM produit 39 recommandations, mais aucune n'est rattachée à un cas : il donne des conseils généraux, et en propose douze pour des attaques que la base ne documente pas. Avec la récupération mais sans vérification, l'ancrage monte à 0,42 : plus de la moitié des recommandations restent sans appui.
-
-Toutes les configurations avec vérification atteignent un ancrage de 1,00, mais elles servent un nombre très différent de requêtes. La vérification lexicale en sert 9, les règles causales aux seuils fixés a priori seulement 3 à 6, et notre configuration aux seuils calibrés en sert 7. À l'inverse, les deux configurations où le modèle se juge lui-même servent presque toutes les requêtes. Le LLM juge accepte 29 recommandations, avec une adéquation causale plus faible (0,76) et plus de deux fois plus d'appels au modèle. La critique de Self-Refine a approuvé le plan initial du modèle pour chacune des 16 requêtes avec des cas retrouvés : aucune révision n'a eu lieu, et seulement 13 % de ses recommandations sont ancrées.
+Sans récupération, aucune recommandation n'est ancrée et le modèle en propose douze pour des attaques non couvertes. Avec la récupération sans vérification, l'ancrage n'atteint que 0,42. Toutes les configurations avec vérification atteignent 1,00, mais servent un nombre de requêtes très différent : 3 à 6 pour les règles causales aux seuils a priori, 7 pour notre configuration calibrée, 12 à 13 lorsque le modèle se juge lui-même. La critique de Self-Refine a approuvé tous ses plans initiaux : seulement 13 % de ses recommandations sont ancrées.
 
 ### 5.6.3 Évaluation de l'ancrage et de la cohérence causale
 
-Un ancrage de 1,00 ne doit pas être lu comme une preuve de qualité. Il est obtenu par construction : les recommandations qui ne passent pas la vérification sont supprimées. Deux mécanismes le rendent trompeur.
+L'ancrage de 1,00 est obtenu par construction, puisque les recommandations rejetées sont supprimées. Il ne garantit pas la qualité. Par exemple, pour un *jailbreak* caché dans une requête encodée en Base64, la vérification lexicale accepte « une revue régulière du code », copiée d'un cas mal classé qui décrit un ver. La recommandation est traçable, mais ne répond pas à l'attaque.
 
-Le premier concerne la vérification lexicale. Elle exige que 60 % des mots de la recommandation figurent dans la défense citée, ce qui favorise la reprise mot pour mot plutôt que l'adaptation à la nouvelle attaque. Le second est plus important : la vérification hérite de la qualité des cas cités. Par exemple, pour un *jailbreak* caché dans une requête encodée en Base64, la boucle lexicale accepte la recommandation « revue régulière du code et vérification des modifications de la documentation ». Cette mesure est copiée d'un cas qui décrit un ver se propageant entre applications intégrant un LLM, et que le pipeline avait classé à tort comme *jailbreak*. La recommandation est parfaitement traçable, mais elle ne répond pas à l'attaque.
-
-Les règles causales réduisent ce problème. En exigeant que chaque mesure casse un maillon de la chaîne causale de la nouvelle attaque, elles éliminent ce type de copie : toutes les recommandations acceptées sont causalement adéquates, et la règle avec étiquettes ne renvoie rien sur les attaques non couvertes. Le prix est la couverture : avec les seuils fixés a priori, seules 5 recommandations, sur 3 requêtes, sont acceptées. Les seuils calibrés (0,627 pour la similarité à la défense citée et 0,534 pour le maillon) permettent de servir 7 requêtes, avec une adaptation de 0,89. Trois des neuf recommandations reposent cependant sur une citation inférée, et le seuil sémantique reste peu discriminant (exactitude équilibrée de 0,63). Enfin, la génération n'est pas totalement déterministe : une seconde exécution de la même configuration a renvoyé 14 recommandations sur 9 requêtes, dont deux pour une attaque non couverte.
+Les règles causales éliminent ce type de copie : toutes les mesures acceptées visent un maillon de l'attaque. Avec les seuils calibrés (0,627 et 0,534), notre configuration obtient une adaptation de 0,89 et aucune recommandation hors corpus. Trois des neuf recommandations reposent toutefois sur une citation inférée, et une seconde exécution a donné 14 recommandations sur 9 requêtes : les résultats varient d'une exécution à l'autre.
 
 ### 5.6.4 Évaluation humaine des recommandations
 
-Deux évaluateurs externes, doctorants, non impliqués dans le projet, ont noté 76 recommandations distinctes tirées des configurations du tableau 5.9. Chaque recommandation a été notée de 1 à 5 sur trois critères, l'utilité, la solidité et l'applicabilité, avec en plus un jugement « j'appliquerais cette mesure ». Les évaluateurs voyaient l'attaque, la recommandation et la défense citée, dans un ordre aléatoire et sans connaître la configuration. Une différence de protocole doit être signalée : l'un des deux évaluateurs a reçu en plus un glossaire des termes techniques.
+Deux évaluateurs externes, doctorants, ont noté 76 recommandations de 1 à 5 selon l'utilité, la solidité et l'applicabilité, sans connaître la configuration. L'un d'eux a reçu en plus un glossaire. Leur accord est inférieur au hasard (alpha de Krippendorff : −0,31 pour l'utilité, −0,02 pour la solidité, −0,17 pour l'applicabilité). Ils s'accordent sur les mesures clairement hors sujet ou clairement ciblées, mais divergent sur les conseils généraux.
 
-L'accord entre les deux évaluateurs est inférieur au hasard : l'alpha de Krippendorff vaut −0,31 pour l'utilité, −0,02 pour la solidité et −0,17 pour l'applicabilité. Le désaccord n'est pas uniforme. Les deux évaluateurs donnent une note faible aux recommandations sans rapport avec l'attaque, comme une revue de code contre un *jailbreak*, et une note élevée aux mesures ciblées, comme décoder les entrées en Base64 avant de les filtrer. Ils divergent en revanche sur les conseils généraux, que l'un accepte (utilité moyenne de 4,2) et que l'autre juge trop vagues (2,5).
-
-En moyenne, l'utilité va de 2,7 (récupération sans vérification) et 2,9 (vérification lexicale) à 3,6–3,8 pour les vérificateurs causaux et la base de référence. La part des recommandations qu'un évaluateur appliquerait varie de 40 % à 80 %. Aucune comparaison avec notre configuration n'est significative (test de Wilcoxon par requête, toutes les valeurs p ≥ 0,34, avec 3 à 6 requêtes par comparaison). On remarque aussi que Self-Refine, dont seulement 13 % des recommandations sont ancrées, obtient une utilité moyenne de 3,5, pas plus faible que les configurations entièrement ancrées.
-
-Nous ne tirons donc aucun classement de cette évaluation. Avec un accord inférieur au hasard et des documents différents pour les deux évaluateurs, elle ne permet ni de confirmer ni d'infirmer les mesures automatiques. Elle montre seulement que les lecteurs repèrent les recommandations clairement hors sujet, mais pas les conseils généraux plausibles.
+L'utilité moyenne va de 2,7 à 3,8 selon la configuration, sans différence significative avec notre configuration (p ≥ 0,34). Self-Refine, ancré à 13 % seulement, obtient 3,5. Cette évaluation ne permet donc aucun classement.
 
 ### 5.6.5 Discussion des résultats
 
-Ces résultats montrent qu'une recommandation appuyée par un cas cité n'est pas forcément adaptée à l'attaque. Un vérificateur peut contrôler le lien entre une mesure et sa source, mais il ne peut pas savoir si cette source est elle-même correcte, ni si elle répond à une autre attaque. Or RQ1 a montré qu'environ la moitié des techniques et plus d'un tiers des défenses extraites sont incorrectes.
+Une recommandation qui cite un cas n'est pas forcément adaptée à l'attaque : le vérificateur contrôle le lien avec la source, mais pas la qualité de cette source. Le vérificateur causal réduit cet écart, au prix d'un nombre plus faible de requêtes servies. Il ne compense pas non plus les erreurs des étapes précédentes : sur la base de référence, la boucle renvoie quatre recommandations hors corpus, car le seuil θ ne signale pas l'absence de couverture.
 
-La vérification hors du modèle reste néanmoins utile. Le vérificateur causal élimine les copies qui ne visent pas la nouvelle attaque et ne renvoie aucune recommandation pour les attaques non couvertes, alors que les approches où le modèle se juge lui-même acceptent presque tout. Ce gain a un coût : seules 7 des 13 requêtes reçoivent une recommandation. Le choix d'un vérificateur est donc un compromis entre le nombre de requêtes servies et la solidité des recommandations. Enfin, sur la base de référence, la boucle renvoie quatre recommandations pour des attaques non couvertes, parce que le seuil θ ne signale pas l'absence de couverture : le vérificateur ne peut pas compenser une erreur de l'étape précédente.
-
-**Réponse à RQ3.** Une recommandation qui cite un cas n'est pas forcément une bonne défense. La vérification garantit la traçabilité, mais pas la pertinence de la mesure. Le vérificateur causal calibré réduit cet écart (adéquation causale de 1,00, adaptation de 0,89, aucune recommandation hors corpus), au prix d'une couverture limitée (7 requêtes sur 13). L'évaluation humaine, trop peu concordante, ne permet pas de trancher.
+**Réponse à RQ3.** Non : la vérification garantit la traçabilité, pas la pertinence. Le vérificateur causal calibré améliore la solidité (adéquation causale de 1,00, adaptation de 0,89, aucune recommandation hors corpus) mais ne sert que 7 requêtes sur 13. L'évaluation humaine ne permet pas de trancher.
 
 ## 5.7 Synthèse globale des résultats expérimentaux
 
