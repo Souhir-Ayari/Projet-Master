@@ -107,7 +107,7 @@ Le texte est ensuite découpé en passages (*chunks*) d'environ 3 000 caractère
 
 ### 4.3.3 Couche 1 : extraction des entités
 
-La couche 1 extrait les entités de chaque passage avec GLiNER (modèle `urchade/gliner_multi-v2.1`). GLiNER est un extracteur d'entités nommées (*Named Entity Recognition*, NER) dit *zero-shot* : on lui fournit la liste des catégories recherchées, sans entraînement spécifique, et il renvoie les segments du texte qui correspondent à ces catégories. Une entité n'est retenue que si son score de confiance atteint 0,4.
+La couche 1 extrait les entités de chaque passage avec GLiNER (Zaratiana et al., 2024), dans sa version `urchade/gliner_multi-v2.1`. GLiNER est un extracteur d'entités nommées (*Named Entity Recognition*, NER) dit *zero-shot* : on lui fournit la liste des catégories recherchées, sans entraînement spécifique, et il renvoie les segments du texte qui correspondent à ces catégories. Une entité n'est retenue que si son score de confiance atteint 0,4.
 
 Les catégories recherchées forment une taxonomie de sept étiquettes propres aux attaques contre les LLM :
 
@@ -134,7 +134,7 @@ Le choix final de GLiNER pour la couche 1 repose sur la comparaison des deux mé
 
 ### 4.3.4 Couche 2 : résumé de l'attaque et de la défense
 
-Pour chaque passage, accompagné de ses entités, un second appel à Mistral-7B (version `Mistral-7B-Instruct-v0.3`) produit un enregistrement structuré qui indique :
+Pour chaque passage, accompagné de ses entités, un second appel à Mistral-7B (Jiang et al., 2023), dans sa version `Mistral-7B-Instruct-v0.3`, produit un enregistrement structuré qui indique :
 
 - si le passage décrit une attaque concrète ;
 - un résumé de l'attaque en une ou deux phrases ;
@@ -176,7 +176,7 @@ Pour éviter cette redondance, CARL conserve au plus trois cas par couple (artic
 
 Chaque cas retenu est ensuite enregistré dans la base avec un identifiant unique, sa source, le résumé de l'attaque, la technique ATLAS et son nom, le résumé de la défense, le score de généralisabilité et le niveau de confiance. La base est stockée dans un fichier au format JSONL (une ligne par cas), ce qui permet de la relire, de la corriger ou de la compléter facilement.
 
-Le résumé de l'attaque et celui de la défense sont transformés séparément en vecteurs avec le modèle `nomic-embed-text`. Ils sont séparés parce qu'ils ne servent pas au même moment : la recherche compare les attaques entre elles, tandis que la vérification compare une mesure proposée à la défense d'un cas. La base grandit de manière incrémentale : lorsqu'un nouvel article est traité, ses cas sont ajoutés sans reconstruire les autres.
+Le résumé de l'attaque et celui de la défense sont transformés séparément en vecteurs avec le modèle `nomic-embed-text` (Nussbaum et al., 2024). Ils sont séparés parce qu'ils ne servent pas au même moment : la recherche compare les attaques entre elles, tandis que la vérification compare une mesure proposée à la défense d'un cas. La base grandit de manière incrémentale : lorsqu'un nouvel article est traité, ses cas sont ajoutés sans reconstruire les autres.
 
 ### 4.3.8 Recherche des cas similaires
 
