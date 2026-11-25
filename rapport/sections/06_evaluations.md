@@ -171,9 +171,7 @@ Cette étape compare les méthodes envisagées pour la couche 1 sur l'article an
 
 *Le taux d'hallucination est la part des entités extraites absentes du texte de l'article.*
 
-GLiNER obtient la meilleure précision et le meilleur F1. Avec la variante travaillée, c'est aussi la seule méthode qui n'extrait aucune entité absente du texte. Parmi les variantes de Mistral-7B, fournir la taxonomie du domaine double presque le rappel (0,467 pour la variante thématique contre 0,244 pour la variante travaillée), tandis que la variante naïve atteint le rappel le plus élevé (0,667) au prix de la précision la plus faible : elle extrait beaucoup, mais surtout du bruit. GLiNER, à l'inverse, renvoie surtout des noms propres et manque les rôles plus analytiques, comme le vecteur d'entrée, le mécanisme de contournement ou l'impact, ce qui limite son rappel.
-
-Le choix de GLiNER ne repose pas d'abord sur le F1, mais sur son taux d'hallucination nul. La sortie de la couche 1 sert de contexte à la couche 2 : une entité absente du texte serait reprise dans les résumés des cas et transmise à toutes les étapes suivantes, alors qu'une entité réelle simplement oubliée par l'annotation ne cause aucun dommage. GLiNER est donc utilisé pour la couche 1, et Mistral-7B uniquement pour les résumés de la couche 2.
+GLiNER obtient la meilleure précision et le meilleur F1, et n'extrait aucune entité absente du texte. Les variantes de Mistral-7B atteignent parfois un rappel plus élevé, mais au prix d'une précision faible. GLiNER est retenu surtout pour son taux d'hallucination nul : ses entités servent de contexte à la couche 2, et une entité inventée à ce stade serait transmise à toutes les étapes suivantes.
 
 ### 5.3.2 Contribution des filtres
 
