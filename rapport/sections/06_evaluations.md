@@ -315,12 +315,6 @@ Cette même erreur se retrouve ensuite dans les recommandations. Un vérificateu
 
 Il en découle une conséquence pour l'évaluation : un ancrage de 1,00 à la dernière étape ne veut rien dire si l'on ne connaît pas la qualité des étapes précédentes, puisqu'un pipeline peut atteindre 1,00 à la fin tout en ayant hérité de 47,5 % d'exactitude au début. C'est pourquoi nous avons mesuré la validité et l'exactitude séparément à chaque étape, sur les mêmes cas. Ces mesures de propagation héritent toutefois des limites de la revue : une seule annotatrice et un petit nombre de requêtes.
 
-### 5.7.3 Réponse à la problématique générale
+### 5.7.3 Conclusion
 
-La problématique de ce mémoire demandait comment exploiter la littérature scientifique pour produire des recommandations de défense précises, contextualisées et vérifiables, en maîtrisant les hallucinations, le manque de granularité et les déviations des modèles de langage.
-
-Les résultats apportent une réponse en partie positive. CARL construit automatiquement une base de cas à partir d'articles, enregistre de façon fiable l'absence de défense (« null » justifié 21 fois sur 22), et produit des recommandations vérifiables : chacune cite son cas, et la vérification hors du modèle évite l'auto-validation observée avec Self-Refine. La chaîne causale apporte de la granularité, puisque les mesures acceptées visent un maillon précis de l'attaque.
-
-Les résultats montrent aussi les limites de cette réponse. Une recommandation vérifiable n'est pas forcément précise : la qualité finale dépend de la classification, qui reste le point faible du pipeline avec un modèle de 7 milliards de paramètres. Le seuil de similarité ne permet pas de savoir de manière fiable quand la base ne couvre pas une attaque. Enfin, ces conclusions reposent sur un corpus de 14 articles, 18 requêtes et une revue réalisée par une seule personne.
-
-L'apport principal de CARL n'est donc pas d'éliminer les erreurs, mais de les rendre mesurables. Parce que chaque recommandation est traçable, il est possible de remonter à l'étape qui a produit l'erreur et de mesurer comment elle se propage. Ces constats sont discutés plus en détail dans le chapitre suivant.
+Ce chapitre a évalué CARL étape par étape, sur les mêmes cas. À chaque étape, le mécanisme de contrôle apporte une garantie réelle, mais plus faible que celle recherchée : un identifiant valide n'est correct qu'une fois sur deux, un cas proche n'est pas toujours pertinent, et une recommandation traçable n'est pas toujours adaptée. Ces écarts se transmettent d'une étape à l'autre, et c'est la traçabilité de CARL qui permet de les mesurer. Le chapitre suivant discute ces résultats et les limites de ce travail.
