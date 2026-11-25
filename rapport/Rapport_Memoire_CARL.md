@@ -1045,11 +1045,9 @@ Dans les trois cas, la propriété vérifiée est plus faible que la propriété
 
 ### 5.7.2 Analyse de la propagation des erreurs
 
-Ces écarts ne restent pas indépendants : l'erreur d'une étape se transmet à la suivante. L'erreur de classification de RQ1 se retrouve d'abord dans la récupération. Les deux bases ne diffèrent que par la correction des techniques, et cette seule correction fait passer le Hit@1 de 0,571 à 1,000. La perte de 43 points n'est donc pas une faiblesse de la recherche, mais l'erreur de classification qui arrive à l'étape suivante.
+Les erreurs ne restent pas dans l'étape où elles apparaissent. L'erreur de classification de RQ1 se retrouve d'abord dans la récupération : corriger seulement les techniques fait passer le Hit@1 de 0,571 à 1,000. Elle se retrouve ensuite dans les recommandations, car le vérificateur accepte une mesure dès qu'elle cite un cas, même mal classé. L'exemple du *jailbreak* en Base64 le montre : tous les contrôles sont satisfaits, mais la mesure ne répond pas à l'attaque.
 
-Cette même erreur se retrouve ensuite dans les recommandations. Un vérificateur qui contrôle la traçabilité accepte une mesure dès qu'elle est rattachée à un cas, même si ce cas est mal classé ou si sa défense n'est pas une vraie contre-mesure. L'exemple du *jailbreak* en Base64 montre cette propagation de bout en bout : la technique est validée, le cas est retrouvé, la recommandation est traçable, et pourtant la mesure ne répond pas à l'attaque. Chaque contrôle est satisfait, mais l'erreur se trouve dans l'enchaînement des étapes.
-
-Il en découle une conséquence pour l'évaluation : un ancrage de 1,00 à la dernière étape ne veut rien dire si l'on ne connaît pas la qualité des étapes précédentes, puisqu'un pipeline peut atteindre 1,00 à la fin tout en ayant hérité de 47,5 % d'exactitude au début. C'est pourquoi nous avons mesuré la validité et l'exactitude séparément à chaque étape, sur les mêmes cas. Ces mesures de propagation héritent toutefois des limites de la revue : une seule annotatrice et un petit nombre de requêtes.
+Un ancrage de 1,00 à la dernière étape ne suffit donc pas à juger le pipeline : il faut connaître la qualité de chaque étape, mesurée sur les mêmes cas. Ces mesures héritent toutefois des limites de la revue : une seule annotatrice et peu de requêtes.
 
 ### 5.7.3 Conclusion
 
